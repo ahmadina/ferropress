@@ -12,6 +12,7 @@ mod layers;
 mod lifecycle;
 mod manifest;
 mod process;
+mod serialize;
 mod workspace;
 
 use std::fs;
@@ -270,6 +271,41 @@ fn run_lab_inventory(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Resu
     })
 }
 
+fn run_lab_serialize(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let env = lab::lab_env(&manifest)?;
+    let output = process::capture_checked(
+        runner,
+        &lab::compose(
+            &env,
+            [
+                "exec",
+                "-T",
+                "--user",
+                "www-data",
+                "app",
+                "php",
+                serialize::SCRIPT,
+            ],
+        ),
+    )
+    .context("running the serialize oracle script")?;
+    let oracle = serialize::parse(&output)?;
+    serialize::write(&oracle, &repo_root.join(serialize::SERIALIZE_DIR))?;
+    Ok(Report {
+        text: format!(
+            "lab serialize: wrote {} for PHP {} ({})",
+            serialize::SERIALIZE_DIR,
+            oracle.php_version,
+            oracle.summary()
+        ),
+        success: true,
+    })
+}
+
 fn run_lab_lifecycle(
     repo_root: &Path,
     runner: &mut impl Runner,
@@ -384,6 +420,9 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                 LabCommand::Fetch => return run_lab_fetch(repo_root(), &mut system_runner()),
                 LabCommand::Inventory => {
                     return run_lab_inventory(repo_root(), &mut system_runner());
+                }
+                LabCommand::Serialize => {
+                    return run_lab_serialize(repo_root(), &mut system_runner());
                 }
                 LabCommand::Lifecycle => {
                     return run_lab_lifecycle(
@@ -1057,6 +1096,76 @@ path = "/"
         fs::write(blocked.0.join("contracts/inventory"), b"not a directory").unwrap();
         let error =
             run_lab_inventory(&blocked.0, &mut inventory_runner(EMPTY_INVENTORY)).unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    const SERIALIZE_OUTPUT: &str = r#"{"schema": 1, "php_version": "8.5.12",
+        "decode": [{"input": "N;", "refused": false, "messages": [], "serialized": "N;"}],
+        "floats": [{"bits": "0000000000000000", "serialized": "d:0;"}]}"#;
+
+    fn serialize_runner(
+        output: &'static str,
+    ) -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        FakeRunner::new(move |invocation: &process::Invocation| {
+            let script = invocation.args.last().map(String::as_str) == Some(serialize::SCRIPT);
+            Ok(Some(if script { output } else { "" }.to_owned()))
+        })
+    }
+
+    #[test]
+    fn lab_serialize_runs_the_oracle_and_writes_both_files() {
+        let repo = TempRepo::new("serialize-ok", Some(&lab_manifest_text()));
+        let mut runner = serialize_runner(SERIALIZE_OUTPUT);
+        let report = run_lab_serialize(&repo.0, &mut runner).unwrap();
+        assert_eq!(
+            report,
+            Report {
+                text: "lab serialize: wrote contracts/serialize for PHP 8.5.12 \
+                       (1 decode cases (0 refused), 1 floats)"
+                    .to_owned(),
+                success: true,
+            }
+        );
+        assert_eq!(runner.seen.len(), 1, "{:?}", runner.seen);
+        assert!(
+            runner.seen[0]
+                .ends_with("exec -T --user www-data app php /opt/ferropress/serialize-oracle.php"),
+            "{:?}",
+            runner.seen
+        );
+        assert_eq!(
+            serialize::Oracle::load(&repo.0.join(serialize::SERIALIZE_DIR)).unwrap(),
+            serialize::parse(SERIALIZE_OUTPUT).unwrap()
+        );
+    }
+
+    #[test]
+    fn lab_serialize_refuses_invalid_input_and_propagates_failures() {
+        let invalid = TempRepo::new("serialize-invalid", Some(&manifest_text(5)));
+        let mut runner = serialize_runner(SERIALIZE_OUTPUT);
+        let report = run_lab_serialize(&invalid.0, &mut runner).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let incomplete = TempRepo::new("serialize-incomplete", Some(&manifest_text(1)));
+        let error =
+            run_lab_serialize(&incomplete.0, &mut serialize_runner(SERIALIZE_OUTPUT)).unwrap_err();
+        assert!(
+            error.to_string().starts_with("the manifest has no"),
+            "{error}"
+        );
+
+        let repo = TempRepo::new("serialize-fail", Some(&lab_manifest_text()));
+        let error = run_lab_serialize(&repo.0, &mut recording(false)).unwrap_err();
+        assert_eq!(error.to_string(), "running the serialize oracle script");
+
+        let error = run_lab_serialize(&repo.0, &mut serialize_runner("{}")).unwrap_err();
+        assert_eq!(error.to_string(), "parsing the serialize oracle's output");
+
+        let blocked = TempRepo::new("serialize-blocked", Some(&lab_manifest_text()));
+        fs::write(blocked.0.join("contracts/serialize"), b"not a directory").unwrap();
+        let error =
+            run_lab_serialize(&blocked.0, &mut serialize_runner(SERIALIZE_OUTPUT)).unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

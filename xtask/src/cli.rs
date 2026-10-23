@@ -52,6 +52,8 @@ pub(crate) enum LabCommand {
     Inventory,
     /// Record the reference lifecycle of every profile twice from fresh installs into contracts/lifecycle
     Lifecycle,
+    /// Record how the reference PHP reads and writes serialized values into contracts/serialize
+    Serialize,
     /// Run contracts/scenarios/SCENARIO.toml twice from fresh installs and require identical results
     Check {
         /// Scenario id
@@ -89,6 +91,7 @@ mod tests {
             ("fetch", LabCommand::Fetch),
             ("inventory", LabCommand::Inventory),
             ("lifecycle", LabCommand::Lifecycle),
+            ("serialize", LabCommand::Serialize),
         ];
         for (name, command) in lab {
             assert_eq!(parse(&["lab", name]), Ok(Command::Lab(command)), "{name}");

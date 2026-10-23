@@ -91,6 +91,19 @@ pub(crate) fn lab_env(manifest: &Manifest) -> Result<Vec<(&'static str, String)>
     ])
 }
 
+/// The pinned reference platform version.
+pub(crate) fn platform_version(manifest: &Manifest) -> Result<&str, MissingEntry> {
+    manifest
+        .archive
+        .iter()
+        .find(|archive| archive.id == PLATFORM_ARCHIVE_ID)
+        .map(|archive| archive.version.as_str())
+        .ok_or(MissingEntry {
+            kind: "archive",
+            id: PLATFORM_ARCHIVE_ID,
+        })
+}
+
 /// A `docker compose` invocation against the lab stack.
 pub(crate) fn compose<I, S>(env: &[(&'static str, String)], subcommand: I) -> Invocation
 where
@@ -241,6 +254,17 @@ digest = "{DIGEST}"
             "docker compose --file lab/compose.yaml ps"
         );
         assert_eq!(invocation.env, env);
+    }
+
+    #[test]
+    fn platform_version_comes_from_the_pinned_archive() {
+        assert_eq!(platform_version(&manifest()), Ok("1.0"));
+        let mut without_archive = manifest();
+        without_archive.archive.clear();
+        assert_eq!(
+            platform_version(&without_archive).unwrap_err().to_string(),
+            "the manifest has no archive with id `platform-release`"
+        );
     }
 
     #[test]

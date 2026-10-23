@@ -48,6 +48,8 @@ pub(crate) enum LabCommand {
     },
     /// Reset the lab and record the reference platform's symbol inventory into contracts/inventory
     Inventory,
+    /// Record the reference lifecycle of every profile twice from fresh installs into contracts/lifecycle
+    Lifecycle,
     /// Run contracts/scenarios/SCENARIO.toml twice from fresh installs and require identical results
     Check {
         /// Scenario id
@@ -83,6 +85,7 @@ mod tests {
             ("install", LabCommand::Install),
             ("fetch", LabCommand::Fetch),
             ("inventory", LabCommand::Inventory),
+            ("lifecycle", LabCommand::Lifecycle),
         ];
         for (name, command) in lab {
             assert_eq!(parse(&["lab", name]), Ok(Command::Lab(command)), "{name}");

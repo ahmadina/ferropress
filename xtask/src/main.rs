@@ -8,6 +8,7 @@ mod fetch;
 mod inventory;
 mod lab;
 mod layers;
+mod lifecycle;
 mod manifest;
 mod process;
 mod workspace;
@@ -235,6 +236,63 @@ fn run_lab_inventory(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Resu
     })
 }
 
+fn run_lab_lifecycle(
+    repo_root: &Path,
+    runner: &mut impl Runner,
+    http: &mut impl HttpClient,
+) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let env = lab::lab_env(&manifest)?;
+    let reset = lab::plan(LabAction::Reset, &manifest)?;
+    let first = lifecycle::record(&env, &reset, 'a', runner, http)?;
+    let second = lifecycle::record(&env, &reset, 'b', runner, http)?;
+    let divergences: Vec<String> = lifecycle::SUBJECTS
+        .iter()
+        .zip(first.iter().zip(&second))
+        .filter_map(|(subject, (a, b))| lifecycle::divergence(subject, a, b))
+        .collect();
+    if !divergences.is_empty() {
+        return Ok(Report {
+            text: format!(
+                "lab lifecycle: the reference is not deterministic; nothing written\n  - {}",
+                divergences.join("\n  - ")
+            ),
+            success: false,
+        });
+    }
+    let version = lab::platform_version(&manifest)?;
+    let lifecycles: Vec<lifecycle::Lifecycle> = lifecycle::SUBJECTS
+        .iter()
+        .zip(first)
+        .map(|(subject, events)| lifecycle::Lifecycle {
+            header: lifecycle::Header {
+                schema: lifecycle::SCHEMA,
+                platform_version: version.to_owned(),
+                id: subject.id.to_owned(),
+                profile: subject.profile,
+                path: subject.path.to_owned(),
+            },
+            events,
+        })
+        .collect();
+    lifecycle::write(&lifecycles, &repo_root.join(lifecycle::LIFECYCLE_DIR))?;
+    let summaries: Vec<String> = lifecycles
+        .iter()
+        .map(lifecycle::Lifecycle::summary)
+        .collect();
+    Ok(Report {
+        text: format!(
+            "lab lifecycle: wrote {} ({})",
+            lifecycle::LIFECYCLE_DIR,
+            summaries.join("; ")
+        ),
+        success: true,
+    })
+}
+
 fn run_lab_check(
     repo_root: &Path,
     id: &Slug,
@@ -291,6 +349,13 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                 LabCommand::Fetch => return run_lab_fetch(repo_root(), &mut system_runner()),
                 LabCommand::Inventory => {
                     return run_lab_inventory(repo_root(), &mut system_runner());
+                }
+                LabCommand::Lifecycle => {
+                    return run_lab_lifecycle(
+                        repo_root(),
+                        &mut system_runner(),
+                        &mut UreqClient::new(),
+                    );
                 }
                 LabCommand::Check { scenario } => {
                     return run_lab_check(
@@ -957,6 +1022,108 @@ path = "/"
         fs::write(blocked.0.join("contracts/inventory"), b"not a directory").unwrap();
         let error =
             run_lab_inventory(&blocked.0, &mut inventory_runner(EMPTY_INVENTORY)).unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    /// Answers trace reads with `first` for the first `switch_after` reads and `then` afterwards.
+    fn trace_runner(
+        first: &'static str,
+        then: &'static str,
+        switch_after: usize,
+    ) -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        let mut reads = 0;
+        FakeRunner::new(move |invocation: &process::Invocation| {
+            if !invocation.args.join(" ").contains(" cat ") {
+                return Ok(Some(String::new()));
+            }
+            reads += 1;
+            Ok(Some(
+                if reads <= switch_after { first } else { then }.to_owned(),
+            ))
+        })
+    }
+
+    const INIT_TRACE: &str = r#"{"schema":2,"hooks":[{"kind":"action","name":"init","args":0,"depth":1}],
+        "files":[{"path":"index.php","before_hook":0}],"queries":[],"mail":[],"cron":[]}"#;
+    const WP_TRACE: &str = r#"{"schema":2,"hooks":[{"kind":"action","name":"wp","args":0,"depth":1}],
+        "files":[{"path":"index.php","before_hook":0}],"queries":[],"mail":[],"cron":[]}"#;
+
+    #[test]
+    fn lab_lifecycle_writes_every_subject_when_runs_match() {
+        let repo = TempRepo::new("lifecycle-ok", Some(&lab_manifest_text()));
+        let mut runner = trace_runner(INIT_TRACE, INIT_TRACE, 0);
+        let report = run_lab_lifecycle(&repo.0, &mut runner, &mut OkHttp).unwrap();
+        assert!(report.success, "{}", report.text);
+        assert_eq!(
+            report.text,
+            "lab lifecycle: wrote contracts/lifecycle (single-front-page: 1 actions, 1 files; \
+             network-main-site: 1 actions, 1 files; network-second-site: 1 actions, 1 files)"
+        );
+        assert_eq!(
+            runner
+                .seen
+                .iter()
+                .filter(|c| c.ends_with("down --volumes"))
+                .count(),
+            2
+        );
+        let text = fs::read_to_string(repo.0.join("contracts/lifecycle/network-second-site.jsonl"))
+            .unwrap();
+        let written = lifecycle::Lifecycle::parse(&text).unwrap();
+        assert_eq!(written.header.profile, Profile::Network);
+        assert_eq!(written.header.path, "/second/");
+        assert_eq!(written.header.platform_version, "1.0");
+    }
+
+    #[test]
+    fn lab_lifecycle_writes_nothing_when_runs_differ() {
+        let repo = TempRepo::new("lifecycle-diff", Some(&lab_manifest_text()));
+        let reads_per_run = 2 * lifecycle::SUBJECTS.len();
+        let mut runner = trace_runner(INIT_TRACE, WP_TRACE, reads_per_run);
+        let report = run_lab_lifecycle(&repo.0, &mut runner, &mut OkHttp).unwrap();
+        assert!(!report.success);
+        assert_eq!(
+            report.text.lines().next(),
+            Some("lab lifecycle: the reference is not deterministic; nothing written")
+        );
+        assert_eq!(report.text.lines().count(), 4);
+        assert!(
+            report.text.contains(
+                "  - single-front-page: runs differ at event 1: action init (args 0, depth 1) \
+                 vs action wp (args 0, depth 1)"
+            ),
+            "{}",
+            report.text
+        );
+        assert!(!repo.0.join("contracts/lifecycle").exists());
+    }
+
+    #[test]
+    fn lab_lifecycle_refuses_invalid_input_and_propagates_failures() {
+        let invalid = TempRepo::new("lifecycle-invalid", Some(&manifest_text(5)));
+        let mut runner = capture_runner();
+        let report = run_lab_lifecycle(&invalid.0, &mut runner, &mut OkHttp).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let incomplete = TempRepo::new("lifecycle-incomplete", Some(&manifest_text(1)));
+        let error =
+            run_lab_lifecycle(&incomplete.0, &mut capture_runner(), &mut OkHttp).unwrap_err();
+        assert!(
+            error.to_string().starts_with("the manifest has no"),
+            "{error}"
+        );
+
+        let failing = TempRepo::new("lifecycle-fail", Some(&lab_manifest_text()));
+        let error = run_lab_lifecycle(&failing.0, &mut recording(false), &mut OkHttp).unwrap_err();
+        assert!(
+            error.to_string().ends_with("down --volumes` failed"),
+            "{error}"
+        );
+
+        let blocked = TempRepo::new("lifecycle-blocked", Some(&lab_manifest_text()));
+        fs::write(blocked.0.join("contracts/lifecycle"), b"not a directory").unwrap();
+        let error = run_lab_lifecycle(&blocked.0, &mut capture_runner(), &mut OkHttp).unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

@@ -25,7 +25,7 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::{ScenarioError, UnknownProfile};
 use crate::normalize::{Location, Normalization};
@@ -88,7 +88,7 @@ impl fmt::Display for Aspect {
 }
 
 /// The site installation a scenario runs against; `single` when a scenario names none.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Profile {
     /// One site.
@@ -379,6 +379,10 @@ reviewed_by = "maintainer"
         for profile in Profile::ALL {
             assert_eq!(profile.as_str().parse::<Profile>(), Ok(profile));
             assert_eq!(profile.to_string(), profile.as_str());
+            assert_eq!(
+                serde_json::to_string(&profile).unwrap(),
+                format!("\"{profile}\"")
+            );
         }
         let error = "cluster".parse::<Profile>().unwrap_err();
         assert_eq!(error, UnknownProfile("cluster".to_owned()));

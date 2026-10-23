@@ -13,13 +13,13 @@ Status legend: `[x]` done · `[ ]` not started
 - [x] 2. `xtask check-layers`: fail when a crate dependency breaks the layer rules
 - [x] 3. `deny.toml`: GPL-compatible license allow-list, advisories, banned crates
 - [x] 4. CI workflow: fmt, clippy, tests, docs, coverage gates, `cargo deny`, forbidden-PHP-binary scan
-- [ ] 5. Architecture decision records (one commit each):
-  - [ ] ADR-0001 PHP engine: independent, clean-room Rust implementation
-  - [ ] ADR-0002 License and dependency policy (GPL-2.0-or-later)
-  - [ ] ADR-0003 Bridge semantics: PHP values and callables across the Rust boundary
-  - [ ] ADR-0004 Database parity
-  - [ ] ADR-0005 Worker and tenant isolation
-  - [ ] ADR-0006 Admin application and block-editor hosting
+- [x] 5. Architecture decision records (one commit each):
+  - [x] ADR-0001 PHP engine: independent, clean-room Rust implementation
+  - [x] ADR-0002 License and dependency policy (GPL-2.0-or-later)
+  - [x] ADR-0003 Bridge semantics: PHP values and callables across the Rust boundary
+  - [x] ADR-0004 Database parity
+  - [x] ADR-0005 Worker and tenant isolation
+  - [x] ADR-0006 Admin application and block-editor hosting
 - [ ] 6. `contracts/reference-manifest.yaml` with pinned versions and hashes; `xtask verify-manifest`
 
 ## Phase 1 — Reference lab (oracle)

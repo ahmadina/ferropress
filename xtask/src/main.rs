@@ -13,6 +13,7 @@ mod lexer;
 mod lexer_corpus;
 mod lifecycle;
 mod manifest;
+mod parser;
 mod process;
 mod serialize;
 mod value;
@@ -379,6 +380,41 @@ fn run_lab_lexer(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<R
     })
 }
 
+fn run_lab_parser(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let env = lab::lab_env(&manifest)?;
+    let output = process::capture_checked(
+        runner,
+        &lab::compose(
+            &env,
+            [
+                "exec",
+                "-T",
+                "--user",
+                "www-data",
+                "app",
+                "php",
+                parser::SCRIPT,
+            ],
+        ),
+    )
+    .context("running the parser oracle script")?;
+    let oracle = parser::parse(&output)?;
+    parser::write(&oracle, &repo_root.join(parser::PARSER_DIR))?;
+    Ok(Report {
+        text: format!(
+            "lab parser: wrote {} for PHP {} ({})",
+            parser::PARSER_DIR,
+            oracle.php_version,
+            oracle.summary()
+        ),
+        success: true,
+    })
+}
+
 fn run_lab_lexer_corpus(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
     let manifest = match load_valid_manifest(repo_root)? {
         Ok(manifest) => manifest,
@@ -545,6 +581,7 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                 LabCommand::LexerCorpus => {
                     return run_lab_lexer_corpus(repo_root(), &mut system_runner());
                 }
+                LabCommand::Parser => return run_lab_parser(repo_root(), &mut system_runner()),
                 LabCommand::Lifecycle => {
                     return run_lab_lifecycle(
                         repo_root(),
@@ -1420,6 +1457,73 @@ path = "/"
         let blocked = TempRepo::new("lexer-blocked", Some(&lab_manifest_text()));
         fs::write(blocked.0.join("contracts/lexer"), b"not a directory").unwrap();
         let error = run_lab_lexer(&blocked.0, &mut lexer_runner(LEXER_OUTPUT)).unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    const PARSER_OUTPUT: &str = r#"{"schema": 1, "php_version": "8.5.12", "short_open_tag": true,
+        "cases": [{"name": "x", "source": "<?php )", "error": ["ParseError", "Unmatched ')'", 1],
+         "warnings": [], "rendering": null}]}"#;
+
+    fn parser_runner(
+        output: &'static str,
+    ) -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        FakeRunner::new(move |invocation: &process::Invocation| {
+            let script = invocation.args.last().map(String::as_str) == Some(parser::SCRIPT);
+            Ok(Some(if script { output } else { "" }.to_owned()))
+        })
+    }
+
+    #[test]
+    fn lab_parser_runs_the_oracle_and_writes_the_cases() {
+        let repo = TempRepo::new("parser-ok", Some(&lab_manifest_text()));
+        let mut runner = parser_runner(PARSER_OUTPUT);
+        let report = run_lab_parser(&repo.0, &mut runner).unwrap();
+        assert_eq!(
+            report,
+            Report {
+                text: "lab parser: wrote contracts/parser for PHP 8.5.12 (1 cases, 1 errors, 0 renderings)"
+                    .to_owned(),
+                success: true,
+            }
+        );
+        assert_eq!(runner.seen.len(), 1, "{:?}", runner.seen);
+        assert!(
+            runner.seen[0]
+                .ends_with("exec -T --user www-data app php /opt/ferropress/parser-oracle.php"),
+            "{:?}",
+            runner.seen
+        );
+        assert_eq!(
+            parser::Oracle::load(&repo.0.join(parser::PARSER_DIR)).unwrap(),
+            parser::parse(PARSER_OUTPUT).unwrap()
+        );
+    }
+
+    #[test]
+    fn lab_parser_refuses_invalid_input_and_propagates_failures() {
+        let invalid = TempRepo::new("parser-invalid", Some(&manifest_text(5)));
+        let mut runner = parser_runner(PARSER_OUTPUT);
+        let report = run_lab_parser(&invalid.0, &mut runner).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let incomplete = TempRepo::new("parser-incomplete", Some(&manifest_text(1)));
+        let error = run_lab_parser(&incomplete.0, &mut parser_runner(PARSER_OUTPUT)).unwrap_err();
+        assert!(
+            error.to_string().starts_with("the manifest has no"),
+            "{error}"
+        );
+
+        let repo = TempRepo::new("parser-fail", Some(&lab_manifest_text()));
+        let error = run_lab_parser(&repo.0, &mut recording(false)).unwrap_err();
+        assert_eq!(error.to_string(), "running the parser oracle script");
+
+        let error = run_lab_parser(&repo.0, &mut parser_runner("{}")).unwrap_err();
+        assert_eq!(error.to_string(), "parsing the parser oracle's output");
+
+        let blocked = TempRepo::new("parser-blocked", Some(&lab_manifest_text()));
+        fs::write(blocked.0.join("contracts/parser"), b"not a directory").unwrap();
+        let error = run_lab_parser(&blocked.0, &mut parser_runner(PARSER_OUTPUT)).unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

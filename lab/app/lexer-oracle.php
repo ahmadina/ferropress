@@ -303,6 +303,10 @@ function oracle_short_tag_cases(): array {
 	);
 }
 
+if ( realpath( $_SERVER['SCRIPT_FILENAME'] ?? '' ) !== __FILE__ ) {
+	return;
+}
+
 if ( in_array( '--short-off', $argv ?? array(), true ) ) {
 	$records = array();
 	foreach ( oracle_short_tag_cases() as list( $name, $source ) ) {

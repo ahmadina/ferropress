@@ -40,7 +40,7 @@ RUN tar -xzf /tmp/platform.tar.gz -C /var/www/html --strip-components=1 \
     && grep -q "^require '/opt/ferropress/config.php';" wp-config.php \
     && chown -R www-data:www-data /var/www/html
 
-COPY config.php instrument.php install-site.php inventory.php serialize-oracle.php value-oracle.php lexer-oracle.php lexer-corpus.php /opt/ferropress/
+COPY config.php instrument.php install-site.php inventory.php serialize-oracle.php value-oracle.php lexer-oracle.php lexer-corpus.php parser-oracle.php /opt/ferropress/
 COPY sites.conf /etc/apache2/sites-available/000-default.conf
 # Our own behavior-free plugins, so traces show where must-use and regular plugins load.
 COPY --chown=www-data:www-data fixtures/ /var/www/html/wp-content/

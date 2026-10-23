@@ -10,8 +10,8 @@ WordPress is GPL-2.0-or-later and its name is a WordPress Foundation trademark. 
 LEGAL-001 tracks counsel review.)
 
 ## Reference source handling
-- Upstream WordPress and PHP sources are cloned only into `lab/wordpress-reference/src/` and
-  `lab/php-reference/src/`, which are **git-ignored**. Never commit upstream source, tests, assets or
+- Upstream WordPress and PHP sources are cloned only into `lab/upstream/platform/` and
+  `lab/upstream/php/`, which are **git-ignored**. Never commit upstream source, tests, assets or
   translations into this repository.
 - Use the reference to learn behavior: read it, run it, trace it, capture oracle outputs.
 

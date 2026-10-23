@@ -14,8 +14,6 @@ perf.data*
 dhat-heap.json
 
 # Upstream reference sources — studied locally, never committed (clean-room-copyright.mdc)
-/lab/wordpress-reference/src/
-/lab/php-reference/src/
 /lab/**/upstream/
 
 # Licensed or proprietary plugin/theme packages used only in the lab

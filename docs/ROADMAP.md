@@ -36,7 +36,8 @@ Status legend: `[x]` done · `[ ]` not started
 - [x] 12. Symbol inventory into `contracts/inventory/`: functions, classes, hooks, constants, globals,
       REST routes, options, tables (recorded facts only; per-item descriptions in our own words follow
       with step 14)
-- [ ] 13. Lifecycle trace: boot, plugin load and hook order for single site and multisite
+- [x] 13. Lifecycle trace: boot, plugin load and hook order for single site and multisite
+      (`contracts/lifecycle/`, recorded by `xtask lab lifecycle` from both lab profiles)
 - [ ] 14. Completeness dashboard: documented / implemented / tested / certified per item
 
 ## Phase 3 — PHP engine in Rust (runs in parallel with Phase 2)

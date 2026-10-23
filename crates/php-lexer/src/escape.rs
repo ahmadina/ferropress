@@ -24,8 +24,8 @@ impl Quote {
 pub struct Decoded {
     /// The bytes the literal stands for.
     pub bytes: Vec<u8>,
-    /// Octal overflow warnings, in source order.
-    pub warnings: Vec<LexWarning>,
+    /// Octal overflow warnings in source order, each with the body offset of its backslash.
+    pub warnings: Vec<(LexWarning, usize)>,
 }
 
 /// Decodes the body of a single-quoted literal (the bytes between the quotes): `\\` and `\'` lose
@@ -54,8 +54,8 @@ pub fn decode_single_quoted(body: &[u8]) -> Vec<u8> {
 pub fn decode_double_quoted(body: &[u8], quote: Quote) -> Result<Decoded, EscapeFailure> {
     let mut bytes = Vec::with_capacity(body.len());
     let mut warnings = Vec::new();
-    scan(body, quote, Some(&mut bytes), &mut |warning| {
-        warnings.push(warning);
+    scan(body, quote, Some(&mut bytes), &mut |warning, at| {
+        warnings.push((warning, at));
     })?;
     Ok(Decoded { bytes, warnings })
 }
@@ -70,12 +70,12 @@ pub struct EscapeFailure {
 }
 
 /// Walks the escapes of `body`, writing the decoded bytes to `out` when given and reporting octal
-/// overflows to `warn`.
+/// overflows to `warn` with the body offset of their backslash.
 pub(crate) fn scan(
     body: &[u8],
     quote: Quote,
     mut out: Option<&mut Vec<u8>>,
-    warn: &mut dyn FnMut(LexWarning),
+    warn: &mut dyn FnMut(LexWarning, usize),
 ) -> Result<(), EscapeFailure> {
     let byte_at = |index: usize| body.get(index).copied();
     let mut emit = |bytes: &[u8]| {
@@ -147,7 +147,10 @@ pub(crate) fn scan(
                     .count();
                 let octal = &body[index - 1..index - 1 + digits];
                 if let [first @ b'4'..=b'7', second, third] = *octal {
-                    warn(LexWarning::OctalEscapeOverflow([first, second, third]));
+                    warn(
+                        LexWarning::OctalEscapeOverflow([first, second, third]),
+                        start,
+                    );
                 }
                 emit(&[parse_radix(octal, 8)]);
                 index += digits - 1;
@@ -255,12 +258,15 @@ mod tests {
     #[test]
     fn octal_escapes_take_up_to_three_digits_and_wrap() {
         assert_eq!(decode(br"\0\101\7777"), b"\0A\xff7");
-        let decoded = decode_double_quoted(br"\400\377\1234", Quote::Double);
+        let decoded = decode_double_quoted(br"\377\400\1234\500", Quote::Double);
         assert_eq!(
             decoded,
             Ok(Decoded {
-                bytes: b"\0\xffS4".to_vec(),
-                warnings: vec![LexWarning::OctalEscapeOverflow(*b"400")],
+                bytes: b"\xff\0S4@".to_vec(),
+                warnings: vec![
+                    (LexWarning::OctalEscapeOverflow(*b"400"), 4),
+                    (LexWarning::OctalEscapeOverflow(*b"500"), 13),
+                ],
             })
         );
     }
@@ -279,7 +285,7 @@ mod tests {
     #[test]
     fn bad_codepoint_escapes_fail_at_the_backslash() {
         for body in [&br"ab\u{}"[..], br"ab\u{zz}", br"ab\u{41", br"ab\u{"] {
-            let failure = scan(body, Quote::Double, None, &mut |_| {});
+            let failure = scan(body, Quote::Double, None, &mut |_, _| {});
             assert_eq!(
                 failure.map_err(|failure| (failure.error, failure.at)),
                 Err((LexError::InvalidCodepointEscape, 2)),

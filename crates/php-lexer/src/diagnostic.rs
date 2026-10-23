@@ -88,6 +88,8 @@ pub enum Diagnostic {
         warning: LexWarning,
         /// Offset of the token being read when it was raised.
         offset: u32,
+        /// Line of the escape sequence that raised it.
+        line: u32,
     },
 }
 

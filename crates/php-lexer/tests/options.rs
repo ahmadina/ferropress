@@ -81,6 +81,21 @@ fn scan_ahead_reports_nothing_itself() {
 }
 
 #[test]
+fn octal_overflow_warnings_carry_the_line_of_their_escape() {
+    let source = b"<?php\n\"a\n\n\\400\";\n$a = \"a\n  \\500 $b\";\n`\n\\600`;";
+    let result = tokenize(source, LexerOptions::default()).expect("source fits");
+    let lines: Vec<u32> = result
+        .diagnostics
+        .iter()
+        .filter_map(|diagnostic| match diagnostic {
+            Diagnostic::Warning { line, .. } => Some(*line),
+            Diagnostic::Error { .. } => None,
+        })
+        .collect();
+    assert_eq!(lines, [4, 6, 8]);
+}
+
+#[test]
 fn closing_label_spans_the_indentation_measured_ahead() {
     let source = b"<?php <<<A\n{$a[}\n    A;\n";
     let result = tokenize(source, LexerOptions::default()).expect("source fits");

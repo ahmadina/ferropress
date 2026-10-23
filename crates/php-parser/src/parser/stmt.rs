@@ -768,9 +768,11 @@ impl Parser<'_> {
             ) {
                 return self.compile_error("Encoding must be a literal");
             }
+            let line = self.stream.line();
             self.stream.warn(Warning::new(
                 Severity::Warning,
                 "declare(encoding=...) ignored because Zend multibyte feature is turned off by settings",
+                line,
             ));
         }
         Ok(())

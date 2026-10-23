@@ -26,6 +26,16 @@ fn statements(program: &Program) -> Vec<&Stmt> {
 }
 
 #[test]
+fn warnings_carry_the_line_they_are_reported_on() {
+    let source = "<?php\n\"a\n\\400\";\n$a = <<<X\n  a\n  \\500 $b\n  X;\ndeclare(encoding='a');";
+    let Ok(parsed) = php_parser::parse(source.as_bytes(), ParseOptions::default()) else {
+        panic!("source fits");
+    };
+    let lines: Vec<u32> = parsed.warnings.iter().map(|warning| warning.line).collect();
+    assert_eq!(lines, [3, 6, 8]);
+}
+
+#[test]
 fn dollar_brace_interpolation_keeps_its_form() {
     let program = program("<?php echo \"$a {$b} ${c} ${d[0]} ${e . f}\";");
     let [stmt] = statements(&program)[..] else {

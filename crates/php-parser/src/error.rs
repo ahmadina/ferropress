@@ -85,13 +85,16 @@ pub struct Warning {
     pub severity: Severity,
     /// The message.
     pub message: String,
+    /// The line it is reported on.
+    pub line: u32,
 }
 
 impl Warning {
-    pub(crate) fn new(severity: Severity, message: impl Into<String>) -> Self {
+    pub(crate) fn new(severity: Severity, message: impl Into<String>, line: u32) -> Self {
         Self {
             severity,
             message: message.into(),
+            line,
         }
     }
 }
@@ -114,7 +117,7 @@ mod tests {
         assert_eq!(error.to_string(), "ParseError: syntax error on line 3");
         let error = ParseError::new(ErrorClass::Compile, &b"bad \xff"[..], None);
         assert_eq!(error.to_string(), "CompileError: bad \u{fffd}");
-        let warning = Warning::new(Severity::Deprecated, "old");
-        assert_eq!(warning.message, "old");
+        let warning = Warning::new(Severity::Deprecated, "old", 2);
+        assert_eq!((warning.message.as_str(), warning.line), ("old", 2));
     }
 }

@@ -315,11 +315,12 @@ impl<'s> Lexer<'s> {
         });
     }
 
-    fn warning(&mut self, warning: LexWarning) {
+    fn warning(&mut self, warning: LexWarning, line: u32) {
         if !self.scan_ahead {
             self.diagnostics.push(Diagnostic::Warning {
                 warning,
                 offset: offset32(self.token_start),
+                line,
             });
         }
     }
@@ -881,9 +882,12 @@ impl<'s> Lexer<'s> {
         let mut warnings = Vec::new();
         let source = self.source;
         let body = &source[body_start..body_end];
-        let outcome = escape::scan(body, quote, None, &mut |warning| warnings.push(warning));
-        for warning in warnings {
-            self.warning(warning);
+        let outcome = escape::scan(body, quote, None, &mut |warning, at| {
+            warnings.push((warning, at));
+        });
+        for (warning, at) in warnings {
+            let line = self.line + count_newlines(source, start, body_start + at);
+            self.warning(warning, line);
         }
         let newlines = outcome.err().map(|failure| {
             self.error(failure.error);

@@ -10,7 +10,7 @@ use crate::describe::END;
 use crate::error::{ErrorClass, ParseError, Severity, Warning};
 use crate::literal::{self, Indentation};
 use php_lexer::{
-    Diagnostic, LexError, Lexer, LexerOptions, Quote, SourceTooLarge, Token, TokenKind,
+    Diagnostic, LexError, LexWarning, Lexer, LexerOptions, Quote, SourceTooLarge, Token, TokenKind,
     decode_double_quoted, decode_single_quoted,
 };
 use std::collections::VecDeque;
@@ -200,9 +200,9 @@ impl<'s> Stream<'s> {
         while let Some(diagnostic) = self.lexer.diagnostics().get(self.reported).cloned() {
             self.reported += 1;
             match diagnostic {
-                Diagnostic::Warning { warning, .. } => {
+                Diagnostic::Warning { warning, line, .. } => {
                     self.warnings
-                        .push(Warning::new(Severity::Warning, warning.to_string()));
+                        .push(Warning::new(Severity::Warning, warning.to_string(), line));
                 }
                 Diagnostic::Error { error, .. } => {
                     let line = scanner_error_line(&error, token, self.lexer.line());
@@ -266,6 +266,7 @@ impl<'s> Stream<'s> {
             format!(
                 "Non-canonical cast ({written}) is deprecated, use the ({canonical}) cast instead"
             ),
+            tok.line,
         ));
         Ok(())
     }
@@ -297,6 +298,15 @@ impl<'s> Stream<'s> {
         decode_double_quoted(text, quote)
             .map(|decoded| decoded.bytes)
             .map_err(|failure| escape_error(&failure.error, tok.end_line))
+    }
+
+    /// Reports the octal overflows found in the decoded heredoc segment `body` of `tok`.
+    fn escape_warnings(&mut self, tok: &Tok, body: &[u8], warnings: Vec<(LexWarning, usize)>) {
+        for (warning, at) in warnings {
+            let line = tok.line + literal::count_lines(&body[..at]);
+            self.warnings
+                .push(Warning::new(Severity::Warning, warning.to_string(), line));
+        }
     }
 
     /// The value of a heredoc or nowdoc segment: the closing line break dropped, the indentation
@@ -343,19 +353,13 @@ impl<'s> Stream<'s> {
         }
         match decode_double_quoted(&stripped, Quote::Heredoc) {
             Ok(decoded) => {
-                for warning in decoded.warnings {
-                    self.warnings
-                        .push(Warning::new(Severity::Warning, warning.to_string()));
-                }
+                self.escape_warnings(tok, &stripped, decoded.warnings);
                 Ok(decoded.bytes)
             }
             Err(failure) => {
                 let before = &stripped[..failure.at];
                 if let Ok(decoded) = decode_double_quoted(before, Quote::Heredoc) {
-                    for warning in decoded.warnings {
-                        self.warnings
-                            .push(Warning::new(Severity::Warning, warning.to_string()));
-                    }
+                    self.escape_warnings(tok, before, decoded.warnings);
                 }
                 let lines = literal::count_lines(before);
                 Err(escape_error(&failure.error, tok.line + lines))

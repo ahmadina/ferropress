@@ -45,7 +45,7 @@ Status legend: `[x]` done · `[ ]` not started
 ## Phase 3 — PHP engine in Rust (runs in parallel with Phase 2)
 
 - [x] 15. `php-serialize`: byte-exact serialize/unserialize with property tests and fuzzing
-- [ ] 16. `php-value`: value model (ordered arrays, references, copy-on-write, object handles)
+- [x] 16. `php-value`: value model (ordered arrays, references, copy-on-write, object handles)
 - [ ] 17. Lexer → parser → bytecode compiler → VM core (one step each), checked against the PHP test suite
 - [ ] 18. Language features: functions and closures; classes, interfaces, traits, enums; exceptions;
       generators and fibers; include/require and autoloading

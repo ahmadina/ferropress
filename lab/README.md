@@ -19,6 +19,7 @@ cargo xtask lab check front-page          # run contracts/scenarios/front-page.t
 cargo xtask lab inventory                 # record the reference symbol inventory into contracts/inventory/
 cargo xtask lab lifecycle                 # record the reference lifecycle into contracts/lifecycle/
 cargo xtask lab serialize                 # record serialized-format outcomes into contracts/serialize/
+cargo xtask lab value                     # record value-model scenarios into contracts/value/
 ```
 
 `lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
@@ -145,6 +146,23 @@ every truncation of each, byte substitutions and seeded random edits. It reads e
 Byte strings hold one character per byte, with the byte's value as its code point, so the files stay
 readable and every byte round-trips. A second run produces byte-identical files. `crates/php-serialize`
 replays both files in its tests; the rules they prove are in `contracts/runtime/serialized-format.md`.
+
+## Value model
+
+`lab value` runs our own script (`app/value-oracle.php`) in the running lab, again without a reset. Each
+scenario is a list of operations on the variables `a`, `b` and `c`: assigning a value (scalar, empty
+array, new object or a copy of another path), binding one path to another by reference, unsetting a
+path, and dumping a variable. Paths mix integer and string keys, appends and properties. About two dozen
+scenarios are hand-written for specific rules; the rest are generated from a fixed seed. The script turns
+each scenario into PHP code and runs it in a fresh PHP process, so object ids are comparable, recording
+every thrown error, warning and deprecation, and a dump of every variable at the end. A dump shows each
+value with its type, array elements in order, which elements share a reference (numbered per dump),
+object ids and properties, and marks recursion.
+
+The result is written to `contracts/value/scenarios.jsonl` (a header line, then one scenario per line,
+byte strings encoded as above). A second run produces a byte-identical file. `crates/php-value` replays
+every scenario on its value model and compares all events; the rules they prove, and the one scenario
+recorded as a known difference, are in `contracts/runtime/value-model.md`.
 
 ## Pinning
 

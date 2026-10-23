@@ -1,0 +1,43 @@
+# Pinned reference artifacts for the lab oracle. Checked by `cargo xtask verify-manifest`.
+#
+# Every value here is an interoperability fact (a public URL, tag, commit or digest). Upstream sources and
+# archives are fetched into git-ignored lab directories and never committed.
+
+schema = 1
+
+# Upstream source trees, studied locally and used to run reference test suites.
+[[source]]
+id = "platform"
+version = "7.1.3"
+repository = "https://github.com/WordPress/wordpress-develop.git"
+tag = "7.1.3"
+commit = "ab1bc858a3f02a99c175d9e93c019254a4d5692c"
+checkout = "lab/upstream/platform"
+
+[[source]]
+id = "php"
+version = "8.5.12"
+repository = "https://github.com/php/php-src.git"
+tag = "php-8.5.12"
+commit = "c96586077b050b362744ba295f97f6395f58a75a"
+checkout = "lab/upstream/php"
+
+# Release archives installed into the reference stack. `sha256` is computed from the downloaded file
+# after checking it against the publisher's own checksum.
+[[archive]]
+id = "platform-release"
+version = "7.1.3"
+url = "https://wordpress.org/wordpress-7.1.3.tar.gz"
+sha256 = "d2a09acb6a15e3b9c471d72557753c266d6f41a79ed19bfe04cbfe49e283b2a5"
+file = "lab/packages/platform-7.1.3.tar.gz"
+
+# Container images for the reference stack, pinned by multi-platform index digest.
+[[image]]
+id = "php-runtime"
+reference = "docker.io/library/php:8.5.12-apache"
+digest = "sha256:e25ab14ef2cfec3bab9dd66c6cf871691146f428fbd72241b1a2c38fcacf92f5"
+
+[[image]]
+id = "database"
+reference = "docker.io/library/mysql:8.4.13"
+digest = "sha256:76f0358884cb92d9a086d24e5671c38048d3fef40f2588703d73eb55392d6b69"

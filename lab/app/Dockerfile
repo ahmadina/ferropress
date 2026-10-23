@@ -41,3 +41,5 @@ RUN tar -xzf /tmp/platform.tar.gz -C /var/www/html --strip-components=1 \
     && chown -R www-data:www-data /var/www/html
 
 COPY config.php instrument.php install-site.php inventory.php /opt/ferropress/
+# Our own behavior-free plugins, so traces show where must-use and regular plugins load.
+COPY --chown=www-data:www-data fixtures/ /var/www/html/wp-content/

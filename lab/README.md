@@ -50,6 +50,12 @@ plugin of ours appears in the recorded lifecycle. It records only requests carry
 the shutdown writer re-registers itself so the platform's own shutdown hooks are part of the trace. The
 lab config enables query logging and disables request-triggered cron so captures are repeatable. Captures are git-ignored; reviewed fixtures derived from them belong in `contracts/`.
 
+## Fixtures
+
+The installer activates our own behavior-free fixture plugins (`app/fixtures/`): one must-use plugin, one
+single-file plugin and one directory plugin, activated in reverse name order. They only exist so traces
+show where each kind of plugin loads and in which order.
+
 ## Checking scenarios
 
 `lab check <id>` runs `contracts/scenarios/<id>.toml` twice, each time from a freshly reset and installed

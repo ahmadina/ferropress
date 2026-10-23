@@ -1,0 +1,52 @@
+name: Plugin/theme compatibility
+description: A WordPress plugin or theme does not work correctly on Ferropress
+labels: ["compatibility"]
+body:
+  - type: input
+    id: package
+    attributes:
+      label: Plugin or theme
+      description: Name and slug, e.g. "WooCommerce (woocommerce)"
+    validations:
+      required: true
+  - type: input
+    id: package_version
+    attributes:
+      label: Exact package version
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does it fail?
+      multiple: true
+      options:
+        - Install / activate / update / uninstall
+        - Frontend rendering
+        - Admin pages, settings or meta boxes
+        - Block editor
+        - REST / AJAX
+        - Cron / background jobs
+        - CLI
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Failing workflow
+      description: Steps a site owner takes, what Ferropress does, and what the reference WordPress installation does.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Ferropress commit or version
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Errors, warnings and traces
+      description: Redact secrets and personal data. Do not attach proprietary plugin source.
+      render: text

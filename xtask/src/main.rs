@@ -138,6 +138,7 @@ fn run_lab(
             lab::APP_URL
         ),
         LabAction::Down => "lab down: stack stopped".to_owned(),
+        LabAction::Install => format!("lab install: site is installed at {}", lab::APP_URL),
     };
     Ok(Report {
         text,
@@ -183,6 +184,7 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                 LabCommand::Up => LabAction::Up,
                 LabCommand::Down => LabAction::Down,
                 LabCommand::Reset => LabAction::Reset,
+                LabCommand::Install => LabAction::Install,
                 LabCommand::Fetch => return run_lab_fetch(repo_root(), &mut system_runner()),
             };
             run_lab(repo_root(), action, &mut system_runner())
@@ -409,8 +411,13 @@ digest = "{digest}"
             (LabAction::Down, 1, "lab down: stack stopped"),
             (
                 LabAction::Reset,
-                2,
+                3,
                 "lab reset: stack is healthy at http://127.0.0.1:8080/",
+            ),
+            (
+                LabAction::Install,
+                1,
+                "lab install: site is installed at http://127.0.0.1:8080/",
             ),
         ];
         for (action, calls, text) in expected {

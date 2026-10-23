@@ -13,6 +13,8 @@ pub(crate) const APP_URL: &str = "http://127.0.0.1:8080/";
 const PHP_IMAGE_ID: &str = "php-runtime";
 const DATABASE_IMAGE_ID: &str = "database";
 const PLATFORM_ARCHIVE_ID: &str = "platform-release";
+/// Inside the app container: the lab installer copied in by `lab/app/Dockerfile`.
+const INSTALLER: &str = "/opt/ferropress/install-site.php";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LabAction {
@@ -20,8 +22,10 @@ pub(crate) enum LabAction {
     Up,
     /// Stop the stack, keeping the database volume.
     Down,
-    /// Stop the stack, delete the database volume and start it again from scratch.
+    /// Stop the stack, delete the database volume, start it again and install the site.
     Reset,
+    /// Install the site with fixed settings; a no-op when it is already installed.
+    Install,
 }
 
 impl LabAction {
@@ -30,6 +34,7 @@ impl LabAction {
             Self::Up => "up",
             Self::Down => "down",
             Self::Reset => "reset",
+            Self::Install => "install",
         }
     }
 }
@@ -49,7 +54,8 @@ impl fmt::Display for MissingEntry {
 
 impl std::error::Error for MissingEntry {}
 
-fn lab_env(manifest: &Manifest) -> Result<Vec<(&'static str, String)>, MissingEntry> {
+/// Environment that `docker compose` needs to interpolate `lab/compose.yaml`.
+pub(crate) fn lab_env(manifest: &Manifest) -> Result<Vec<(&'static str, String)>, MissingEntry> {
     let image = |id: &'static str| {
         manifest
             .image
@@ -74,28 +80,41 @@ fn lab_env(manifest: &Manifest) -> Result<Vec<(&'static str, String)>, MissingEn
     ])
 }
 
+/// A `docker compose` invocation against the lab stack.
+pub(crate) fn compose<I, S>(env: &[(&'static str, String)], subcommand: I) -> Invocation
+where
+    I: IntoIterator<Item = S>,
+    S: Into<String>,
+{
+    let mut invocation = Invocation::new(
+        "docker",
+        ["compose", "--file", COMPOSE_FILE]
+            .into_iter()
+            .map(String::from)
+            .chain(subcommand.into_iter().map(Into::into)),
+    );
+    invocation.env = env.to_vec();
+    invocation
+}
+
 /// The `docker compose` invocations that perform `action`, in order.
 pub(crate) fn plan(
     action: LabAction,
     manifest: &Manifest,
 ) -> Result<Vec<Invocation>, MissingEntry> {
     let env = lab_env(manifest)?;
-    let compose = |subcommand: &[&str]| {
-        let mut invocation = Invocation::new(
-            "docker",
-            ["compose", "--file", COMPOSE_FILE]
-                .iter()
-                .chain(subcommand)
-                .copied(),
-        );
-        invocation.env.clone_from(&env);
-        invocation
+    let up = || compose(&env, ["up", "--build", "--detach", "--wait"]);
+    let install = || {
+        compose(
+            &env,
+            ["exec", "-T", "--user", "www-data", "app", "php", INSTALLER],
+        )
     };
-    let up = || compose(&["up", "--build", "--detach", "--wait"]);
     Ok(match action {
         LabAction::Up => vec![up()],
-        LabAction::Down => vec![compose(&["down"])],
-        LabAction::Reset => vec![compose(&["down", "--volumes"]), up()],
+        LabAction::Down => vec![compose(&env, ["down"])],
+        LabAction::Reset => vec![compose(&env, ["down", "--volumes"]), up(), install()],
+        LabAction::Install => vec![install()],
     })
 }
 
@@ -105,6 +124,8 @@ mod tests {
     use crate::manifest::parse;
 
     const DIGEST: &str = "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+    const INSTALL: &str = "docker compose --file lab/compose.yaml exec -T --user www-data app php \
+                           /opt/ferropress/install-site.php";
 
     fn manifest() -> Manifest {
         parse(&format!(
@@ -178,15 +199,37 @@ digest = "{DIGEST}"
             [
                 "docker compose --file lab/compose.yaml down --volumes",
                 "docker compose --file lab/compose.yaml up --build --detach --wait",
+                INSTALL,
             ]
         );
+        assert_eq!(
+            rendered(&plan(LabAction::Install, &manifest).unwrap()),
+            [INSTALL]
+        );
+    }
+
+    #[test]
+    fn compose_prefixes_the_lab_file_and_carries_env() {
+        let env = [("KEY", "value".to_owned())];
+        let invocation = compose(&env, ["ps"]);
+        assert_eq!(
+            invocation.to_string(),
+            "docker compose --file lab/compose.yaml ps"
+        );
+        assert_eq!(invocation.env, env);
     }
 
     #[test]
     fn action_names() {
         assert_eq!(
-            [LabAction::Up, LabAction::Down, LabAction::Reset].map(LabAction::name),
-            ["up", "down", "reset"]
+            [
+                LabAction::Up,
+                LabAction::Down,
+                LabAction::Reset,
+                LabAction::Install
+            ]
+            .map(LabAction::name),
+            ["up", "down", "reset", "install"]
         );
     }
 
@@ -226,7 +269,12 @@ digest = "{DIGEST}"
     #[test]
     fn committed_manifest_has_every_lab_entry() {
         let manifest = parse(include_str!("../../contracts/reference-manifest.toml")).unwrap();
-        for action in [LabAction::Up, LabAction::Down, LabAction::Reset] {
+        for action in [
+            LabAction::Up,
+            LabAction::Down,
+            LabAction::Reset,
+            LabAction::Install,
+        ] {
             assert!(plan(action, &manifest).is_ok(), "{}", action.name());
         }
     }

@@ -27,8 +27,10 @@ pub(crate) enum LabCommand {
     Up,
     /// Stop the lab stack, keeping its database
     Down,
-    /// Stop the stack, delete its database and start it from scratch
+    /// Stop the stack, delete its database, start it from scratch and install the site
     Reset,
+    /// Install the site with fixed settings (no-op when already installed)
+    Install,
     /// Download pinned upstream sources and archives into git-ignored lab directories
     Fetch,
 }
@@ -58,6 +60,7 @@ mod tests {
             ("up", LabCommand::Up),
             ("down", LabCommand::Down),
             ("reset", LabCommand::Reset),
+            ("install", LabCommand::Install),
             ("fetch", LabCommand::Fetch),
         ];
         for (name, command) in lab {

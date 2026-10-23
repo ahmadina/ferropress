@@ -2,19 +2,30 @@
 
 use std::fmt;
 
+use test_harness::Profile;
+
 use crate::manifest::Manifest;
 use crate::process::Invocation;
 
 /// Compose file location, relative to the repository root.
 pub(crate) const COMPOSE_FILE: &str = "lab/compose.yaml";
-/// Address the lab application is published on.
-pub(crate) const APP_URL: &str = "http://127.0.0.1:8080/";
 
 const PHP_IMAGE_ID: &str = "php-runtime";
 const DATABASE_IMAGE_ID: &str = "database";
 const PLATFORM_ARCHIVE_ID: &str = "platform-release";
 /// Inside the app container: the lab installer copied in by `lab/app/Dockerfile`.
 const INSTALLER: &str = "/opt/ferropress/install-site.php";
+/// Installer phases, in order: the single site, then the network converted with multisite still off,
+/// then the network's extra site and network-wide plugins with multisite on.
+const INSTALL_PHASES: [&str; 3] = ["single", "network", "network-sites"];
+
+/// Address the lab serves `profile` on.
+pub(crate) const fn app_url(profile: Profile) -> &'static str {
+    match profile {
+        Profile::Single => "http://127.0.0.1:8080/",
+        Profile::Network => "http://127.0.0.1:8081/",
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LabAction {
@@ -24,7 +35,7 @@ pub(crate) enum LabAction {
     Down,
     /// Stop the stack, delete the database volume, start it again and install the site.
     Reset,
-    /// Install the site with fixed settings; a no-op when it is already installed.
+    /// Install both profiles with fixed settings; a no-op for what is already installed.
     Install,
 }
 
@@ -104,17 +115,22 @@ pub(crate) fn plan(
 ) -> Result<Vec<Invocation>, MissingEntry> {
     let env = lab_env(manifest)?;
     let up = || compose(&env, ["up", "--build", "--detach", "--wait"]);
-    let install = || {
+    let install = INSTALL_PHASES.map(|phase| {
         compose(
             &env,
-            ["exec", "-T", "--user", "www-data", "app", "php", INSTALLER],
+            [
+                "exec", "-T", "--user", "www-data", "app", "php", INSTALLER, phase,
+            ],
         )
-    };
+    });
     Ok(match action {
         LabAction::Up => vec![up()],
         LabAction::Down => vec![compose(&env, ["down"])],
-        LabAction::Reset => vec![compose(&env, ["down", "--volumes"]), up(), install()],
-        LabAction::Install => vec![install()],
+        LabAction::Reset => [compose(&env, ["down", "--volumes"]), up()]
+            .into_iter()
+            .chain(install)
+            .collect(),
+        LabAction::Install => install.to_vec(),
     })
 }
 
@@ -124,8 +140,14 @@ mod tests {
     use crate::manifest::parse;
 
     const DIGEST: &str = "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
-    const INSTALL: &str = "docker compose --file lab/compose.yaml exec -T --user www-data app php \
-                           /opt/ferropress/install-site.php";
+    const INSTALL: [&str; 3] = [
+        "docker compose --file lab/compose.yaml exec -T --user www-data app php \
+         /opt/ferropress/install-site.php single",
+        "docker compose --file lab/compose.yaml exec -T --user www-data app php \
+         /opt/ferropress/install-site.php network",
+        "docker compose --file lab/compose.yaml exec -T --user www-data app php \
+         /opt/ferropress/install-site.php network-sites",
+    ];
 
     fn manifest() -> Manifest {
         parse(&format!(
@@ -199,12 +221,14 @@ digest = "{DIGEST}"
             [
                 "docker compose --file lab/compose.yaml down --volumes",
                 "docker compose --file lab/compose.yaml up --build --detach --wait",
-                INSTALL,
+                INSTALL[0],
+                INSTALL[1],
+                INSTALL[2],
             ]
         );
         assert_eq!(
             rendered(&plan(LabAction::Install, &manifest).unwrap()),
-            [INSTALL]
+            INSTALL
         );
     }
 
@@ -217,6 +241,12 @@ digest = "{DIGEST}"
             "docker compose --file lab/compose.yaml ps"
         );
         assert_eq!(invocation.env, env);
+    }
+
+    #[test]
+    fn each_profile_has_its_own_address() {
+        assert_eq!(app_url(Profile::Single), "http://127.0.0.1:8080/");
+        assert_eq!(app_url(Profile::Network), "http://127.0.0.1:8081/");
     }
 
     #[test]

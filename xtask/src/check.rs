@@ -44,7 +44,7 @@ pub(crate) fn record(
                 Step::Http {
                     method: Method::Get,
                     path,
-                } => capture::capture(env, &name, path, runner, http)
+                } => capture::capture(env, scenario.profile(), &name, path, runner, http)
                     .with_context(|| format!("run {run}, step {index}")),
                 other => anyhow::bail!("the lab cannot perform {other:?}"),
             }

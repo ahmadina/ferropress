@@ -1,0 +1,20 @@
+schema = 1
+id = "network-second-site"
+description = "An anonymous visitor loads the front page of a second site in the network"
+profile = "network"
+compare = [
+    "response.status",
+    "response.headers",
+    "response.body",
+    "hooks",
+    "files",
+    "queries",
+    "mail",
+    "cron",
+    "database",
+]
+
+[[steps]]
+operation = "http"
+method = "GET"
+path = "/second/"

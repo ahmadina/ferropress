@@ -1,0 +1,20 @@
+schema = 1
+id = "network-front-page"
+description = "An anonymous visitor loads the front page of the network's main site"
+profile = "network"
+compare = [
+    "response.status",
+    "response.headers",
+    "response.body",
+    "hooks",
+    "files",
+    "queries",
+    "mail",
+    "cron",
+    "database",
+]
+
+[[steps]]
+operation = "http"
+method = "GET"
+path = "/"

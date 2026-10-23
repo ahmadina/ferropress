@@ -4,7 +4,7 @@
 use std::time::Duration;
 
 use anyhow::Context as _;
-use test_harness::{Method, Observation, Request, RequestPath, Response, Slug, Trace};
+use test_harness::{Method, Observation, Profile, Request, RequestPath, Response, Slug, Trace};
 
 use crate::dbdiff;
 use crate::lab;
@@ -97,9 +97,10 @@ fn dump_database(
     .context("dumping the lab database")
 }
 
-/// Records `GET path` against the running lab stack.
+/// Records `GET path` against the `profile` installation of the running lab stack.
 pub(crate) fn capture(
     env: &[(&'static str, String)],
+    profile: Profile,
     name: &Slug,
     path: &RequestPath,
     runner: &mut impl Runner,
@@ -112,7 +113,7 @@ pub(crate) fn capture(
         &lab::compose(env, ["exec", "-T", "app", "rm", "-f", &trace_file]),
     )?;
 
-    let url = format!("{}{path}", lab::APP_URL.trim_end_matches('/'));
+    let url = format!("{}{path}", lab::app_url(profile).trim_end_matches('/'));
     let response = http.get(
         &url,
         &[(CAPTURE_HEADER, name.as_str()), ("user-agent", USER_AGENT)],
@@ -244,6 +245,7 @@ mod tests {
         let mut http = http_ok(b"<html>\xff</html>");
         let capture = capture(
             &env(),
+            Profile::Single,
             &name("home"),
             &path("/?p=1"),
             &mut runner,
@@ -292,6 +294,7 @@ mod tests {
         let mut runner = FakeRunner::new(lab_responder(TRACE));
         let capture = capture(
             &env(),
+            Profile::Single,
             &name("home"),
             &path("/"),
             &mut runner,
@@ -312,6 +315,7 @@ mod tests {
         let mut runner = FakeRunner::new(lab_responder(wrong_schema));
         let error = capture(
             &env(),
+            Profile::Single,
             &name("x"),
             &path("/"),
             &mut runner,
@@ -324,6 +328,7 @@ mod tests {
         let mut runner = FakeRunner::new(lab_responder("not json"));
         let error = capture(
             &env(),
+            Profile::Single,
             &name("x"),
             &path("/"),
             &mut runner,
@@ -339,6 +344,7 @@ mod tests {
         let mut failing = FakeRunner::new(|_: &Invocation| Ok(None));
         let error = capture(
             &env(),
+            Profile::Single,
             &name("x"),
             &path("/"),
             &mut failing,
@@ -353,9 +359,16 @@ mod tests {
             requests: Vec::new(),
         };
         let mut runner = FakeRunner::new(lab_responder(TRACE));
-        let error = capture(&env(), &name("x"), &path("/"), &mut runner, &mut http)
-            .unwrap_err()
-            .to_string();
+        let error = capture(
+            &env(),
+            Profile::Single,
+            &name("x"),
+            &path("/"),
+            &mut runner,
+            &mut http,
+        )
+        .unwrap_err()
+        .to_string();
         assert_eq!(error, "connection refused");
 
         let mut no_trace = FakeRunner::new(|invocation: &Invocation| {
@@ -364,6 +377,7 @@ mod tests {
         });
         let error = capture(
             &env(),
+            Profile::Single,
             &name("x"),
             &path("/"),
             &mut no_trace,

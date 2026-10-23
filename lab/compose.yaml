@@ -39,8 +39,10 @@ services:
       # microsecond per clock read, never with real time. A fully frozen clock is not usable because
       # PHP's uniqid() waits for the clock to move.
       FAKETIME: "@2026-01-01 00:00:00 i0.000001"
+    # One port per profile: single site on 8080, network of sites on 8081.
     ports:
       - "127.0.0.1:8080:80"
+      - "127.0.0.1:8081:8081"
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://localhost/ferropress-lab-health"]
       interval: 2s

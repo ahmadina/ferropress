@@ -24,7 +24,7 @@ use lab::LabAction;
 use layers::Finding;
 use manifest::{ArchiveStatus, Manifest, Problem};
 use process::{Runner, SystemRunner};
-use test_harness::{Replay, RequestPath, Slug};
+use test_harness::{Profile, Replay, RequestPath, Slug};
 
 /// Outcome of a command: the text to show and whether it succeeded.
 #[derive(Debug, PartialEq, Eq)]
@@ -138,18 +138,22 @@ fn run_lab(
     let plan = lab::plan(action, &manifest)?;
     process::run_all(runner, &plan)?;
     let text = match action {
-        LabAction::Up | LabAction::Reset => format!(
-            "lab {}: stack is healthy at {}",
-            action.name(),
-            lab::APP_URL
-        ),
+        LabAction::Up | LabAction::Reset => {
+            format!("lab {}: stack is healthy at {}", action.name(), addresses())
+        }
         LabAction::Down => "lab down: stack stopped".to_owned(),
-        LabAction::Install => format!("lab install: site is installed at {}", lab::APP_URL),
+        LabAction::Install => format!("lab install: sites are installed at {}", addresses()),
     };
     Ok(Report {
         text,
         success: true,
     })
+}
+
+fn addresses() -> String {
+    Profile::ALL
+        .map(|profile| format!("{} ({profile})", lab::app_url(profile)))
+        .join(" and ")
 }
 
 fn run_lab_fetch(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
@@ -171,6 +175,7 @@ fn run_lab_fetch(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<R
 
 fn run_lab_capture(
     repo_root: &Path,
+    profile: Profile,
     name: &Slug,
     path: &RequestPath,
     runner: &mut impl Runner,
@@ -181,7 +186,7 @@ fn run_lab_capture(
         Err(report) => return Ok(report),
     };
     let env = lab::lab_env(&manifest)?;
-    let capture = capture::capture(&env, name, path, runner, http)?;
+    let capture = capture::capture(&env, profile, name, path, runner, http)?;
     let relative = format!("{}/{name}.json", capture::CAPTURE_DIR);
     let output = repo_root.join(&relative);
     let dir = repo_root.join(capture::CAPTURE_DIR);
@@ -295,9 +300,14 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                         &mut UreqClient::new(),
                     );
                 }
-                LabCommand::Capture { name, path } => {
+                LabCommand::Capture {
+                    name,
+                    path,
+                    profile,
+                } => {
                     return run_lab_capture(
                         repo_root(),
+                        *profile,
                         name,
                         path,
                         &mut system_runner(),
@@ -524,18 +534,21 @@ digest = "{digest}"
             (
                 LabAction::Up,
                 1,
-                "lab up: stack is healthy at http://127.0.0.1:8080/",
+                "lab up: stack is healthy at http://127.0.0.1:8080/ (single) and \
+                 http://127.0.0.1:8081/ (network)",
             ),
             (LabAction::Down, 1, "lab down: stack stopped"),
             (
                 LabAction::Reset,
-                3,
-                "lab reset: stack is healthy at http://127.0.0.1:8080/",
+                5,
+                "lab reset: stack is healthy at http://127.0.0.1:8080/ (single) and \
+                 http://127.0.0.1:8081/ (network)",
             ),
             (
                 LabAction::Install,
-                1,
-                "lab install: site is installed at http://127.0.0.1:8080/",
+                3,
+                "lab install: sites are installed at http://127.0.0.1:8080/ (single) and \
+                 http://127.0.0.1:8081/ (network)",
             ),
         ];
         for (action, calls, text) in expected {
@@ -639,8 +652,15 @@ digest = "{digest}"
         let repo = TempRepo::new("capture-ok", Some(&lab_manifest_text()));
         let name: Slug = "home".parse().unwrap();
         let path: RequestPath = "/".parse().unwrap();
-        let report =
-            run_lab_capture(&repo.0, &name, &path, &mut capture_runner(), &mut OkHttp).unwrap();
+        let report = run_lab_capture(
+            &repo.0,
+            Profile::Single,
+            &name,
+            &path,
+            &mut capture_runner(),
+            &mut OkHttp,
+        )
+        .unwrap();
         assert!(report.success);
         assert_eq!(
             report.text,
@@ -661,13 +681,22 @@ digest = "{digest}"
 
         let invalid = TempRepo::new("capture-invalid", Some(&manifest_text(5)));
         let mut runner = capture_runner();
-        let report = run_lab_capture(&invalid.0, &name, &path, &mut runner, &mut OkHttp).unwrap();
+        let report = run_lab_capture(
+            &invalid.0,
+            Profile::Single,
+            &name,
+            &path,
+            &mut runner,
+            &mut OkHttp,
+        )
+        .unwrap();
         assert!(!report.success);
         assert!(runner.seen.is_empty());
 
         let incomplete = TempRepo::new("capture-incomplete", Some(&manifest_text(1)));
         let error = run_lab_capture(
             &incomplete.0,
+            Profile::Single,
             &name,
             &path,
             &mut capture_runner(),
@@ -680,15 +709,29 @@ digest = "{digest}"
         );
 
         let repo = TempRepo::new("capture-fail", Some(&lab_manifest_text()));
-        let error =
-            run_lab_capture(&repo.0, &name, &path, &mut recording(false), &mut OkHttp).unwrap_err();
+        let error = run_lab_capture(
+            &repo.0,
+            Profile::Single,
+            &name,
+            &path,
+            &mut recording(false),
+            &mut OkHttp,
+        )
+        .unwrap_err();
         assert_eq!(error.to_string(), "dumping the lab database");
 
         let blocked = TempRepo::new("capture-blocked", Some(&lab_manifest_text()));
         fs::create_dir_all(blocked.0.join("lab")).unwrap();
         fs::write(blocked.0.join("lab/captures"), b"not a directory").unwrap();
-        let error = run_lab_capture(&blocked.0, &name, &path, &mut capture_runner(), &mut OkHttp)
-            .unwrap_err();
+        let error = run_lab_capture(
+            &blocked.0,
+            Profile::Single,
+            &name,
+            &path,
+            &mut capture_runner(),
+            &mut OkHttp,
+        )
+        .unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

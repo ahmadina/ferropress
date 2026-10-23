@@ -18,7 +18,7 @@ pub trait Target {
     /// Returns [`Target::Error`] when the step cannot be performed or observed.
     fn observe(
         &mut self,
-        scenario: &Slug,
+        scenario: &Scenario,
         index: usize,
         step: &Step,
     ) -> Result<Observation, Self::Error>;
@@ -50,7 +50,12 @@ impl Replay {
 impl Target for Replay {
     type Error = ReplayExhausted;
 
-    fn observe(&mut self, _: &Slug, index: usize, _: &Step) -> Result<Observation, Self::Error> {
+    fn observe(
+        &mut self,
+        _: &Scenario,
+        index: usize,
+        _: &Step,
+    ) -> Result<Observation, Self::Error> {
         self.observations.next().ok_or(ReplayExhausted(index))
     }
 }
@@ -166,7 +171,7 @@ pub fn run<R: Target, C: Target>(
     for (index, step) in scenario.steps().iter().enumerate() {
         let mut expected =
             reference
-                .observe(id, index, step)
+                .observe(scenario, index, step)
                 .map_err(|source| RunError::Reference {
                     step: index,
                     source,
@@ -179,7 +184,7 @@ pub fn run<R: Target, C: Target>(
         }
         let mut actual =
             candidate
-                .observe(id, index, step)
+                .observe(scenario, index, step)
                 .map_err(|source| RunError::Candidate {
                     step: index,
                     source,

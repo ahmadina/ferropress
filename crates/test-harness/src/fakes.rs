@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 
 use crate::observation::{Method, Observation, Request, RequestPath, Response, Slug, Trace};
 use crate::run::Target;
-use crate::scenario::Step;
+use crate::scenario::{Scenario, Step};
 
 /// A [`ScriptedTarget`] was asked for more observations than it was given.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -34,11 +34,11 @@ impl Target for ScriptedTarget {
 
     fn observe(
         &mut self,
-        scenario: &Slug,
+        scenario: &Scenario,
         index: usize,
         step: &Step,
     ) -> Result<Observation, Self::Error> {
-        self.seen.push((scenario.clone(), index, step.clone()));
+        self.seen.push((scenario.id().clone(), index, step.clone()));
         self.script.pop_front().ok_or(ScriptExhausted)
     }
 }

@@ -716,6 +716,7 @@ foreach ( inventory_files() as $relative ) {
 	$scanner->scan( $relative, (string) file_get_contents( INVENTORY_ROOT . '/' . $relative ) );
 }
 
+$_SERVER['LAB_PROFILE'] = 'single';
 $_SERVER['HTTP_HOST']   = '127.0.0.1:8080';
 $_SERVER['REQUEST_URI'] = '/';
 require INVENTORY_ROOT . '/wp-load.php';

@@ -2,7 +2,7 @@
 
 use clap::{Parser, Subcommand};
 
-use test_harness::{RequestPath, Slug};
+use test_harness::{Profile, RequestPath, Slug};
 
 /// Repository automation for Ferropress.
 #[derive(Debug, Parser)]
@@ -42,6 +42,9 @@ pub(crate) enum LabCommand {
         /// Request path with optional query string
         #[arg(default_value = "/")]
         path: RequestPath,
+        /// Site installation to send the request to: single or network
+        #[arg(long, default_value = "single")]
+        profile: Profile,
     },
     /// Reset the lab and record the reference platform's symbol inventory into contracts/inventory
     Inventory,
@@ -89,6 +92,7 @@ mod tests {
             Ok(Command::Lab(LabCommand::Capture {
                 name: "home".parse().unwrap(),
                 path: "/".parse().unwrap(),
+                profile: Profile::Single,
             }))
         );
         assert_eq!(
@@ -96,7 +100,27 @@ mod tests {
             Ok(Command::Lab(LabCommand::Capture {
                 name: "post".parse().unwrap(),
                 path: "/?p=1".parse().unwrap(),
+                profile: Profile::Single,
             }))
+        );
+        assert_eq!(
+            parse(&[
+                "lab",
+                "capture",
+                "second",
+                "/second/",
+                "--profile",
+                "network"
+            ]),
+            Ok(Command::Lab(LabCommand::Capture {
+                name: "second".parse().unwrap(),
+                path: "/second/".parse().unwrap(),
+                profile: Profile::Network,
+            }))
+        );
+        assert_eq!(
+            parse(&["lab", "capture", "x", "--profile", "cluster"]),
+            Err(ErrorKind::ValueValidation)
         );
         assert_eq!(
             parse(&["lab", "check", "front-page"]),

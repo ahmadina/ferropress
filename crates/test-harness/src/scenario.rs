@@ -8,6 +8,7 @@
 //! schema = 1
 //! id = "front-page"
 //! description = "An anonymous visitor loads the front page"
+//! profile = "single"
 //! compare = ["response.status", "response.headers", "response.body", "hooks"]
 //!
 //! [[steps]]
@@ -26,7 +27,7 @@ use std::fmt;
 
 use serde::Deserialize;
 
-use crate::error::ScenarioError;
+use crate::error::{ScenarioError, UnknownProfile};
 use crate::normalize::{Location, Normalization};
 use crate::observation::{Method, RequestPath, Slug};
 
@@ -86,6 +87,47 @@ impl fmt::Display for Aspect {
     }
 }
 
+/// The site installation a scenario runs against; `single` when a scenario names none.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Profile {
+    /// One site.
+    #[default]
+    Single,
+    /// A network of sites (multisite) in subdirectory mode.
+    Network,
+}
+
+impl Profile {
+    /// Every profile, in declaration order.
+    pub const ALL: [Self; 2] = [Self::Single, Self::Network];
+
+    /// The name used in scenario files and reports.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Single => "single",
+            Self::Network => "network",
+        }
+    }
+}
+
+impl fmt::Display for Profile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for Profile {
+    type Err = UnknownProfile;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::ALL
+            .into_iter()
+            .find(|profile| profile.as_str() == value)
+            .ok_or_else(|| UnknownProfile(value.to_owned()))
+    }
+}
+
 /// One operation performed identically against both sides.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(tag = "operation", rename_all = "lowercase", deny_unknown_fields)]
@@ -106,6 +148,8 @@ struct RawScenario {
     schema: u32,
     id: Slug,
     description: String,
+    #[serde(default)]
+    profile: Profile,
     compare: Vec<Aspect>,
     steps: Vec<Step>,
     #[serde(default)]
@@ -128,6 +172,7 @@ struct RawNormalization {
 pub struct Scenario {
     id: Slug,
     description: String,
+    profile: Profile,
     compare: Vec<Aspect>,
     steps: Vec<Step>,
     normalizations: Vec<Normalization>,
@@ -165,6 +210,7 @@ impl Scenario {
         Ok(Self {
             id: raw.id,
             description: raw.description,
+            profile: raw.profile,
             compare: raw.compare,
             steps: raw.steps,
             normalizations,
@@ -210,6 +256,11 @@ impl Scenario {
         &self.description
     }
 
+    /// The site installation the scenario runs against.
+    pub fn profile(&self) -> Profile {
+        self.profile
+    }
+
     /// Compared aspects, in declaration order.
     pub fn compare(&self) -> &[Aspect] {
         &self.compare
@@ -234,6 +285,7 @@ mod tests {
 schema = 1
 id = "front-page"
 description = "An anonymous visitor loads the front page"
+profile = "network"
 compare = ["response.status", "response.headers", "response.body", "hooks", "files", "queries", "mail", "cron", "database"]
 
 [[steps]]
@@ -264,6 +316,7 @@ reviewed_by = "maintainer"
             scenario.description(),
             "An anonymous visitor loads the front page"
         );
+        assert_eq!(scenario.profile(), Profile::Network);
         assert_eq!(
             scenario
                 .compare()
@@ -306,6 +359,33 @@ reviewed_by = "maintainer"
             "the response date is the wall-clock time of each run"
         );
         assert_eq!(normalization.reviewed_by(), "maintainer");
+    }
+
+    #[test]
+    fn profile_defaults_to_single_and_must_be_known() {
+        let without = SCENARIO.replace("profile = \"network\"\n", "");
+        assert_eq!(
+            Scenario::from_toml(&without).unwrap().profile(),
+            Profile::Single
+        );
+        assert!(matches!(
+            error(&SCENARIO.replace("\"network\"", "\"cluster\"")),
+            ScenarioError::Syntax(_)
+        ));
+    }
+
+    #[test]
+    fn profiles_parse_and_display_by_name() {
+        for profile in Profile::ALL {
+            assert_eq!(profile.as_str().parse::<Profile>(), Ok(profile));
+            assert_eq!(profile.to_string(), profile.as_str());
+        }
+        let error = "cluster".parse::<Profile>().unwrap_err();
+        assert_eq!(error, UnknownProfile("cluster".to_owned()));
+        assert_eq!(
+            error.to_string(),
+            "unknown profile `cluster`; expected `single` or `network`"
+        );
     }
 
     #[test]

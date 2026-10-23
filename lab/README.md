@@ -9,11 +9,12 @@ Ferropress or its production builds.
 ```bash
 cargo xtask lab up      # build and start the stack, wait until healthy
 cargo xtask lab down    # stop it, keeping the database
-cargo xtask lab reset   # stop it, delete the database, start from scratch and install the site
-cargo xtask lab install # install the site with fixed settings (no-op when already installed)
+cargo xtask lab reset   # stop it, delete the database, start from scratch and install both profiles
+cargo xtask lab install # install both profiles with fixed settings (no-op for what is installed)
 cargo xtask lab fetch   # clone pinned upstream sources into upstream/, download archives into packages/
 cargo xtask lab capture home              # record GET / into captures/home.json
 cargo xtask lab capture first-post '/?p=1'
+cargo xtask lab capture second-site /second/ --profile network
 cargo xtask lab check front-page          # run contracts/scenarios/front-page.toml twice and compare
 cargo xtask lab inventory                 # record the reference symbol inventory into contracts/inventory/
 ```
@@ -21,7 +22,23 @@ cargo xtask lab inventory                 # record the reference symbol inventor
 `lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
 moving it into place, and refuses to overwrite a checkout that is at a different commit.
 
-The application is published on <http://127.0.0.1:8080/> only. Credentials in `compose.yaml` are lab-only.
+The application is published on localhost only. Credentials in `compose.yaml` are lab-only.
+
+## Profiles
+
+One database holds two installations, each on its own port:
+
+| Profile | Address | Installation |
+|---|---|---|
+| `single` | <http://127.0.0.1:8080/> | one site |
+| `network` | <http://127.0.0.1:8081/> | a subdirectory network: the main site and a second site at `/second/` |
+
+Apache sets `LAB_PROFILE` per port (`app/sites.conf`) and `app/config.php` selects the table prefix and,
+for the network, the multisite settings. The installer runs in three phases: the single site; the
+network's main site, converted into a network while multisite is still off (as the platform's own
+network setup does); and, with multisite on, the second site and a network-wide plugin. Scenarios pick a
+profile with `profile = "network"`; the default is `single`. Health checks hit an endpoint Apache answers
+itself, so the application never sees a request that is not part of a scenario.
 
 ## Captures
 
@@ -53,7 +70,8 @@ lab config enables query logging and disables request-triggered cron so captures
 ## Fixtures
 
 The installer activates our own behavior-free fixture plugins (`app/fixtures/`): one must-use plugin, one
-single-file plugin and one directory plugin, activated in reverse name order. They only exist so traces
+single-file plugin and one directory plugin, activated in reverse name order. In the network, the
+directory plugin is active on the main site only and the single-file plugin is active network-wide. They only exist so traces
 show where each kind of plugin loads and in which order.
 
 ## Checking scenarios

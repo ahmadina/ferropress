@@ -17,7 +17,3 @@ operation = "http"
 method = "GET"
 path = "/"
 
-[[normalizations]]
-location = "response.headers.date"
-reason = "the Date header is the wall-clock time of each run; two consecutive reference captures from the same state differed only in this field"
-reviewed_by = "cursor-agent"

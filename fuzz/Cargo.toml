@@ -1,0 +1,36 @@
+# Outside the workspace, on the nightly pinned in rust-toolchain.toml. Run from this directory:
+#   cargo fuzz run serialize_decode -- -dict=dictionaries/serialized.dict -max_len=4096
+#   cargo fuzz run serialize_float
+[package]
+name = "ferropress-fuzz"
+description = "Coverage-guided fuzz targets for Ferropress crates that read untrusted input"
+version = "0.0.0"
+publish = false
+edition = "2024"
+license = "GPL-2.0-or-later"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+php-serialize = { path = "../crates/php-serialize" }
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+panic = "deny"
+
+[[bin]]
+name = "serialize_decode"
+path = "fuzz_targets/serialize_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "serialize_float"
+path = "fuzz_targets/serialize_float.rs"
+test = false
+doc = false
+bench = false

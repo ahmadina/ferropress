@@ -14,6 +14,7 @@ cargo xtask lab install # install the site with fixed settings (no-op when alrea
 cargo xtask lab fetch   # clone pinned upstream sources into upstream/, download archives into packages/
 cargo xtask lab capture home              # record GET / into captures/home.json
 cargo xtask lab capture first-post '/?p=1'
+cargo xtask lab check front-page          # run contracts/scenarios/front-page.toml twice and compare
 ```
 
 `lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
@@ -33,14 +34,22 @@ dumps the database again and writes `captures/<name>.json` containing:
 - scheduled cron events, without timestamps;
 - the rows added and removed per table.
 
-Runs are deterministic: every process in the app container sees a frozen wall-clock time
-(`FAKETIME` in `compose.yaml`, provided by the pinned `libfaketime` package), the secret keys in the
+Runs are deterministic: every process in the app container sees a wall-clock time that starts at a
+fixed instant and advances one microsecond per clock read, never with real time (`FAKETIME` in
+`compose.yaml`, provided by the pinned `libfaketime` package), the secret keys in the
 generated config are fixed lab-only values, and cron never runs on its own. Two captures of the same
 request from the same database state are therefore identical.
 
 The trace comes from our own must-use plugin (`app/capture.php`), which records only requests carrying the
 capture header. The site config enables query logging and disables request-triggered cron so captures are
 repeatable. Captures are git-ignored; reviewed fixtures derived from them belong in `contracts/`.
+
+## Checking scenarios
+
+`lab check <id>` runs `contracts/scenarios/<id>.toml` twice, each time from a freshly reset and installed
+site, writes every step to `captures/<id>.<run>.<step>.json` and compares the two runs with the
+scenario's aspects and reviewed normalizations. It fails on any mismatch: a scenario must be
+deterministic on the reference before Ferropress can be compared against it.
 
 ## Pinning
 

@@ -18,6 +18,7 @@ dhat-heap.json
 
 # Licensed or proprietary plugin/theme packages used only in the lab
 /lab/packages/
+/lab/captures/
 *.zip
 
 # Large fixtures live in Git LFS or the artifact store

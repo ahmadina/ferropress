@@ -290,12 +290,21 @@ fn sha256_hex(mut reader: impl Read) -> io::Result<String> {
             Err(error) => return Err(error),
         }
     }
-    let mut hex = String::with_capacity(SHA256_HEX_LEN);
-    for byte in hasher.finalize() {
+    Ok(to_hex(&hasher.finalize()))
+}
+
+/// Lowercase hexadecimal SHA-256 of an in-memory byte string.
+pub(crate) fn bytes_sha256(bytes: &[u8]) -> String {
+    to_hex(&Sha256::digest(bytes))
+}
+
+fn to_hex(digest: &[u8]) -> String {
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for &byte in digest {
         hex.push(char::from(HEX_DIGITS[usize::from(byte >> 4)]));
         hex.push(char::from(HEX_DIGITS[usize::from(byte & 0x0f)]));
     }
-    Ok(hex)
+    hex
 }
 
 #[cfg(test)]
@@ -572,6 +581,7 @@ digest = "sha256:{ABC_SHA256}"
     #[test]
     fn sha256_matches_known_vector_across_reads() {
         assert_eq!(sha256_hex(&b"abc"[..]).unwrap(), ABC_SHA256);
+        assert_eq!(bytes_sha256(b"abc"), ABC_SHA256);
         let large = vec![b'x'; READ_BUFFER_LEN * 2 + 7];
         let chained = (&large[..READ_BUFFER_LEN]).chain(&large[READ_BUFFER_LEN..]);
         assert_eq!(

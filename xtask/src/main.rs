@@ -1,6 +1,8 @@
 //! Repository automation for Ferropress, invoked as `cargo xtask <command>`.
 
+mod capture;
 mod cli;
+mod dbdiff;
 mod fetch;
 mod lab;
 mod layers;
@@ -13,6 +15,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Context as _;
+use capture::{CaptureName, HttpClient, RequestPath, UreqClient};
 use clap::Parser as _;
 use cli::{Cli, Command, LabCommand};
 use lab::LabAction;
@@ -163,6 +166,31 @@ fn run_lab_fetch(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<R
     })
 }
 
+fn run_lab_capture(
+    repo_root: &Path,
+    name: &CaptureName,
+    path: &RequestPath,
+    runner: &mut impl Runner,
+    http: &mut impl HttpClient,
+) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let env = lab::lab_env(&manifest)?;
+    let capture = capture::capture(&env, name, path, runner, http)?;
+    let relative = format!("{}/{name}.json", capture::CAPTURE_DIR);
+    let output = repo_root.join(&relative);
+    let dir = repo_root.join(capture::CAPTURE_DIR);
+    fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
+    let json = serde_json::to_vec_pretty(&capture).context("serializing the capture")?;
+    fs::write(&output, json).with_context(|| format!("writing {}", output.display()))?;
+    Ok(Report {
+        text: format!("lab capture: wrote {relative} ({})", capture.summary()),
+        success: true,
+    })
+}
+
 /// The repository root: the parent of this crate's directory.
 fn repo_root() -> &'static Path {
     let xtask_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -186,6 +214,15 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                 LabCommand::Reset => LabAction::Reset,
                 LabCommand::Install => LabAction::Install,
                 LabCommand::Fetch => return run_lab_fetch(repo_root(), &mut system_runner()),
+                LabCommand::Capture { name, path } => {
+                    return run_lab_capture(
+                        repo_root(),
+                        name,
+                        path,
+                        &mut system_runner(),
+                        &mut UreqClient::new(),
+                    );
+                }
             };
             run_lab(repo_root(), action, &mut system_runner())
         }
@@ -486,6 +523,92 @@ digest = "{digest}"
 
         let missing = TempRepo::new("fetch-missing", None);
         assert!(run_lab_fetch(&missing.0, &mut recording(true)).is_err());
+    }
+
+    struct OkHttp;
+
+    impl HttpClient for OkHttp {
+        fn get(
+            &mut self,
+            _url: &str,
+            _headers: &[(&str, &str)],
+        ) -> anyhow::Result<capture::HttpResponse> {
+            Ok(capture::HttpResponse {
+                status: 200,
+                headers: Vec::new(),
+                body: b"ok".to_vec(),
+            })
+        }
+    }
+
+    fn capture_runner()
+    -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        FakeRunner::new(|invocation: &process::Invocation| {
+            let args = invocation.args.join(" ");
+            Ok(Some(if args.contains(" cat ") {
+                r#"{"schema":1,"hooks":[],"queries":[],"mail":[],"cron":[]}"#.to_owned()
+            } else {
+                String::new()
+            }))
+        })
+    }
+
+    #[test]
+    fn lab_capture_writes_the_artifact() {
+        let repo = TempRepo::new("capture-ok", Some(&lab_manifest_text()));
+        let name: CaptureName = "home".parse().unwrap();
+        let path: RequestPath = "/".parse().unwrap();
+        let report =
+            run_lab_capture(&repo.0, &name, &path, &mut capture_runner(), &mut OkHttp).unwrap();
+        assert!(report.success);
+        assert_eq!(
+            report.text,
+            "lab capture: wrote lab/captures/home.json (status 200, 0 hooks, 0 queries, 0 mails, \
+             0 cron events, 0 tables changed)"
+        );
+        let written: serde_json::Value =
+            serde_json::from_slice(&fs::read(repo.0.join("lab/captures/home.json")).unwrap())
+                .unwrap();
+        assert_eq!(written["name"], "home");
+        assert_eq!(written["response"]["body"], "ok");
+    }
+
+    #[test]
+    fn lab_capture_refuses_invalid_manifest_and_propagates_failures() {
+        let name: CaptureName = "home".parse().unwrap();
+        let path: RequestPath = "/".parse().unwrap();
+
+        let invalid = TempRepo::new("capture-invalid", Some(&manifest_text(5)));
+        let mut runner = capture_runner();
+        let report = run_lab_capture(&invalid.0, &name, &path, &mut runner, &mut OkHttp).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let incomplete = TempRepo::new("capture-incomplete", Some(&manifest_text(1)));
+        let error = run_lab_capture(
+            &incomplete.0,
+            &name,
+            &path,
+            &mut capture_runner(),
+            &mut OkHttp,
+        )
+        .unwrap_err();
+        assert!(
+            error.to_string().starts_with("the manifest has no"),
+            "{error}"
+        );
+
+        let repo = TempRepo::new("capture-fail", Some(&lab_manifest_text()));
+        let error =
+            run_lab_capture(&repo.0, &name, &path, &mut recording(false), &mut OkHttp).unwrap_err();
+        assert_eq!(error.to_string(), "dumping the lab database");
+
+        let blocked = TempRepo::new("capture-blocked", Some(&lab_manifest_text()));
+        fs::create_dir_all(blocked.0.join("lab")).unwrap();
+        fs::write(blocked.0.join("lab/captures"), b"not a directory").unwrap();
+        let error = run_lab_capture(&blocked.0, &name, &path, &mut capture_runner(), &mut OkHttp)
+            .unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
     }
 
     #[test]

@@ -437,6 +437,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "php-parser"
+version = "0.0.0"
+dependencies = [
+ "php-lexer",
+ "proptest",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "php-serialize"
 version = "0.0.0"
 dependencies = [

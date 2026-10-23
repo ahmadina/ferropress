@@ -1,0 +1,20 @@
+[package]
+name = "php-parser"
+description = "PHP source parser: syntax tree, parse errors and the reference rendering of expressions"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+php-lexer = { path = "../php-lexer" }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

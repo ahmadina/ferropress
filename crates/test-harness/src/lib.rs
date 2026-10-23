@@ -29,5 +29,5 @@ pub use observation::{
     CronEvent, DatabaseDiff, HookEvent, HookKind, Mail, Method, Observation, Request, RequestPath,
     Response, Slug, TableDiff, Trace,
 };
-pub use run::{Report, RunError, Side, StepReport, Target, run};
+pub use run::{Replay, ReplayExhausted, Report, RunError, Side, StepReport, Target, run};
 pub use scenario::{Aspect, Scenario, Step};

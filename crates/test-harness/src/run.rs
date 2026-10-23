@@ -24,6 +24,37 @@ pub trait Target {
     ) -> Result<Observation, Self::Error>;
 }
 
+/// A [`Replay`] was asked for a step it has no recorded observation for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("no recorded observation for step {0}")]
+pub struct ReplayExhausted(pub usize);
+
+/// A target that plays back observations recorded earlier, one per step in order.
+///
+/// Recording every step of one side before the other lets both sides share a single environment,
+/// such as one reference lab that is reset between runs.
+#[derive(Debug, Clone)]
+pub struct Replay {
+    observations: std::vec::IntoIter<Observation>,
+}
+
+impl Replay {
+    /// Plays back `observations`, the first for step 0.
+    pub fn new(observations: Vec<Observation>) -> Self {
+        Self {
+            observations: observations.into_iter(),
+        }
+    }
+}
+
+impl Target for Replay {
+    type Error = ReplayExhausted;
+
+    fn observe(&mut self, _: &Slug, index: usize, _: &Step) -> Result<Observation, Self::Error> {
+        self.observations.next().ok_or(ReplayExhausted(index))
+    }
+}
+
 /// Which side of the comparison a target is on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
@@ -274,6 +305,29 @@ reviewed_by = "maintainer"
         let mut candidate = ScriptedTarget::new([]);
         let error = run(&scenario(), &mut reference, &mut candidate).unwrap_err();
         assert_eq!(error.to_string(), "the candidate target failed step 0");
+    }
+
+    #[test]
+    fn replays_play_back_in_order_then_report_the_missing_step() {
+        let mut first = Replay::new(vec![page("/", 200, "Mon"), page("/?p=1", 200, "Mon")]);
+        let mut second = Replay::new(vec![page("/", 200, "Mon"), page("/?p=1", 500, "Mon")]);
+        let report = run(&scenario(), &mut first, &mut second).unwrap();
+        assert_eq!(report.mismatch_count(), 1);
+
+        let mut short = Replay::new(vec![page("/", 200, "Mon")]);
+        let mut full = Replay::new(vec![page("/", 200, "Mon"), page("/?p=1", 200, "Mon")]);
+        let error = run(&scenario(), &mut short, &mut full).unwrap_err();
+        assert!(matches!(
+            error,
+            RunError::Reference {
+                step: 1,
+                source: ReplayExhausted(1)
+            }
+        ));
+        assert_eq!(
+            error.source().map(ToString::to_string),
+            Some("no recorded observation for step 1".to_owned())
+        );
     }
 
     #[test]

@@ -27,8 +27,9 @@ Status legend: `[x]` done · `[ ]` not started
 - [x] 7. `lab/` Docker stack: pinned upstream reference platform + PHP 8.5 + MySQL; `xtask lab up|down|reset`
 - [x] 8. `xtask lab fetch`: clone upstream sources at pinned tags into git-ignored directories
 - [x] 9. Capture tooling: HTTP responses, ordered hook trace, SQL log, DB diff, emails, cron events
-- [ ] 10. `test-harness` crate: scenario schema, comparators, reviewed normalizations, fakes
-- [ ] 11. `apps/test-orchestrator`: run one scenario against the lab and Ferropress, report diffs
+- [x] 10. `test-harness` crate: scenario schema, comparators, reviewed normalizations, fakes
+- [ ] 11. `apps/test-orchestrator`: run one scenario against the lab and Ferropress from the same database
+      state with a frozen clock on both sides, report diffs
 
 ## Phase 2 — Contract inventory
 

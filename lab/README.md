@@ -33,6 +33,11 @@ dumps the database again and writes `captures/<name>.json` containing:
 - scheduled cron events, without timestamps;
 - the rows added and removed per table.
 
+Runs are deterministic: every process in the app container sees a frozen wall-clock time
+(`FAKETIME` in `compose.yaml`, provided by the pinned `libfaketime` package), the secret keys in the
+generated config are fixed lab-only values, and cron never runs on its own. Two captures of the same
+request from the same database state are therefore identical.
+
 The trace comes from our own must-use plugin (`app/capture.php`), which records only requests carrying the
 capture header. The site config enables query logging and disables request-triggered cron so captures are
 repeatable. Captures are git-ignored; reviewed fixtures derived from them belong in `contracts/`.

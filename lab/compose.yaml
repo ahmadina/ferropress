@@ -35,6 +35,8 @@ services:
       LAB_DB_USER: reference
       LAB_DB_PASSWORD: reference
       LAB_DB_HOST: database
+      # Frozen wall-clock time for every process in the app container (libfaketime absolute format).
+      FAKETIME: "2026-01-01 00:00:00"
     ports:
       - "127.0.0.1:8080:80"
     healthcheck:

@@ -63,6 +63,19 @@ fn dollar_brace_interpolation_keeps_its_form() {
 }
 
 #[test]
+fn heredocs_take_the_line_of_their_body() {
+    let program = program("<?php\necho <<<A\n${a}\nA;\necho \"\n$b\";");
+    let lines: Vec<(u32, u32)> = statements(&program)
+        .iter()
+        .map(|stmt| match &stmt.kind {
+            StmtKind::Echo(expr) => (stmt.line, expr.line),
+            _ => (0, 0),
+        })
+        .collect();
+    assert_eq!(lines, [(2, 3), (5, 5)]);
+}
+
+#[test]
 fn switch_cases_record_their_line_and_terminator() {
     let program = program("<?php switch ($a) {\ncase 1;\ndefault:\n}");
     let [stmt] = statements(&program)[..] else {

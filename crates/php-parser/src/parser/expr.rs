@@ -944,13 +944,14 @@ impl Parser<'_> {
             }
             K::StartHeredoc => {
                 self.bump()?;
+                let body_line = self.stream.peek()?.line;
                 let mut parts = self.interpolated(K::EndHeredoc, Interpolation::Heredoc)?;
                 let kind = match parts.as_mut_slice() {
                     [] => ExprKind::String(Vec::new()),
                     [StringPart::Literal(text)] => ExprKind::String(std::mem::take(text)),
                     _ => ExprKind::Interpolated(parts),
                 };
-                plain(kind)
+                Ok((expr(kind, body_line), Shape::Plain))
             }
             K::Char(b'`') => {
                 self.bump()?;

@@ -274,7 +274,7 @@ pub enum NameKind {
 pub struct Expr {
     /// What the expression is.
     pub kind: ExprKind,
-    /// Line it starts on.
+    /// Line it starts on; for a heredoc, the line its body starts on.
     pub line: u32,
 }
 

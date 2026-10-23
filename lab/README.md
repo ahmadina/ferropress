@@ -17,6 +17,7 @@ cargo xtask lab capture first-post '/?p=1'
 cargo xtask lab capture second-site /second/ --profile network
 cargo xtask lab check front-page          # run contracts/scenarios/front-page.toml twice and compare
 cargo xtask lab inventory                 # record the reference symbol inventory into contracts/inventory/
+cargo xtask lab lifecycle                 # record the reference lifecycle into contracts/lifecycle/
 ```
 
 `lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
@@ -103,6 +104,29 @@ one JSON Lines file per section. Each file starts with a header line
 The inventory holds names, signatures and locations only: no code bodies, comments or docblocks. A second
 run produces byte-identical files, and a test rejects committed files that are not valid and canonical.
 Regenerate it whenever the pinned platform version changes.
+
+## Lifecycle
+
+`lab lifecycle` records, for each profile, the order in which a request loads source files and fires
+actions, from the first boot hook through shutdown, and writes one JSON Lines file per request to
+`contracts/lifecycle/`:
+
+| File | Request |
+|---|---|
+| `single-front-page.jsonl` | front page of the single site |
+| `network-main-site.jsonl` | front page of the network's main site |
+| `network-second-site.jsonl` | front page of the network's second site (`/second/`) |
+
+The first line is a header (`schema`, `platform_version`, `id`, `profile`, `path`); every other line is
+either `{"event":"load","path":...}` or `{"event":"action","name":...,"args":...,"depth":...}`. Each
+request is recorded in its steady state, after one warm-up visit, so one-off work done by the first visit
+after an install is excluded. Filters are left out because scenarios already compare the full hook trace.
+The lifecycle shows, for example, network resolution before any plugin, must-use plugins before
+network-wide plugins before site plugins, and the theme's functions file between `setup_theme` and
+`after_setup_theme`.
+
+The whole recording runs twice from fresh installs and nothing is written unless both runs match. A test
+rejects committed files that are missing, out of date with the pinned version, or not canonical.
 
 ## Pinning
 

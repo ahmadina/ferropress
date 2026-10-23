@@ -249,6 +249,17 @@ impl<'s> Lexer<'s> {
         self.position
     }
 
+    /// The error for the innermost bracket still open, as raised if the input ended here.
+    pub fn unclosed(&self) -> Option<LexError> {
+        self.nesting
+            .last()
+            .map(|&(opening, opening_line)| LexError::Unclosed {
+                opening,
+                opening_line,
+                line: self.line,
+            })
+    }
+
     /// The innermost heredoc or nowdoc still open, if any.
     pub fn open_heredoc(&self) -> Option<HeredocBody> {
         self.current_heredoc().map(|heredoc| HeredocBody {
@@ -367,12 +378,8 @@ impl<'s> Lexer<'s> {
 
     fn finish(&mut self) {
         self.finished = true;
-        if let Some(&(opening, opening_line)) = self.nesting.last() {
-            self.error(LexError::Unclosed {
-                opening,
-                opening_line,
-                line: self.line,
-            });
+        if let Some(error) = self.unclosed() {
+            self.error(error);
         }
     }
 

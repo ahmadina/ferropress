@@ -135,6 +135,26 @@ fn open_heredoc_reports_the_indentation_to_strip() {
 }
 
 #[test]
+fn unclosed_reports_the_innermost_open_bracket_on_the_current_line() {
+    let Ok(mut lexer) = Lexer::new(b"<?php {\n(\n[]\n", LexerOptions::default()) else {
+        panic!("short source");
+    };
+    assert_eq!(lexer.unclosed(), None);
+    let mut errors = Vec::new();
+    while lexer.next().is_some() {
+        errors.push(lexer.unclosed().map(|error| error.to_string()));
+    }
+    let messages: Vec<_> = errors.iter().flatten().map(String::as_str).collect();
+    assert_eq!(messages.first(), Some(&"Unclosed '{'"));
+    assert!(messages.contains(&"Unclosed '(' on line 2"));
+    assert_eq!(messages.last(), Some(&"Unclosed '(' on line 2"));
+    assert_eq!(
+        lexer.unclosed().map(|error| error.to_string()),
+        Some("Unclosed '(' on line 2".to_owned())
+    );
+}
+
+#[test]
 fn oversized_sources_are_refused() {
     assert_eq!(Lexer::MAX_SOURCE_LEN, u32::MAX as usize - 1);
     assert_eq!(

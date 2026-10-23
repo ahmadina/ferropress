@@ -35,8 +35,10 @@ services:
       LAB_DB_USER: reference
       LAB_DB_PASSWORD: reference
       LAB_DB_HOST: database
-      # Frozen wall-clock time for every process in the app container (libfaketime absolute format).
-      FAKETIME: "2026-01-01 00:00:00"
+      # Wall-clock time for every process in the app container: starts at this instant and advances one
+      # microsecond per clock read, never with real time. A fully frozen clock is not usable because
+      # PHP's uniqid() waits for the clock to move.
+      FAKETIME: "@2026-01-01 00:00:00 i0.000001"
     ports:
       - "127.0.0.1:8080:80"
     healthcheck:

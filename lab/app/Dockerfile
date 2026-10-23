@@ -11,8 +11,8 @@ ARG LAB_FAKETIME_VERSION=0.9.10+2024-06-05+gba9ed5b2-0.6
 RUN docker-php-ext-install -j"$(nproc)" mysqli \
     && a2enmod rewrite
 
-# Every process in the container sees the frozen wall-clock time set in FAKETIME (compose.yaml), so
-# installs and requests are repeatable; monotonic clocks stay real so timeouts keep working.
+# Every process in the container sees the deterministic wall-clock time set in FAKETIME (compose.yaml),
+# so installs and requests are repeatable; monotonic clocks stay real so timeouts keep working.
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends "libfaketime=${LAB_FAKETIME_VERSION}" \
     && rm -rf /var/lib/apt/lists/* \

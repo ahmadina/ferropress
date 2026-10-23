@@ -18,6 +18,7 @@ cargo xtask lab capture second-site /second/ --profile network
 cargo xtask lab check front-page          # run contracts/scenarios/front-page.toml twice and compare
 cargo xtask lab inventory                 # record the reference symbol inventory into contracts/inventory/
 cargo xtask lab lifecycle                 # record the reference lifecycle into contracts/lifecycle/
+cargo xtask lab serialize                 # record serialized-format outcomes into contracts/serialize/
 ```
 
 `lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
@@ -127,6 +128,23 @@ network-wide plugins before site plugins, and the theme's functions file between
 
 The whole recording runs twice from fresh installs and nothing is written unless both runs match. A test
 rejects committed files that are missing, out of date with the pinned version, or not canonical.
+
+## Serialized format
+
+`lab serialize` runs our own script (`app/serialize-oracle.php`) in the running lab; no reset is needed
+because it touches no site state. The script builds a deterministic corpus: hand-written seed inputs,
+every truncation of each, byte substitutions and seeded random edits. It reads each input with
+`unserialize()` while no class may be instantiated, then writes two JSON Lines files to
+`contracts/serialize/`, each starting with a header line (`{"schema", "php_version", "section"}`):
+
+| File | One line per |
+|---|---|
+| `decode.jsonl` | input (with its `max_depth` option, if any): whether it was refused, every message emitted, and what the value serializes back to |
+| `floats.jsonl` | float bit pattern (special values, powers of ten and their neighbors, tie-prone values, random bits) and its serialized text |
+
+Byte strings hold one character per byte, with the byte's value as its code point, so the files stay
+readable and every byte round-trips. A second run produces byte-identical files. `crates/php-serialize`
+replays both files in its tests; the rules they prove are in `contracts/runtime/serialized-format.md`.
 
 ## Pinning
 

@@ -18,6 +18,8 @@ pub(crate) enum Command {
     CheckLayers,
     /// Validate the reference manifest and hash any downloaded archives
     VerifyManifest,
+    /// Validate contract entries and write the completeness dashboard to docs/COMPLETENESS.md
+    Dashboard,
     /// Manage the reference lab
     #[command(subcommand)]
     Lab(LabCommand),
@@ -78,6 +80,7 @@ mod tests {
     fn parses_known_commands() {
         assert_eq!(parse(&["check-layers"]), Ok(Command::CheckLayers));
         assert_eq!(parse(&["verify-manifest"]), Ok(Command::VerifyManifest));
+        assert_eq!(parse(&["dashboard"]), Ok(Command::Dashboard));
         let lab = [
             ("up", LabCommand::Up),
             ("down", LabCommand::Down),

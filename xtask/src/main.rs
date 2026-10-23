@@ -3,6 +3,7 @@
 mod capture;
 mod check;
 mod cli;
+mod dashboard;
 mod dbdiff;
 mod fetch;
 mod inventory;
@@ -111,6 +112,39 @@ fn load_valid_manifest(repo_root: &Path) -> anyhow::Result<Result<Manifest, Repo
     } else {
         Ok(Err(manifest_report(&manifest, &problems, &[])))
     }
+}
+
+fn run_dashboard(repo_root: &Path) -> anyhow::Result<Report> {
+    let inventory = inventory::Inventory::load(&repo_root.join(inventory::INVENTORY_DIR))?;
+    let entries = match dashboard::load_entries(
+        &repo_root.join(dashboard::ENTRY_DIR),
+        &inventory,
+        repo_root,
+    )? {
+        Ok(entries) => entries,
+        Err(problems) => {
+            return Ok(Report {
+                text: format!(
+                    "dashboard: {} problem(s) in {}; nothing written\n  - {}",
+                    problems.len(),
+                    dashboard::ENTRY_DIR,
+                    problems.join("\n  - ")
+                ),
+                success: false,
+            });
+        }
+    };
+    let output = repo_root.join(dashboard::DASHBOARD_PATH);
+    fs::write(&output, dashboard::render(&inventory, &entries))
+        .with_context(|| format!("writing {}", output.display()))?;
+    Ok(Report {
+        text: format!(
+            "dashboard: wrote {} ({})",
+            dashboard::DASHBOARD_PATH,
+            dashboard::summary(&inventory, &entries)
+        ),
+        success: true,
+    })
 }
 
 fn verify_manifest(repo_root: &Path) -> anyhow::Result<Report> {
@@ -340,6 +374,7 @@ fn run(command: &Command) -> anyhow::Result<Report> {
     match command {
         Command::CheckLayers => check_layers(),
         Command::VerifyManifest => verify_manifest(repo_root()),
+        Command::Dashboard => run_dashboard(repo_root()),
         Command::Lab(lab) => {
             let action = match lab {
                 LabCommand::Up => LabAction::Up,
@@ -1023,6 +1058,64 @@ path = "/"
         let error =
             run_lab_inventory(&blocked.0, &mut inventory_runner(EMPTY_INVENTORY)).unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    fn dashboard_repo(name: &str) -> TempRepo {
+        let repo = TempRepo::new(name, None);
+        let inventory = inventory::parse(EMPTY_INVENTORY).unwrap();
+        inventory::write(&inventory, &repo.0.join(inventory::INVENTORY_DIR)).unwrap();
+        fs::create_dir_all(repo.0.join(dashboard::ENTRY_DIR)).unwrap();
+        fs::create_dir_all(repo.0.join("docs")).unwrap();
+        repo
+    }
+
+    #[test]
+    fn dashboard_writes_the_rendered_file() {
+        let repo = dashboard_repo("dashboard-ok");
+        let report = run_dashboard(&repo.0).unwrap();
+        assert!(report.success);
+        assert_eq!(
+            report.text,
+            "dashboard: wrote docs/COMPLETENESS.md (0 entries; 0 of 0 items documented, \
+             0 implemented, 0 tested)"
+        );
+        let written = fs::read_to_string(repo.0.join(dashboard::DASHBOARD_PATH)).unwrap();
+        assert!(written.starts_with("# Completeness\n"), "{written}");
+    }
+
+    #[test]
+    fn dashboard_lists_entry_problems_and_writes_nothing() {
+        let repo = dashboard_repo("dashboard-problems");
+        fs::write(
+            repo.0.join(dashboard::ENTRY_DIR).join("notes.txt"),
+            b"not an entry",
+        )
+        .unwrap();
+        let report = run_dashboard(&repo.0).unwrap();
+        assert!(!report.success);
+        assert!(
+            report
+                .text
+                .starts_with("dashboard: 1 problem(s) in contracts/entries; nothing written\n  - "),
+            "{}",
+            report.text
+        );
+        assert!(!repo.0.join(dashboard::DASHBOARD_PATH).exists());
+    }
+
+    #[test]
+    fn dashboard_propagates_missing_inputs_and_write_failures() {
+        let no_inventory = TempRepo::new("dashboard-no-inventory", None);
+        assert!(run_dashboard(&no_inventory.0).is_err());
+
+        let no_entries = dashboard_repo("dashboard-no-entries");
+        fs::remove_dir_all(no_entries.0.join(dashboard::ENTRY_DIR)).unwrap();
+        assert!(run_dashboard(&no_entries.0).is_err());
+
+        let no_docs = dashboard_repo("dashboard-no-docs");
+        fs::remove_dir_all(no_docs.0.join("docs")).unwrap();
+        let error = run_dashboard(&no_docs.0).unwrap_err();
+        assert!(error.to_string().starts_with("writing "), "{error}");
     }
 
     /// Answers trace reads with `first` for the first `switch_after` reads and `then` afterwards.

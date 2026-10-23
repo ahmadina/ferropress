@@ -12,7 +12,6 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::Context as _;
-#[cfg(test)]
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -132,6 +131,16 @@ pub(crate) struct Class {
 pub(crate) enum HookKind {
     Action,
     Filter,
+}
+
+impl HookKind {
+    /// The kind as written in the inventory.
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Action => "action",
+            Self::Filter => "filter",
+        }
+    }
 }
 
 /// One place a hook is fired.
@@ -430,7 +439,6 @@ impl Inventory {
     }
 
     /// Reads the section files written by [`Inventory::render`] from `dir`.
-    #[cfg(test)]
     pub(crate) fn load(dir: &Path) -> anyhow::Result<Self> {
         let mut version = None;
         let mut read = |section: &str| -> anyhow::Result<String> {
@@ -486,7 +494,6 @@ impl Inventory {
     }
 }
 
-#[cfg(test)]
 fn items<T: DeserializeOwned>(text: &str, section: &str) -> anyhow::Result<Vec<T>> {
     text.lines()
         .enumerate()

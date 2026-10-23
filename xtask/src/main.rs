@@ -1,6 +1,7 @@
 //! Repository automation for Ferropress, invoked as `cargo xtask <command>`.
 
 mod capture;
+mod check;
 mod cli;
 mod dbdiff;
 mod fetch;
@@ -22,7 +23,7 @@ use lab::LabAction;
 use layers::Finding;
 use manifest::{ArchiveStatus, Manifest, Problem};
 use process::{Runner, SystemRunner};
-use test_harness::{RequestPath, Slug};
+use test_harness::{Replay, RequestPath, Slug};
 
 /// Outcome of a command: the text to show and whether it succeeded.
 #[derive(Debug, PartialEq, Eq)]
@@ -192,6 +193,37 @@ fn run_lab_capture(
     })
 }
 
+fn run_lab_check(
+    repo_root: &Path,
+    id: &Slug,
+    runner: &mut impl Runner,
+    http: &mut impl HttpClient,
+) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let scenario = check::load_scenario(repo_root, id)?;
+    let env = lab::lab_env(&manifest)?;
+    let reset = lab::plan(LabAction::Reset, &manifest)?;
+    let dir = repo_root.join(capture::CAPTURE_DIR);
+    fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
+    let mut record = |run: char| -> anyhow::Result<Replay> {
+        let observations = check::record(&env, &reset, &scenario, run, runner, http)?;
+        for (index, observation) in observations.iter().enumerate() {
+            let output = dir.join(format!("{id}.{run}.{index}.json"));
+            let json = serde_json::to_vec_pretty(observation).context("serializing a capture")?;
+            fs::write(&output, json).with_context(|| format!("writing {}", output.display()))?;
+        }
+        Ok(Replay::new(observations))
+    };
+    let mut first = record('a')?;
+    let mut second = record('b')?;
+    let report = test_harness::run(&scenario, &mut first, &mut second)?;
+    let (text, success) = check::describe(&scenario, &report);
+    Ok(Report { text, success })
+}
+
 /// The repository root: the parent of this crate's directory.
 fn repo_root() -> &'static Path {
     let xtask_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -215,6 +247,14 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                 LabCommand::Reset => LabAction::Reset,
                 LabCommand::Install => LabAction::Install,
                 LabCommand::Fetch => return run_lab_fetch(repo_root(), &mut system_runner()),
+                LabCommand::Check { scenario } => {
+                    return run_lab_check(
+                        repo_root(),
+                        scenario,
+                        &mut system_runner(),
+                        &mut UreqClient::new(),
+                    );
+                }
                 LabCommand::Capture { name, path } => {
                     return run_lab_capture(
                         repo_root(),
@@ -609,6 +649,143 @@ digest = "{digest}"
         fs::write(blocked.0.join("lab/captures"), b"not a directory").unwrap();
         let error = run_lab_capture(&blocked.0, &name, &path, &mut capture_runner(), &mut OkHttp)
             .unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    const CHECK_SCENARIO: &str = r#"schema = 1
+id = "home"
+description = "Home page"
+compare = ["response.status"]
+
+[[steps]]
+operation = "http"
+method = "GET"
+path = "/"
+"#;
+
+    fn check_repo(name: &str) -> TempRepo {
+        let repo = TempRepo::new(name, Some(&lab_manifest_text()));
+        let dir = repo.0.join(check::SCENARIO_DIR);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("home.toml"), CHECK_SCENARIO).unwrap();
+        repo
+    }
+
+    /// Answers 200 to the first request and `later` to every other one.
+    struct FirstOkHttp {
+        later: u16,
+        calls: usize,
+    }
+
+    impl HttpClient for FirstOkHttp {
+        fn get(
+            &mut self,
+            _url: &str,
+            _headers: &[(&str, &str)],
+        ) -> anyhow::Result<capture::HttpResponse> {
+            self.calls += 1;
+            Ok(capture::HttpResponse {
+                status: if self.calls == 1 { 200 } else { self.later },
+                headers: Vec::new(),
+                body: Vec::new(),
+            })
+        }
+    }
+
+    #[test]
+    fn lab_check_passes_identical_runs_and_writes_both() {
+        let repo = check_repo("check-ok");
+        let id: Slug = "home".parse().unwrap();
+        let mut runner = capture_runner();
+        let mut http = FirstOkHttp {
+            later: 200,
+            calls: 0,
+        };
+        let report = run_lab_check(&repo.0, &id, &mut runner, &mut http).unwrap();
+        assert_eq!(
+            report,
+            Report {
+                text: "lab check home: reference is deterministic over 1 step(s), 1 aspect(s) compared"
+                    .to_owned(),
+                success: true,
+            }
+        );
+        assert_eq!(http.calls, 2);
+        assert_eq!(
+            runner
+                .seen
+                .iter()
+                .filter(|c| c.ends_with("down --volumes"))
+                .count(),
+            2
+        );
+        for run in ["a", "b"] {
+            let written = fs::read(repo.0.join(format!("lab/captures/home.{run}.0.json"))).unwrap();
+            let observation: test_harness::Observation = serde_json::from_slice(&written).unwrap();
+            assert_eq!(observation.name.as_str(), format!("check-{run}-0"));
+        }
+    }
+
+    #[test]
+    fn lab_check_fails_on_differing_runs() {
+        let repo = check_repo("check-diff");
+        let report = run_lab_check(
+            &repo.0,
+            &"home".parse().unwrap(),
+            &mut capture_runner(),
+            &mut FirstOkHttp {
+                later: 500,
+                calls: 0,
+            },
+        )
+        .unwrap();
+        assert!(!report.success);
+        assert_eq!(
+            report.text,
+            "lab check home: 1 mismatch(es) between two reference runs over 1 step(s)\n  \
+             - step 0: response.status at status: expected 200, got 500"
+        );
+    }
+
+    #[test]
+    fn lab_check_refuses_invalid_input_and_propagates_failures() {
+        let id: Slug = "home".parse().unwrap();
+        let mut http = FirstOkHttp {
+            later: 200,
+            calls: 0,
+        };
+
+        let invalid = TempRepo::new("check-invalid", Some(&manifest_text(5)));
+        let mut runner = capture_runner();
+        let report = run_lab_check(&invalid.0, &id, &mut runner, &mut http).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let no_scenario = TempRepo::new("check-none", Some(&lab_manifest_text()));
+        let error =
+            run_lab_check(&no_scenario.0, &id, &mut capture_runner(), &mut http).unwrap_err();
+        assert!(error.to_string().starts_with("reading "), "{error}");
+
+        let incomplete = check_repo("check-incomplete");
+        fs::write(incomplete.0.join(manifest::MANIFEST_PATH), manifest_text(1)).unwrap();
+        let error =
+            run_lab_check(&incomplete.0, &id, &mut capture_runner(), &mut http).unwrap_err();
+        assert!(
+            error.to_string().starts_with("the manifest has no"),
+            "{error}"
+        );
+
+        let failing = check_repo("check-fail");
+        let error = run_lab_check(&failing.0, &id, &mut recording(false), &mut http).unwrap_err();
+        assert!(
+            error.to_string().ends_with("down --volumes` failed"),
+            "{error}"
+        );
+
+        let blocked = check_repo("check-blocked");
+        fs::create_dir_all(blocked.0.join("lab")).unwrap();
+        fs::write(blocked.0.join("lab/captures"), b"not a directory").unwrap();
+        let error = run_lab_check(&blocked.0, &id, &mut capture_runner(), &mut http).unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

@@ -43,6 +43,11 @@ pub(crate) enum LabCommand {
         #[arg(default_value = "/")]
         path: RequestPath,
     },
+    /// Run contracts/scenarios/SCENARIO.toml twice from fresh installs and require identical results
+    Check {
+        /// Scenario id
+        scenario: Slug,
+    },
 }
 
 #[cfg(test)]
@@ -89,6 +94,20 @@ mod tests {
                 name: "post".parse().unwrap(),
                 path: "/?p=1".parse().unwrap(),
             }))
+        );
+        assert_eq!(
+            parse(&["lab", "check", "front-page"]),
+            Ok(Command::Lab(LabCommand::Check {
+                scenario: "front-page".parse().unwrap(),
+            }))
+        );
+        assert_eq!(
+            parse(&["lab", "check", "Front"]),
+            Err(ErrorKind::ValueValidation)
+        );
+        assert_eq!(
+            parse(&["lab", "check"]),
+            Err(ErrorKind::MissingRequiredArgument)
         );
     }
 

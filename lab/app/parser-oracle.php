@@ -3,7 +3,8 @@
  * Ferropress lab parser oracle: prints how the reference PHP parses source text, as JSON.
  *
  * For every case the oracle records the error parsing the source raises (class, message and line),
- * the warnings raised while parsing, and the engine's own rendering of the syntax tree. That
+ * the warnings raised while parsing (severity and message), and the engine's own rendering of the
+ * syntax tree. That
  * rendering is the message of a failed assertion: the source is placed inside the body of a closure
  * passed to assert(), and the engine prints the closure's syntax tree into the AssertionError
  * message. Code that cannot appear inside a function body (namespaces, imports, top-level constants)
@@ -52,13 +53,15 @@ function parser_code_cases(): array {
 		'dim forms'             => '$a[0]; "abc"[1]; [1, 2][0]; A[0]; A::B[0]; (expr)[0]; f()[0]; $a->b()[0];',
 		'calls'                 => 'f(); f(1, 2); \\f(); A\\f(); namespace\\f(); $f(); $a->m(); $a?->m(1); A::m(); A::$m(); $a::m(); static::m(); parent::m(); self::m(); f()(); $a->b()->c();',
 		'call arguments'        => 'f(...$a); f(a: 1, b: 2); f(1, ...$b); f(1,); f(x: ...$y); f(&$a);',
-		'first class callable'  => 'f(...); $a->m(...); A::m(...); $f(...); strlen(...); new A(...);',
+		'first class callable'  => 'f(...); $a->m(...); A::m(...); $f(...); strlen(...); $a->$m(...); "f"(...);',
+		'new callable'          => 'new A(...);',
 		'new'                   => 'new A; new A(); new A(1); new \\A\\B; new $a; new $a->b; new $a[0]; new $a::$b; new static; new self(); new (f()); new class {}; new class(1) extends A implements B, C { public $x; };',
 		'new dereference'       => 'new A()->b; new A()->b(); new A()[0]; new A()::C; (new A)->b;',
 		'class constants'       => 'A::B; A::class; $a::class; static::B; A::{"B"}; A::{$b}; \\A::B; A::CLASS; a::Class;',
 		'static properties'     => 'A::$b; A::$b[0]; A::$$b; A::${"b"}; $a::$b; static::$b;',
 		'unary'                 => '!$a; -$a; +$a; ~$a; @$a; -1; - -1; -(-1); !!$a; @f(); +-+$a;',
-		'casts'                 => '(int) $a; (integer) $a; (bool) $a; (boolean) $a; (float) $a; (double) $a; (string) $a; (binary) $a; (array) $a; (object) $a; (unset) $a;',
+		'casts'                 => '(int) $a; (integer) $a; (bool) $a; (boolean) $a; (float) $a; (double) $a; (string) $a; (binary) $a; (array) $a; (object) $a; (int)(float) $a; -(int) $a;',
+		'unset cast'            => '(unset) $a;',
 		'increment'             => '$a++; $a--; ++$a; --$a; $a->b++; ++$a[0]; A::$b--;',
 		'binary'                => '$a + $b; $a - $b; $a * $b; $a / $b; $a % $b; $a ** $b; $a . $b; $a << $b; $a >> $b; $a & $b; $a | $b; $a ^ $b;',
 		'comparison'            => '$a == $b; $a != $b; $a <> $b; $a === $b; $a !== $b; $a < $b; $a <= $b; $a > $b; $a >= $b; $a <=> $b;',
@@ -81,7 +84,8 @@ function parser_code_cases(): array {
 		'arrow functions'       => 'fn() => 1; fn($a) => $a + 1; fn&($a) => $a; static fn() => 1; fn(int $a = 1, &...$b): int => $a; fn() => fn() => 1; (fn() => 1)(); fn() => $a or $b;',
 		'closures'              => 'function () {}; function ($a, $b) use ($c, &$d) { return $c; }; static function &() {}; function (): ?int { return 1; }; function () use ($a,) {}; (function () {})();',
 		'match'                 => 'match ($a) { 1 => "a", 2, 3 => "b", default => "c" }; match ($a) {}; match (true) { $a > 1, => 1, }; match($a) { default, => 1 };',
-		'pipe'                  => '$a |> f(...); $a |> f(...) |> g(...); $a |> fn($x) => $x + 1; $a + 1 |> f(...); $a |> f(...) == $b;',
+		'pipe'                  => '$a |> f(...); $a |> f(...) |> g(...); $a |> (fn($x) => $x + 1); $a + 1 |> f(...); $a |> f(...) == $b; $a . $b |> f(...); $a |> f(...) . $b;',
+		'pipe arrow function'   => '$a |> fn($x) => $x + 1;',
 		'list in foreach'       => 'foreach ($a as list($b, $c)) {} foreach ($a as $k => list(, $v)) {} foreach ($a as &$v) {} foreach ($a as $k => &$v) {}',
 		'nested parens'         => '((($a))); ($a)(); ($a)[0]; ($a)->b; ($a)::$b; (A)::B; ("f")(); (function () {})(); (fn() => 1)();',
 		'string calls'          => '"f"(); "A::m"(); [$a, "m"](); "abc"->x ?? 1;',
@@ -101,13 +105,14 @@ function parser_code_cases(): array {
 		'for'                   => 'for ($i = 0; $i < 10; $i++) {} for (;;) {} for ($a, $b; $c, $d; $e, $f) {} for (; $a;): endfor;',
 		'foreach'               => 'foreach ($a as $v) {} foreach ($a as $k => $v) {} foreach ($a as $v): endforeach; foreach (f() as $a->b) {} foreach ($a as $k => [$x, $y]) {}',
 		'switch'                => 'switch ($a) { case 1: $b; break; case 2; case 3: default: $c; } switch ($a): case 1: endswitch; switch ($a) {} switch ($a) {; case 1: }',
-		'break continue'        => 'while (1) { break; break 2; continue; continue 2; }',
+		'break continue'        => 'while (1) { while (1) { break; break 2; continue; continue 2; break(1); } }',
 		'return'                => 'return; return 1; return $a ?? $b;',
 		'global static'         => 'function f() { global $a, $b; static $c, $d = 1, $e = [1]; static $x = 1 + 2; }',
 		'unset'                 => 'unset($a); unset($a, $b[0], $c->d); unset($a,);',
 		'goto and labels'       => 'a: goto a; b: $x; goto b;',
 		'try'                   => 'try { $a; } catch (E $e) { $b; } try {} catch (A|B $e) {} finally {} try {} finally {} try {} catch (E) {} try {} catch (\\A\\B $e) {}',
-		'declare'               => 'declare(ticks=1); declare(ticks=1) { $a; } declare(ticks=1): enddeclare; declare(ticks=1, strict_types=0);',
+		'declare'               => 'declare(ticks=1); declare(ticks=1) { $a; } declare(ticks=1): enddeclare; declare(ticks=1, ticks=2);',
+		'declare strict types'  => 'declare(strict_types=1); $a;',
 		'declare encoding'      => 'declare(encoding="UTF-8"); $a;',
 		'declare encoding nonliteral' => 'declare(encoding=A);',
 		'halt compiler'         => '$a; __halt_compiler(); raw ( [ {',
@@ -118,16 +123,16 @@ function parser_code_cases(): array {
 		'use imports'           => 'use A; use A\\B as C; use function f; use const C; use A\\{B, C as D, function e, const F}; use function A\\{b, c};',
 		'top const'             => 'const A = 1, B = 2;',
 		// Declarations.
-		'functions'             => 'function f() {} function &g($a, &$b, ...$c) {} function h(int $a = 1, ?string $b = null, A|B $c = new A): ?A {} function i(): static {} function j(): never {}',
-		'function types'        => 'function f(int|string|null $a, A&B $b, (A&B)|null $c, array $d, callable $e, iterable $f, mixed $g, self $h, ?\\A\\B $i): void {}',
+		'functions'             => 'function f() {} function &g($a, &$b, ...$c) {} function h(int $a = 1, ?string $b = null, A|B $c = new A): ?A {} function i(): iterable {} function j(): never {} function k(): ?array {} function l(): callable|null {}',
+		'function types'        => 'function f(int|string|null $a, A&B $b, (A&B)|null $c, array $d, callable $e, iterable $f, mixed $g, B $h, ?\\A\\B $i, INT $j, (A&B)|(C&D) $k, null|false $l): void {}',
 		'function attributes'   => '#[A] function f(#[B(1)] $a, #[C, D(x: 2)] int $b) {} #[A(1, 2)] #[B] function g() {}',
 		'function return ref'   => 'function &f(): array { static $a = []; return $a; }',
 		'classes'               => 'class A {} abstract class B extends A implements I, J {} final class C {} readonly class D {} final readonly class E {} #[Attr] class F {}',
-		'class members'         => 'class A { const X = 1; public const Y = 2, Z = 3; final protected const int W = 4; public $a; protected static ?int $b = 1; private readonly string $c; var $d, $e = 2; public function f() {} abstract protected function g(); final public static function h(): void {} }',
-		'class modifiers order' => 'class A { static public function f() {} public static $a; final public function g() {} public final const B = 1; readonly public int $c; public abstract function h(); }',
+		'class members'         => 'abstract class A { const X = 1; public const Y = 2, Z = 3; final protected const int W = 4; public $a; protected static ?int $b = 1; private readonly string $c; var $d, $e = 2; public function f() {} abstract protected function g(); final public static function h(): void {} }',
+		'class modifiers order' => 'abstract class A { static public function f() {} public static $a; final public function g() {} public final const B = 1; readonly public int $c; public abstract function h(); }',
 		'constructor promotion' => 'class A { public function __construct(public int $a, private readonly ?string $b = null, protected $c = 1, public private(set) int $d = 0, final public $e = 1) {} }',
 		'asymmetric visibility' => 'class A { public private(set) int $a; protected(set) string $b; public protected(set) ?array $c = null; private(set) int $d; }',
-		'property hooks'        => 'class A { public int $a { get => 1; set => $value; } public $b { get { return 1; } set(int $v) { $this->b = $v; } } public $c { &get => $this->c; final set; } public $d { get; } }',
+		'property hooks'        => 'abstract class A { public int $a { get => 1; set => $value; } public int $b { get { return 1; } set(int $v) { $this->b = $v; } } public $c { &get => $this->c; } public $f { final set { } } abstract public $d { get; } public $e { set => strtoupper($value); } }',
 		'property hooks attrs'  => 'class A { public $a { #[A] get => 1; final set {} } public function __construct(public $b { get => 2; }) {} }',
 		'interfaces'            => 'interface I {} interface J extends I, K { const A = 1; public function f(); public static function g(int $a): void; }',
 		'interface properties'  => 'interface I { public int $a { get; } public $b { set; } }',
@@ -136,11 +141,12 @@ function parser_code_cases(): array {
 		'enum case expressions' => 'enum E: int { case A = 1 << 2; case B = PHP_INT_SIZE; }',
 		'anonymous classes'     => 'new class {}; new class($a) {}; new class extends A {}; new class implements I {}; new #[A] class {}; new readonly class {}; new class(...$a) {};',
 		'nested functions'      => 'function f() { function g() {} class A {} }',
-		'class constant types'  => 'class A { const int A = 1; const ?string B = null; const A|B C = null; const self D = new self; }',
+		'class constant types'  => 'class A { const int A = 1; const ?string B = null; const A|B|null C = null; const ?self D = null; const array E = [1]; }',
 		'static closures in class' => 'class A { function f() { return static fn() => self::class; } }',
 		'method calls on new'   => 'new A()->b()->c; new A()->b::$c; new A()?->b;',
 		'attribute groups'      => '#[A, B(1), \\C\\D(x: [1, 2])] class E { #[F] const G = 1; #[H] public $i; #[J] public function k(#[L] $m) {} }',
 		'attribute on closure'  => '#[A] function () {}; #[A] fn() => 1; #[A] static function () {}; #[A] static fn() => 1;',
+		'by reference methods'  => 'abstract class A { public function &f() {} public static function &g() {} abstract protected function &h(); private function i() {} }',
 		'final constants'       => 'class A { final public const B = 1; }',
 		'readonly function'     => 'readonly(); readonly function f() {}',
 		'static keyword uses'   => 'static::a(); static fn() => 1; static function () {}; function f() { static $a; } new static; $a instanceof static;',
@@ -512,17 +518,43 @@ final class ParserRenderer {
 	}
 }
 
-function parser_record( string $name, string $source, ParserRenderer $renderer ): array {
-	list( $error, $warnings ) = oracle_with_messages(
-		function () use ( $source ): ?array {
-			try {
-				PhpToken::tokenize( $source, TOKEN_PARSE );
-				return null;
-			} catch ( CompileError $thrown ) {
-				return array( get_class( $thrown ), oracle_bytes( $thrown->getMessage() ), $thrown->getLine() );
-			}
-		}
+/**
+ * Parses $source, returning the error raised (class, message and line) and the compile warnings as
+ * [severity, message] pairs. Compile warnings never reach a user error handler, so they are read back
+ * from the displayed output. An error raised while no source is being compiled carries the line of
+ * the code that asked for the parse; its line is recorded as null.
+ */
+function parser_parse( string $source ): array {
+	ini_set( 'display_errors', 'stdout' );
+	ini_set( 'html_errors', '0' );
+	ini_set( 'error_prepend_string', '' );
+	ini_set( 'error_append_string', '' );
+	$error = null;
+	ob_start();
+	try {
+		PhpToken::tokenize( $source, TOKEN_PARSE );
+	} catch ( CompileError $thrown ) {
+		$line  = __FILE__ === $thrown->getFile() ? null : $thrown->getLine();
+		$error = array( get_class( $thrown ), oracle_bytes( $thrown->getMessage() ), $line );
+	} finally {
+		$output = (string) ob_get_clean();
+	}
+	$pattern = '/^(Warning|Deprecated|Notice): (.*?) in .* on line \d+$/m';
+	preg_match_all( $pattern, $output, $matches, PREG_SET_ORDER );
+	if ( '' !== trim( preg_replace( $pattern, '', $output ) ) ) {
+		throw new RuntimeException( 'unexpected output: ' . $output );
+	}
+	$warnings = array_map(
+		function ( array $match ): array {
+			return array( $match[1], oracle_bytes( $match[2] ) );
+		},
+		$matches
 	);
+	return array( $error, $warnings );
+}
+
+function parser_record( string $name, string $source, ParserRenderer $renderer ): array {
+	list( $error, $warnings ) = parser_parse( $source );
 	return array(
 		'name'      => $name,
 		'source'    => oracle_bytes( $source ),

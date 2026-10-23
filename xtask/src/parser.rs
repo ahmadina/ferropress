@@ -22,8 +22,12 @@ const ERROR_CLASSES: [&str; 2] = ["ParseError", "CompileError"];
 const RENDERING_START: &str = "assert(function () {\n";
 const RENDERING_END: &str = "} && false)";
 
-/// The error parsing a case raised: exception class, message and line.
-pub(crate) type RecordedError = (String, String, u32);
+/// The error parsing a case raised: exception class, message and line (`None` when PHP reported the
+/// line of the code that asked for the parse instead of a source line).
+pub(crate) type RecordedError = (String, String, Option<u32>);
+
+/// A warning parsing a case raised: severity (`Warning`, `Deprecated`, …) and message.
+pub(crate) type RecordedWarning = (String, String);
 
 /// One case: a source text and everything the reference PHP reported for it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,7 +36,7 @@ pub(crate) struct Case {
     pub(crate) name: String,
     pub(crate) source: String,
     pub(crate) error: Option<RecordedError>,
-    pub(crate) warnings: Vec<String>,
+    pub(crate) warnings: Vec<RecordedWarning>,
     /// The engine's rendering of the source placed in a closure body, when it has one.
     pub(crate) rendering: Option<String>,
 }
@@ -46,7 +50,11 @@ impl Case {
         [self.name.as_str(), self.source.as_str()]
             .into_iter()
             .chain(error)
-            .chain(self.warnings.iter().map(String::as_str))
+            .chain(
+                self.warnings
+                    .iter()
+                    .flat_map(|(severity, message)| [severity.as_str(), message.as_str()]),
+            )
             .chain(self.rendering.as_deref())
     }
 
@@ -62,7 +70,7 @@ impl Case {
             if !ERROR_CLASSES.contains(&class.as_str()) {
                 problems.push(format!("raises unknown class {class}"));
             }
-            if message.is_empty() || *line == 0 {
+            if message.is_empty() || *line == Some(0) {
                 problems.push("has an empty error message or line 0".to_owned());
             }
             if self.rendering.is_some() {
@@ -188,7 +196,7 @@ mod tests {
         {"name": "echo", "source": "<?php 'a';", "error": null, "warnings": [],
          "rendering": "assert(function () {\n    'a';\n} && false)"},
         {"name": "broken", "source": "<?php )", "error": ["ParseError", "Unmatched ')'", 1],
-         "warnings": [], "rendering": null}
+         "warnings": [["Warning", "w"]], "rendering": null}
     ]}"#;
 
     impl Oracle {
@@ -267,11 +275,11 @@ mod tests {
             ["case `echo` holds a non-byte character"]
         );
         assert_eq!(
-            problems_of(|o| o.cases[1].error = Some(("Error".into(), "x".into(), 1))),
+            problems_of(|o| o.cases[1].error = Some(("Error".into(), "x".into(), None))),
             ["case `broken` raises unknown class Error"]
         );
         assert_eq!(
-            problems_of(|o| o.cases[1].error = Some(("ParseError".into(), String::new(), 0))),
+            problems_of(|o| o.cases[1].error = Some(("ParseError".into(), String::new(), Some(0)))),
             ["case `broken` has an empty error message or line 0"]
         );
         assert_eq!(

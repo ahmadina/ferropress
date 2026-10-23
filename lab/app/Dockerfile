@@ -42,4 +42,4 @@ RUN tar -xzf /tmp/platform.tar.gz -C /var/www/html --strip-components=1 \
     && chown -R www-data:www-data /var/www/html
 
 COPY --chown=www-data:www-data capture.php /var/www/html/wp-content/mu-plugins/ferropress-capture.php
-COPY install-site.php /opt/ferropress/install-site.php
+COPY install-site.php inventory.php /opt/ferropress/

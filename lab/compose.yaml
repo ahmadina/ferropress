@@ -42,7 +42,7 @@ services:
     ports:
       - "127.0.0.1:8080:80"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://localhost/"]
+      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://localhost/ferropress-lab-health"]
       interval: 2s
       timeout: 5s
       retries: 30

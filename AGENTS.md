@@ -4,8 +4,9 @@ Ferropress is a Rust-native platform compatible with WordPress: it runs existing
 themes without any PHP installation. It is not affiliated with or endorsed by WordPress or the WordPress
 Foundation.
 
-The authoritative scope document is `WordPress_Rust_Full_Product_Engineering_Master_Plan.md`.
-Read the sections relevant to your task before changing anything.
+When present locally, `WordPress_Rust_Full_Product_Engineering_Master_Plan.md` is the owner's private
+scope document ("master plan"); read the relevant sections before changing anything. It is git-ignored
+and must never be committed, quoted at length, or linked from public files.
 
 ## Owner mandates (standing instructions — always apply)
 

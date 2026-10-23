@@ -31,6 +31,9 @@ node_modules/
 /e2e/playwright-report/
 /web/**/dist/
 
+# Owner's private planning document (local guide only, never published)
+/WordPress_Rust_Full_Product_Engineering_Master_Plan.md
+
 # Local environment and secrets
 .env
 .env.*

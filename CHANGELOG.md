@@ -7,7 +7,6 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
-- Engineering master plan, architecture layering and repository layout.
 - Engineering rules for contributors and coding agents (`AGENTS.md`, `.cursor/rules/`, `.cursor/skills/`).
 - Repository health files: README, contributing guide, security policy, issue and pull request templates.
 - GPL-2.0-or-later license.

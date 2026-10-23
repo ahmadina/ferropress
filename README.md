@@ -25,12 +25,10 @@ here only to describe compatibility.
   and theme compatibility is published per certified version.
 
 Ferropress does not copy WordPress code. Behavior is studied, specified in our own words, and implemented
-independently; see the clean implementation policy in the master plan (§0.5).
+independently; see the [clean implementation policy](.cursor/rules/clean-room-copyright.mdc).
 
 ## Documentation
 
-- [Engineering master plan](WordPress_Rust_Full_Product_Engineering_Master_Plan.md) — scope, architecture,
-  phases and release gates
 - [AGENTS.md](AGENTS.md) — engineering rules for contributors and coding agents
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to contribute
 - [SECURITY.md](SECURITY.md) — reporting vulnerabilities

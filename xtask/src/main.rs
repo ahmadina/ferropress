@@ -1,5 +1,6 @@
 //! Repository automation for Ferropress, invoked as `cargo xtask <command>`.
 
+mod lab;
 mod layers;
 mod manifest;
 mod workspace;
@@ -10,6 +11,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Context as _;
+use lab::{LabAction, Runner, SystemRunner};
 use layers::Finding;
 use manifest::{ArchiveStatus, Manifest, Problem};
 
@@ -18,6 +20,9 @@ const USAGE: &str = "usage: cargo xtask <command>
 commands:
   check-layers     verify that crate dependencies follow the workspace layer rules
   verify-manifest  validate the reference manifest and hash any downloaded archives
+  lab up           build and start the reference lab stack and wait until it is healthy
+  lab down         stop the reference lab stack, keeping its database
+  lab reset        stop the stack, delete its database and start it from scratch
   help             show this message";
 
 /// Exit status for invalid command-line usage.
@@ -27,6 +32,7 @@ const USAGE_EXIT_CODE: u8 = 2;
 enum Command {
     CheckLayers,
     VerifyManifest,
+    Lab(LabAction),
     Help,
 }
 
@@ -34,6 +40,8 @@ enum Command {
 enum UsageError {
     MissingCommand,
     UnknownCommand(String),
+    MissingLabAction,
+    UnknownLabAction(String),
     UnexpectedArgument(String),
 }
 
@@ -42,6 +50,8 @@ impl fmt::Display for UsageError {
         match self {
             Self::MissingCommand => f.write_str("no command given"),
             Self::UnknownCommand(command) => write!(f, "unknown command `{command}`"),
+            Self::MissingLabAction => f.write_str("`lab` needs an action: up, down or reset"),
+            Self::UnknownLabAction(action) => write!(f, "unknown lab action `{action}`"),
             Self::UnexpectedArgument(argument) => write!(f, "unexpected argument `{argument}`"),
         }
     }
@@ -53,6 +63,13 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Command, UsageError> 
         None => return Err(UsageError::MissingCommand),
         Some("check-layers") => Command::CheckLayers,
         Some("verify-manifest") => Command::VerifyManifest,
+        Some("lab") => match args.next().as_deref() {
+            None => return Err(UsageError::MissingLabAction),
+            Some("up") => Command::Lab(LabAction::Up),
+            Some("down") => Command::Lab(LabAction::Down),
+            Some("reset") => Command::Lab(LabAction::Reset),
+            Some(other) => return Err(UsageError::UnknownLabAction(other.to_owned())),
+        },
         Some("help" | "-h" | "--help") => Command::Help,
         Some(other) => return Err(UsageError::UnknownCommand(other.to_owned())),
     };
@@ -131,10 +148,14 @@ fn manifest_report(
     Report { text, success }
 }
 
-fn verify_manifest(repo_root: &Path) -> anyhow::Result<Report> {
+fn load_manifest(repo_root: &Path) -> anyhow::Result<Manifest> {
     let path = repo_root.join(manifest::MANIFEST_PATH);
     let text = fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-    let manifest = manifest::parse(&text).with_context(|| format!("parsing {}", path.display()))?;
+    manifest::parse(&text).with_context(|| format!("parsing {}", path.display()))
+}
+
+fn verify_manifest(repo_root: &Path) -> anyhow::Result<Report> {
+    let manifest = load_manifest(repo_root)?;
     let problems = manifest::validate(&manifest);
     let mut archives = Vec::new();
     if problems.is_empty() {
@@ -145,6 +166,32 @@ fn verify_manifest(repo_root: &Path) -> anyhow::Result<Report> {
         }
     }
     Ok(manifest_report(&manifest, &problems, &archives))
+}
+
+fn run_lab(
+    repo_root: &Path,
+    action: LabAction,
+    runner: &mut impl Runner,
+) -> anyhow::Result<Report> {
+    let manifest = load_manifest(repo_root)?;
+    let problems = manifest::validate(&manifest);
+    if !problems.is_empty() {
+        return Ok(manifest_report(&manifest, &problems, &[]));
+    }
+    let plan = lab::plan(action, &manifest)?;
+    lab::execute(&plan, runner)?;
+    let text = match action {
+        LabAction::Up | LabAction::Reset => format!(
+            "lab {}: stack is healthy at {}",
+            action.name(),
+            lab::APP_URL
+        ),
+        LabAction::Down => "lab down: stack stopped".to_owned(),
+    };
+    Ok(Report {
+        text,
+        success: true,
+    })
 }
 
 /// The repository root: the parent of this crate's directory.
@@ -161,6 +208,13 @@ fn run(command: &Command) -> anyhow::Result<Report> {
         }),
         Command::CheckLayers => check_layers(),
         Command::VerifyManifest => verify_manifest(repo_root()),
+        Command::Lab(action) => run_lab(
+            repo_root(),
+            *action,
+            &mut SystemRunner {
+                repo_root: repo_root(),
+            },
+        ),
     }
 }
 
@@ -220,6 +274,15 @@ mod tests {
             parse(args(&["verify-manifest"])),
             Ok(Command::VerifyManifest)
         );
+        assert_eq!(parse(args(&["lab", "up"])), Ok(Command::Lab(LabAction::Up)));
+        assert_eq!(
+            parse(args(&["lab", "down"])),
+            Ok(Command::Lab(LabAction::Down))
+        );
+        assert_eq!(
+            parse(args(&["lab", "reset"])),
+            Ok(Command::Lab(LabAction::Reset))
+        );
         for help in ["help", "-h", "--help"] {
             assert_eq!(parse(args(&[help])), Ok(Command::Help), "{help}");
         }
@@ -236,6 +299,15 @@ mod tests {
             parse(args(&["check-layers", "--fix"])),
             Err(UsageError::UnexpectedArgument("--fix".into()))
         );
+        assert_eq!(parse(args(&["lab"])), Err(UsageError::MissingLabAction));
+        assert_eq!(
+            parse(args(&["lab", "start"])),
+            Err(UsageError::UnknownLabAction("start".into()))
+        );
+        assert_eq!(
+            parse(args(&["lab", "up", "now"])),
+            Err(UsageError::UnexpectedArgument("now".into()))
+        );
     }
 
     #[test]
@@ -248,6 +320,14 @@ mod tests {
         assert_eq!(
             UsageError::UnexpectedArgument("y".into()).to_string(),
             "unexpected argument `y`"
+        );
+        assert_eq!(
+            UsageError::MissingLabAction.to_string(),
+            "`lab` needs an action: up, down or reset"
+        );
+        assert_eq!(
+            UsageError::UnknownLabAction("z".into()).to_string(),
+            "unknown lab action `z`"
         );
     }
 
@@ -398,6 +478,92 @@ file = "lab/packages/release.tar.gz"
         let malformed = TempRepo::new("malformed", Some("schema = ["));
         let error = verify_manifest(&malformed.0).unwrap_err();
         assert!(format!("{error:#}").starts_with("parsing "), "{error:#}");
+    }
+
+    struct RecordingRunner {
+        succeed: bool,
+        calls: usize,
+    }
+
+    impl Runner for RecordingRunner {
+        fn run(&mut self, _invocation: &lab::Invocation) -> std::io::Result<bool> {
+            self.calls += 1;
+            Ok(self.succeed)
+        }
+    }
+
+    fn lab_manifest_text() -> String {
+        let digest = format!("sha256:{ABC_SHA256}");
+        format!(
+            r#"{archive}
+[[image]]
+id = "php-runtime"
+reference = "php:1-apache"
+digest = "{digest}"
+
+[[image]]
+id = "database"
+reference = "mysql:1"
+digest = "{digest}"
+"#,
+            archive = manifest_text(1).replace("id = \"release\"", "id = \"platform-release\"")
+        )
+    }
+
+    fn recording(succeed: bool) -> RecordingRunner {
+        RecordingRunner { succeed, calls: 0 }
+    }
+
+    #[test]
+    fn lab_reports_each_action() {
+        let repo = TempRepo::new("lab-ok", Some(&lab_manifest_text()));
+        let expected = [
+            (
+                LabAction::Up,
+                1,
+                "lab up: stack is healthy at http://127.0.0.1:8080/",
+            ),
+            (LabAction::Down, 1, "lab down: stack stopped"),
+            (
+                LabAction::Reset,
+                2,
+                "lab reset: stack is healthy at http://127.0.0.1:8080/",
+            ),
+        ];
+        for (action, calls, text) in expected {
+            let mut runner = recording(true);
+            let report = run_lab(&repo.0, action, &mut runner).unwrap();
+            assert_eq!(report.text, text);
+            assert!(report.success);
+            assert_eq!(runner.calls, calls);
+        }
+    }
+
+    #[test]
+    fn lab_refuses_an_invalid_manifest_without_running_anything() {
+        let repo = TempRepo::new("lab-invalid", Some(&manifest_text(3)));
+        let mut runner = recording(true);
+        let report = run_lab(&repo.0, LabAction::Up, &mut runner).unwrap();
+        assert!(!report.success);
+        assert!(report.text.starts_with("manifest invalid:"));
+        assert_eq!(runner.calls, 0);
+    }
+
+    #[test]
+    fn lab_propagates_missing_entries_and_failures() {
+        let incomplete = TempRepo::new("lab-incomplete", Some(&manifest_text(1)));
+        let error = run_lab(&incomplete.0, LabAction::Up, &mut recording(true)).unwrap_err();
+        assert!(
+            error.to_string().starts_with("the manifest has no"),
+            "{error}"
+        );
+
+        let repo = TempRepo::new("lab-fail", Some(&lab_manifest_text()));
+        let error = run_lab(&repo.0, LabAction::Down, &mut recording(false)).unwrap_err();
+        assert!(error.to_string().ends_with("down` failed"), "{error}");
+
+        let missing = TempRepo::new("lab-missing", None);
+        assert!(run_lab(&missing.0, LabAction::Up, &mut recording(true)).is_err());
     }
 
     #[test]

@@ -1,0 +1,18 @@
+[package]
+name = "php-value"
+description = "VM-neutral PHP value model: strings, ordered arrays, references and object handles"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true

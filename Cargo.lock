@@ -438,6 +438,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "php-value"
+version = "0.0.0"
+dependencies = [
+ "proptest",
+ "thiserror",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

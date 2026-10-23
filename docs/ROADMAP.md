@@ -33,8 +33,9 @@ Status legend: `[x]` done · `[ ]` not started
 
 ## Phase 2 — Contract inventory
 
-- [ ] 12. Symbol inventory into `contracts/`: functions, classes, hooks, constants, globals, REST routes,
-      options, tables (facts only, our own descriptions)
+- [x] 12. Symbol inventory into `contracts/inventory/`: functions, classes, hooks, constants, globals,
+      REST routes, options, tables (recorded facts only; per-item descriptions in our own words follow
+      with step 14)
 - [ ] 13. Lifecycle trace: boot, plugin load and hook order for single site and multisite
 - [ ] 14. Completeness dashboard: documented / implemented / tested / certified per item
 

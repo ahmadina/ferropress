@@ -442,6 +442,7 @@ name = "php-value"
 version = "0.0.0"
 dependencies = [
  "proptest",
+ "serde_json",
  "thiserror",
 ]
 

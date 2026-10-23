@@ -1,0 +1,43 @@
+# Supply-chain policy enforced by `cargo deny check` (see .cursor/rules/rust-dependencies-tooling.mdc).
+
+[graph]
+all-features = true
+
+[advisories]
+yanked = "deny"
+ignore = []
+
+[licenses]
+# Pre-cleared licenses compatible with GPL-2.0-or-later. Apache-2.0 is intentionally absent:
+# dual "MIT OR Apache-2.0" crates resolve under MIT, and Apache-2.0-only crates need review.
+allow = [
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "LGPL-2.1-or-later",
+    "GPL-2.0-or-later",
+]
+confidence-threshold = 0.93
+unused-allowed-license = "allow"
+
+[licenses.private]
+ignore = true
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+deny = [
+    { crate = "ext-php-rs", reason = "links the PHP runtime; Ferropress must run without PHP" },
+    { crate = "phper", reason = "links the PHP runtime; Ferropress must run without PHP" },
+    { crate = "phper-sys", reason = "links the PHP runtime; Ferropress must run without PHP" },
+    { crate = "php-sys", reason = "links the PHP runtime; Ferropress must run without PHP" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

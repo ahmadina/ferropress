@@ -352,10 +352,16 @@ impl Parser<'_> {
         let attributes = self.attributes()?;
         let tokens = self.modifier_tokens()?;
         let modifiers = self.modifiers(Target::Parameter, &tokens)?;
+        let type_line = self.stream.peek()?.line;
         let declared_type = self.optional_type(false)?;
         let by_ref = self.eat(K::AmpersandFollowedByVarOrVararg)?.is_some();
         let variadic = self.eat(K::Ellipsis)?.is_some();
         let name = self.expect(K::Variable)?;
+        let line = if declared_type.is_some() {
+            type_line
+        } else {
+            name.line
+        };
         let name = self.text(&name)[1..].to_vec();
         let default = if self.eat(K::Char(b'='))?.is_some() {
             Some(self.expr()?)
@@ -376,6 +382,7 @@ impl Parser<'_> {
             modifiers,
             hooks,
             attributes,
+            line,
         })
     }
 
@@ -652,6 +659,7 @@ impl Parser<'_> {
         let mut properties = Vec::new();
         loop {
             let name = self.expect(K::Variable)?;
+            let line = name.line;
             let name = self.text(&name)[1..].to_vec();
             let default = if self.eat(K::Char(b'='))?.is_some() {
                 Some(self.expr()?)
@@ -664,6 +672,7 @@ impl Parser<'_> {
                     name,
                     default,
                     hooks,
+                    line,
                 });
                 return Ok(ClassMember::Property(PropertyGroup {
                     modifiers,
@@ -677,6 +686,7 @@ impl Parser<'_> {
                 name,
                 default,
                 hooks: None,
+                line,
             });
             if self.eat(COMMA)?.is_none() {
                 break;

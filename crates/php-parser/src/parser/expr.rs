@@ -1191,7 +1191,16 @@ impl Parser<'_> {
             let kind = self.peek()?;
             match kind {
                 K::StringFragment => parts.push(StringPart::Literal(self.bump()?.value)),
-                K::Variable | K::DollarOpenCurlyBraces | K::CurlyOpen => {
+                K::DollarOpenCurlyBraces => {
+                    let braced_name = self.peek_second()? == K::VariableName;
+                    let value = self.interpolated_variable()?;
+                    parts.push(if braced_name {
+                        StringPart::BracedName(value)
+                    } else {
+                        StringPart::BracedExpr(value)
+                    });
+                }
+                K::Variable | K::CurlyOpen => {
                     parts.push(StringPart::Expr(self.interpolated_variable()?));
                 }
                 kind if kind == close => {

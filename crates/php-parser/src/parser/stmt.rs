@@ -614,6 +614,7 @@ impl Parser<'_> {
         self.eat(SEMICOLON)?;
         let mut cases = Vec::new();
         loop {
+            let line = self.stream.peek()?.line;
             let condition = match self.peek()? {
                 K::Case => {
                     self.bump()?;
@@ -633,9 +634,14 @@ impl Parser<'_> {
                     &[COLON, SEMICOLON]
                 });
             }
-            self.bump()?;
+            let semicolon = self.bump()?.kind == SEMICOLON;
             let body = self.inner_statements(&[K::Case, K::Default, close])?;
-            cases.push(Case { condition, body });
+            cases.push(Case {
+                condition,
+                body,
+                semicolon,
+                line,
+            });
         }
         self.bump()?;
         if close == K::Endswitch {

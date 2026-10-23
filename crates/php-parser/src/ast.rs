@@ -212,6 +212,10 @@ pub struct Case {
     pub condition: Option<Expr>,
     /// The statements up to the next case.
     pub body: Vec<Stmt>,
+    /// Whether the label ends with `;` instead of `:`.
+    pub semicolon: bool,
+    /// The line of `case` or `default`.
+    pub line: u32,
 }
 
 /// A `try` statement.
@@ -522,6 +526,21 @@ pub enum StringPart {
     Literal(Vec<u8>),
     /// An interpolated expression.
     Expr(Expr),
+    /// `${name}` or `${name[index]}`, the deprecated spelling of a variable.
+    BracedName(Expr),
+    /// `${expr}`, the deprecated spelling of a variable variable.
+    BracedExpr(Expr),
+}
+
+impl StringPart {
+    /// The interpolated expression, if this part is not literal text.
+    #[must_use]
+    pub const fn expr(&self) -> Option<&Expr> {
+        match self {
+            Self::Literal(_) => None,
+            Self::Expr(expr) | Self::BracedName(expr) | Self::BracedExpr(expr) => Some(expr),
+        }
+    }
 }
 
 /// The name of a variable.
@@ -815,6 +834,8 @@ pub struct Param {
     pub hooks: Option<Vec<Hook>>,
     /// The attributes.
     pub attributes: Vec<AttributeGroup>,
+    /// The line of the type, or of the variable when untyped.
+    pub line: u32,
 }
 
 /// A declared type.
@@ -987,6 +1008,8 @@ pub struct Property {
     pub default: Option<Expr>,
     /// The hooks; `Some` for `{ … }` even when empty.
     pub hooks: Option<Vec<Hook>>,
+    /// The line of the variable.
+    pub line: u32,
 }
 
 /// A property hook.

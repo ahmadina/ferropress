@@ -281,7 +281,9 @@ impl Printer {
         for (index, part) in parts.iter().enumerate() {
             match part {
                 StringPart::Literal(text) => self.escaped(text, quote),
-                StringPart::Expr(expr) => {
+                StringPart::Expr(expr)
+                | StringPart::BracedName(expr)
+                | StringPart::BracedExpr(expr) => {
                     let simple = matches!(&expr.kind, ExprKind::Variable(VarName::Name(_)))
                         || matches!(
                             &expr.kind,

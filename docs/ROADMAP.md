@@ -8,9 +8,9 @@ Status legend: `[x]` done · `[ ]` not started
 
 ## Phase 0 — Foundations
 
-- [ ] 1. Cargo workspace: root manifest with workspace lints, pinned toolchain, `rustfmt.toml`,
+- [x] 1. Cargo workspace: root manifest with workspace lints, pinned toolchain, `rustfmt.toml`,
       `clippy.toml`, `.cargo/config.toml`
-- [ ] 2. `xtask check-layers`: fail when a crate dependency breaks the layer rules
+- [x] 2. `xtask check-layers`: fail when a crate dependency breaks the layer rules
 - [ ] 3. `deny.toml`: GPL-compatible license allow-list, advisories, banned crates
 - [ ] 4. CI workflow: fmt, clippy, tests, docs, coverage gates, `cargo deny`, forbidden-PHP-binary scan
 - [ ] 5. Architecture decision records (one commit each):

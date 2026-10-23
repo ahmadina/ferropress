@@ -20,6 +20,8 @@ cargo xtask lab inventory                 # record the reference symbol inventor
 cargo xtask lab lifecycle                 # record the reference lifecycle into contracts/lifecycle/
 cargo xtask lab serialize                 # record serialized-format outcomes into contracts/serialize/
 cargo xtask lab value                     # record value-model scenarios into contracts/value/
+cargo xtask lab lexer                     # record lexer cases into contracts/lexer/
+cargo xtask lab lexer-corpus              # compare our lexer with the reference on the upstream sources
 ```
 
 `lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
@@ -163,6 +165,30 @@ The result is written to `contracts/value/scenarios.jsonl` (a header line, then 
 byte strings encoded as above). A second run produces a byte-identical file. `crates/php-value` replays
 every scenario on its value model and compares all events; the rules they prove, and the one scenario
 recorded as a known difference, are in `contracts/runtime/value-model.md`.
+
+## Lexer
+
+`lab lexer` runs our own script (`app/lexer-oracle.php`) in the running lab. The cases are about 170
+hand-written sources for specific rules plus 2500 sources joined from random fragments (fixed seed).
+Each case runs with short open tags on, and those containing `<?` again in a child process with them
+off. For every case the script records each token's name, length and line, the warnings the scanner
+raised, the parse error compiling the source reports (if any), and the decoded value of every constant
+string literal or the error decoding it. Warnings that bypass error handlers are read from the output.
+
+The result is written to `contracts/lexer/cases.jsonl` (a header line, then one case per line, byte
+strings encoded as above). A second run produces a byte-identical file. `crates/php-lexer` replays every
+case; the rules they prove are in `contracts/runtime/lexer.md`.
+
+## Lexer corpus
+
+`lab lexer-corpus` needs the checkouts from `lab fetch`: `compose.yaml` mounts `upstream/` read-only at
+`/opt/upstream` (recreate the stack with `lab up` after fetching). Our script (`app/lexer-corpus.php`)
+tokenizes every `.php` file of the platform checkout and the FILE section of every `.phpt` test of the
+PHP checkout and prints, per file, its SHA-256, token count, a digest of the token stream and its
+warnings. xtask lexes the same files with `crates/php-lexer` (a file whose bytes on the host differ
+from the lab's counts as a difference) and writes every difference to `captures/lexer-corpus.txt`; the
+command fails when any file differs. Nothing from
+the corpus is committed.
 
 ## Pinning
 

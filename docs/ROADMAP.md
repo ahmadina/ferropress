@@ -28,8 +28,8 @@ Status legend: `[x]` done · `[ ]` not started
 - [x] 8. `xtask lab fetch`: clone upstream sources at pinned tags into git-ignored directories
 - [x] 9. Capture tooling: HTTP responses, ordered hook trace, SQL log, DB diff, emails, cron events
 - [x] 10. `test-harness` crate: scenario schema, comparators, reviewed normalizations, fakes
-- [ ] 11. `apps/test-orchestrator`: run one scenario against the lab and Ferropress from the same database
-      state with a frozen clock on both sides, report diffs
+- [x] 11. `xtask lab check`: deterministic lab (fixed clock and secret keys); every scenario must give
+      identical results in two runs from a fresh install
 
 ## Phase 2 — Contract inventory
 
@@ -53,7 +53,8 @@ Status legend: `[x]` done · `[ ]` not started
 ## Phase 4 — Native CMS kernel
 
 - [ ] 21. `cms-types`, `cms-hooks`, `cms-request`, `cms-bootstrap`, `php-bindings`
-- [ ] 22. Milestone: a real plugin loads and produces the same hook trace as the reference
+- [ ] 22. `apps/test-orchestrator` runs scenarios against the lab and Ferropress; milestone: a real
+      plugin loads and produces the same hook trace as the reference
 
 ## Phase 5 — Data, users and queries
 

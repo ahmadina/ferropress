@@ -1,0 +1,91 @@
+---
+description: Commit conventions — when and how to commit so every change is safely revertable
+alwaysApply: true
+---
+
+# Commit Conventions
+
+## When to Commit
+
+Standing instruction from the project owner: work proceeds **step by step**, and every verified step is
+committed and pushed to GitHub (`git push`) immediately — one logical unit of work per commit.
+
+- Commit only after the quality gate passes for that step; never commit a broken build.
+- Push right after committing so the remote always mirrors verified progress.
+- Never force-push, rewrite published history, or skip hooks (`--no-verify`).
+- If no remote is configured yet, commit locally and report that the push is pending.
+
+## Commit Message Format
+
+Single-line only. No body.
+
+```
+<type>(<scope>): <short summary>
+```
+
+- Max 72 characters total
+- Summary is lowercase, no period at the end
+- **Never add a multi-line body** — if the subject line is clear, nothing else is needed
+
+### Types
+
+| Type | When to use |
+| --- | --- |
+| `feat` | New feature or capability |
+| `fix` | Bug fix |
+| `refactor` | Code change with no behavior change |
+| `chore` | Config, deps, tooling, non-source changes |
+| `docs` | Documentation only |
+| `test` | Adding or updating tests |
+| `style` | Formatting only (no logic change) |
+
+### Scope
+
+Use the crate name without the `wp-` prefix, or the area: `hooks`, `query`, `db`, `auth`, `php-bridge`,
+`php-vm`, `server`, `oracle`, `contracts`, `lints`, `ci`, `adr`, etc.
+For a sub-area use `crate/module` e.g. `hooks/dispatch`, `db/prepare`.
+
+### Examples
+
+```
+feat(hooks): add priority-ordered filter dispatch
+feat(hooks/dispatch): support callback removal during iteration
+fix(db/prepare): match wpdb placeholder escaping for %i identifiers
+refactor(query): extract query var parsing into pure planner
+test(php-bridge): add by-reference callback identity contract tests
+chore(lints): deny unwrap_used across the workspace
+docs(adr): record embedded vs worker VM decision
+```
+
+## Granularity Rules
+
+Each commit must be **independently revertable**:
+
+- One feature → one commit (or a few if logically separable)
+- Schema change → separate commit from the feature using it
+- Refactor → never bundled with a feature or fix
+- Config/tooling changes → always their own commit
+
+```
+// ✅ GOOD — revertable in isolation
+chore(lints): add workspace clippy restriction lints
+feat(options): add autoloaded option loading
+refactor(content): move post SQL into storage adapter
+
+// ❌ BAD — impossible to revert one thing without the other
+feat: add options api, fix hook order bug, update lints
+```
+
+## Commit Checklist
+
+Before committing, verify:
+
+- [ ] `cargo fmt --all --check` passes
+- [ ] `cargo clippy --workspace --all-targets --all-features -- -D warnings` passes
+- [ ] `cargo test --workspace --all-features` passes and coverage gates hold (`rust-testing.mdc`)
+- [ ] No upstream WordPress/PHP code, comments, assets or tests committed (`clean-room-copyright.mdc`)
+- [ ] No `println!`/`dbg!`/`unwrap()`/`todo!()`/`unimplemented!()` in production code
+- [ ] No new `unsafe` outside ADR-approved crates; every block has a `// SAFETY:` comment
+- [ ] No new dependency without approval (see `rust-dependencies-tooling.mdc`)
+- [ ] No commented-out code committed
+- [ ] Commit message matches the type and scope of the actual change

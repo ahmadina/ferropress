@@ -1,0 +1,63 @@
+---
+description: SOLID principles expressed idiomatically in Rust (modules, traits, enums, generics, composition roots)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# SOLID in Rust
+
+Apply SOLID through Rust's own tools. Do not port Java/C# interface-per-class designs (M-RUST-SHAPED).
+Abstract **side effects and genuine variability**, never pure logic for its own sake.
+
+## S — Single Responsibility
+- One reason to change per module and per crate. A crate is a bounded context (`wp-hooks`, `wp-query`, `wp-auth`).
+- Separate pure domain logic from I/O: parsing/deciding functions take values and return values; adapters do I/O.
+- A type owns its invariants; validation lives in its constructor, not scattered at call sites.
+- Split modules that mix concerns (e.g. SQL building + capability checks + HTML output).
+
+```rust
+// ❌ one fn queries MySQL, checks caps, renders HTML
+// ✅ wp-query builds QueryPlan (pure) → wp-db executes it (I/O) → theme layer renders
+pub fn plan_query(vars: &QueryVars) -> Result<QueryPlan, QueryVarsError> { /* pure */ }
+```
+
+## O — Open/Closed
+- **Open set** (storage backends, cache drop-ins, plugin-registered callbacks): extend via a trait + new impl.
+- **Closed set** owned by this product (post statuses, hook kinds): use an `enum` with exhaustive `match`;
+  adding a variant and letting the compiler find every site is the intended workflow.
+- Public enums/structs that may grow get `#[non_exhaustive]`.
+- Never branch on type names, strings, or `Any` downcasts to add behavior.
+
+## L — Liskov Substitution
+- Every trait documents its contract: preconditions, postconditions, ordering, errors, panics, thread-safety.
+- Every impl must honor it fully. `unimplemented!()`, `todo!()`, silently-ignored calls or "best effort"
+  impls are forbidden (they are also master-plan stubs).
+- Write one generic contract test suite per trait and run it against **every** impl (real and fake).
+
+```rust
+pub fn object_cache_contract<C: ObjectCache>(make: impl Fn() -> C) { /* shared assertions */ }
+```
+
+## I — Interface Segregation
+- Traits are narrow and role-based: `LoadOption`, `StoreOption`, not `OptionsEverything`.
+- Compose with supertraits only when a caller truly needs both: `trait OptionStore: LoadOption + StoreOption {}`.
+- Functions request the **narrowest** bound they use: `fn autoload(src: &impl LoadOption)`.
+
+## D — Dependency Inversion
+- Domain crates **define** the traits (ports) they need; infrastructure crates **implement** them (adapters).
+  Domain crates never depend on MySQL drivers, HTTP clients, the PHP VM, or the filesystem directly.
+- Inject clock, randomness, filesystem, network, DB and VM handles (M-MOCKABLE-SYSCALLS).
+  No `SystemTime::now()`, `rand::random()` or `std::fs` calls inside domain logic.
+- Wire concrete types in **one composition root** per binary (`apps/server`, `apps/site-operator`, `xtask`).
+- No global singletons or mutable statics for state (M-AVOID-STATICS); pass the request context explicitly.
+
+## Choosing the abstraction (M-DI-HIERARCHY)
+1. Concrete type — when one implementation exists. Do not add a trait "for later".
+2. Enum — closed set, or a real impl plus a test fake behind the `test-util` feature.
+3. Generic `T: Trait` / `impl Trait` — open set, chosen at compile time, no deep nesting.
+4. `&dyn Trait` / `Arc<dyn Trait + Send + Sync>` — runtime choice, heterogeneous registries, or generic nesting
+   becomes unreadable. Keep such traits dyn-compatible; hide wrappers from public signatures.
+
+## Compatibility overrides SOLID aesthetics
+An abstraction must never change WordPress-observable behavior (hook order, SQL text/order, serialization bytes).
+If a "cleaner" design changes observable output, parity wins (AGENTS.md rule 17).

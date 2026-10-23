@@ -1,0 +1,42 @@
+---
+description: Policy for unsafe Rust, FFI and native libraries - allowed reasons, SAFETY comments, Miri, review
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Unsafe Code and FFI
+
+`unsafe_code` is denied workspace-wide. "Written in Rust" is not a security argument (master plan §10).
+
+## When unsafe is permitted (M-UNSAFE)
+Only for one of:
+1. A novel, minimal abstraction with no established safe alternative (e.g. a VM value handle arena);
+2. A benchmarked hot path where the safe version measurably fails an SLO;
+3. FFI to an audited **non-PHP** system library (never Zend/libphp — master plan §0.1).
+
+Never use unsafe to: bypass `Send`/`Sync` (`unsafe impl Send` on a wrapper), extend lifetimes via
+`transmute`, or "simplify" safe code.
+
+## Where
+- Only in crates listed as unsafe-permitted in an ADR. The crate root opts in explicitly:
+  `#![allow(unsafe_code, reason = "ADR-00NN: <why>")]`.
+- Confine unsafe to the smallest private module that can uphold the invariant (soundness boundary = module).
+- `unsafe fn` only when misuse can cause undefined behavior (M-UNSAFE-IMPLIES-UB) — not for "dangerous" ops.
+
+## How
+- Every `unsafe {}` block has a `// SAFETY:` comment proving each precondition (lint-enforced).
+- Every `unsafe fn` / `unsafe trait` documents a `# Safety` section listing caller obligations.
+- `unsafe_op_in_unsafe_fn` is denied: unsafe operations inside `unsafe fn` still need their own block.
+- All code must be sound (M-UNSOUND): a safe API that can cause UB under *any* caller is a release blocker.
+
+## Verification checklist
+- [ ] Tests exercise the unsafe path, including adversarial inputs (panicking closures, misbehaving
+      `Clone`/`Drop`/`Deref` impls).
+- [ ] `cargo +nightly miri test -p <crate>` passes for the affected crate.
+- [ ] Fuzz target exists for any unsafe code reachable from untrusted input (PHP source, HTTP, serialized data).
+- [ ] A second reviewer signs off; the security workstream is notified.
+
+## FFI
+- Prefer established binding crates over hand-written `extern` blocks.
+- `-sys` crates only translate; business logic stays in safe crates (M-FFI-TRANSLATES).
+- Document allowed call patterns, threading rules and ownership transfer for every binding.

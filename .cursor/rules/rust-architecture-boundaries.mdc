@@ -1,0 +1,50 @@
+---
+description: Workspace crate layering, dependency direction, composition roots and PHP VM isolation boundaries
+globs: **/Cargo.toml,crates/**,apps/**,xtask/**
+alwaysApply: false
+---
+
+# Architecture Boundaries
+
+Ports-and-adapters layering defined in master plan §2.6; repository layout in §3. Cargo virtual workspace,
+all library crates flat under `crates/` (M-CRATES-FLAT-FOLDER), thin binaries under `apps/` plus `xtask/`.
+
+## Layers (dependencies point inward, graph is acyclic)
+
+| Layer | Prefix / examples | May depend on | Must not depend on |
+|---|---|---|---|
+| Foundation | `wp-types`, `php-value`, `php-serialize`, `wp-contracts` | std, small vetted crates | any workspace layer |
+| Domain | `wp-hooks`, `wp-db`, `wp-query`, `wp-content`, … | foundation | VM, DB drivers, HTTP, async runtime, `infra-*`, `platform-*` |
+| Orchestration | `wp-request`, `wp-bootstrap` | domain, foundation | VM, `infra-*` |
+| PHP runtime | `php-vm-adapter`, `php-abi-bridge` | foundation | domain, orchestration |
+| PHP bindings | `wp-php-bindings` | domain, runtime, foundation | `infra-*`, `platform-*` |
+| Infrastructure | `infra-mysql`, `infra-http`, `infra-fs`, … | domain ports, foundation | orchestration, platform, other `infra-*` |
+| Platform | `platform-server`, `platform-telemetry`, … | orchestration, domain ports, foundation | concrete `infra-*` (injected instead) |
+| Binaries | `apps/*`, `xtask` | everything | — nothing depends on a binary |
+| Test support | `test-harness` | anything, as a **dev-dependency only** | being a normal dependency of production crates |
+
+## Core ↔ PHP without a cycle
+- Domain crates hold VM-neutral handles from `php-value` and call PHP through its invocation port.
+- `php-abi-bridge` implements that port; `wp-php-bindings` registers the PHP-visible WordPress API by
+  delegating to the native owner. Domain crates never import the bridge or the VM.
+
+## Hard boundaries
+- **VM isolation:** VM types never appear outside `php-vm-adapter` / `php-abi-bridge` (M-DONT-LEAK-TYPES).
+- **Single owner per behavior:** one domain crate owns each WordPress behavior; never reimplement it in
+  bindings or a second crate.
+- **Ports live with their consumer:** the domain crate that needs a capability defines the trait;
+  `infra-*` implements it.
+- **Composition roots only in binaries:** library crates never construct DB pools, runtimes, clocks or VMs.
+- **Reference lab isolation:** nothing under `lab/` or reference PHP/WordPress source is a dependency of,
+  or copied into, a production crate or image.
+- **Contracts are data:** `contracts/` holds versioned specs; code references contract IDs, never redefines them.
+
+## Module hygiene
+- One public path per item (M-SINGLE-ITEM-PATH); no glob re-exports; no preludes.
+- Default private; `pub(crate)` before `pub`; keep `unreachable_pub` clean.
+- No grab-bag crates or modules (`common`, `utils`, `helpers`, `misc`, `security`).
+- Split files that grow past one coherent concern (~500 lines is a review trigger).
+
+## Changing a boundary
+Adding a crate, moving a crate between layers, or adding a cross-layer dependency requires an ADR in
+`docs/adr/NNNN-title.md` before code lands.

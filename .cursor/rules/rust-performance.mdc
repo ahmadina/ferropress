@@ -1,0 +1,53 @@
+---
+description: Memory and CPU efficiency standards - allocation strategy, hashing, data layout, benchmarks and release profiles
+globs: **/*.rs,**/Cargo.toml
+alwaysApply: false
+---
+
+# Performance: Memory and CPU
+
+Efficiency is designed in, then proven by measurement. Never trade WordPress-observable behavior for speed.
+
+## Design-time defaults (apply without waiting for a profile)
+- **Borrow first:** take `&str`, `&[T]`, `&T`; return `Cow<'_, str>` when output is usually unchanged
+  (e.g. filters/escaping that often return input as-is).
+- **No needless allocation:** no `clone()`/`to_string()`/`collect()` just to satisfy a signature; reuse
+  buffers across iterations (M-MEM-REUSE); pre-size with `with_capacity` (M-INITIAL-CAPACITY).
+- **Compact owned data:** `Box<str>`/`Box<[T]>` for immutable owned data (M-BOX-DST); small `Copy` newtype
+  IDs instead of strings for keys.
+- **Intern hot identifiers:** hook names, PHP symbol names, option names → interned integer ids; compare
+  ids, not strings, on hot paths.
+- **Request-scoped memory:** per-request data is freed in bulk at teardown (arena/pool per ADR), matching
+  PHP's request lifecycle; nothing request-scoped outlives the request.
+- **Hashing:** fast non-cryptographic hasher for internal keys (M-FAST-HASHER); **DoS-resistant** hashing
+  for any map keyed by untrusted input (HTTP params, PHP arrays built from request data, headers).
+- **Streaming:** stream request/response bodies, uploads, exports and large query results; never read
+  unbounded input fully into memory. Every cache and buffer has a size bound and eviction policy.
+- **Static over dynamic dispatch** in hot loops when nesting stays readable; avoid `Arc`/locks where
+  ownership or `&` suffices; no lock contention on per-request paths.
+- **Avoid N+1:** batch DB access exactly where WordPress batches; preserve WordPress query counts at
+  minimum, reduce only when parity tests prove identical observable results.
+
+## Measurement
+- Every hot-path crate (`wp-hooks`, `wp-db`, `wp-query`, `php-serialize`, `wp-formatting`, bridge, VM
+  adapter) has `benches/` benchmarks for its critical operations.
+- CI tracks deterministic benchmarks (instruction counts) and fails on unexplained regressions beyond the
+  agreed budget; wall-clock suites run in the performance lab (master plan Phase 10).
+- Profile before micro-optimizing: CPU (flamegraph/samply), heap (dhat/heaptrack), allocation counts.
+- `unsafe` for speed only after a benchmark proves need and Miri passes (`rust-unsafe-ffi.mdc`).
+
+## Release profile (root `Cargo.toml`)
+```toml
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+debug = "line-tables-only"   # usable production profiles
+panic = "unwind"             # required: worker panics are contained, not process-fatal
+```
+Binaries use a high-performance global allocator chosen by ADR (M-MIMALLOC-APPS).
+
+## Review questions
+- What allocates per request / per hook call / per row? Can it borrow, reuse or intern instead?
+- What is the complexity in the number of hooks, rows, blocks or plugins? Any accidental O(n²)?
+- Is every buffer, cache and queue bounded?

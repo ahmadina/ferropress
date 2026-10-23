@@ -1,0 +1,41 @@
+---
+description: Rustdoc requirements, ADR usage, structured tracing and secret redaction
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Documentation and Observability
+
+## Rustdoc
+- Every crate has crate-level docs; every public module has module docs (C-CRATE-DOC, M-MODULE-DOCS).
+- Every public item is documented (`missing_docs` lint). First sentence fits on one line, ~15 words
+  (M-FIRST-DOC-SENTENCE).
+- Canonical sections as applicable (M-CANONICAL-DOCS): `# Examples`, `# Errors`, `# Panics`, `# Safety`.
+- Examples compile, use `?` rather than `unwrap` (C-QUESTION-MARK).
+- When an item implements WordPress/PHP behavior, link the contract ID and upstream reference
+  (e.g. `Contract: wp-hooks/apply_filters`, `Upstream: wp-includes/class-wp-hook.php`).
+- Docs describe the end state, not the design journey (M-NO-META-DESIGN-DOCUMENTATION).
+  Design reasoning belongs in `docs/adr/NNNN-title.md`.
+
+## Comments
+- Comments state constraints the code cannot show (ordering requirements, WordPress quirks being preserved,
+  safety invariants). No narration of what the next line does, no commented-out code.
+- Magic values are named constants with a doc comment explaining their origin (M-DOCUMENTED-MAGIC).
+
+## Logging and tracing
+- Use `tracing` with structured fields and message templates (M-LOG-STRUCTURED). No `println!`, `eprintln!`
+  or `dbg!` in production code (M-LOG-NOT-PRINT; lint-enforced).
+
+```rust
+// ❌ tracing::info!("hook {} ran in {}ms", name, ms);
+tracing::debug!(hook = %name, priority, elapsed_ms = ms, "hook dispatched");
+```
+
+- Instrument boundary functions (HTTP handlers, bridge crossings, DB calls, cron jobs) with spans carrying
+  `site_id`, `request_id`, and relevant contract IDs.
+- Logging on hot paths must be cheap when disabled (M-LOG-OVERHEAD).
+
+## Secrets never leave the process
+Never log, trace, panic-message, or `Debug`-print: passwords and hashes, auth/session cookies, nonces,
+salts/keys from configuration, application passwords, payment data, or personal data from content.
+Types holding secrets implement `Debug` manually with redaction.

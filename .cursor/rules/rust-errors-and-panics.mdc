@@ -1,0 +1,48 @@
+---
+description: Error handling and panic policy, including the split between PHP-visible errors and Rust errors
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Errors and Panics
+
+## Two different kinds of "error" — never conflate them
+- **PHP/WordPress-observable outcomes** (`WP_Error`, PHP warnings/notices/deprecations, `Throwable`,
+  `wpdb->last_error`, `false` returns) are **domain values** that must be reproduced exactly.
+  Model them as data (e.g. `WpError`, `PhpDiagnostic`) and return them in `Ok(..)` where WordPress returns them.
+- **Rust `Err`** means the platform itself could not perform the operation (I/O failure, corrupted state,
+  protocol violation). It must never be used to approximate a PHP-visible result.
+
+## Library crates
+- Each crate exposes situation-specific error types, not one global "everything" enum (M-ERRORS-CANONICAL-STRUCTS).
+- Use `thiserror` for `Display`/`Error`/`From`. Keep the internal kind enum private when its variants are
+  unhandleable by callers; expose `is_*()` helpers instead.
+- Mark public error enums `#[non_exhaustive]`. Preserve the source chain (`#[source]` / `#[from]`).
+- Convert with `From` + `?`, not repetitive `map_err` (M-FROM-ERROR). Never discard a cause (`map_err(|_| ..)`).
+- `anyhow` is allowed only in `apps/*`, `xtask` and tests (M-APP-ERROR).
+
+```rust
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum OptionLoadError {
+    #[error("option storage unavailable")]
+    Storage(#[from] StorageError),
+    #[error("option {name:?} holds malformed serialized PHP data")]
+    MalformedSerialized { name: OptionName, #[source] source: UnserializeError },
+}
+```
+
+## Panics (M-PANIC-IS-STOP, M-PANIC-ON-BUG)
+- A panic means "programming bug detected". It is never used for invalid input, missing rows, network
+  failure or plugin misbehavior — those are errors or PHP-visible outcomes.
+- Production code may not use `unwrap()`, `panic!`, `todo!`, `unimplemented!`, `dbg!` (denied by lints).
+- `expect("…")` is allowed only for invariants proven locally; the message states the invariant, and the
+  site carries `#[expect(clippy::expect_used, reason = "…")]`.
+- Prefer `unreachable!("why")` / `assert!` for internal invariants over silent defaults.
+- Never mask failures with `unwrap_or_default()`, `.ok()`, or `let _ =` on a `Result` unless the discarded
+  error is explicitly irrelevant and the reason is written next to it.
+- The server converts a panic in a request worker into a contained 500 + diagnostic, then discards that
+  worker's request state (M-PANIC-CONTINUATION). Domain code never relies on `catch_unwind`.
+
+## Documentation
+Every public fallible function documents `# Errors`; every function that can panic documents `# Panics`.

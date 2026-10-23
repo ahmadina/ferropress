@@ -1,0 +1,48 @@
+---
+description: Workspace lint policy, dependency admission, license constraints, toolchain pinning and CI gates
+globs: **/Cargo.toml,Cargo.lock,rust-toolchain.toml,deny.toml,clippy.toml,rustfmt.toml,.github/**
+alwaysApply: false
+---
+
+# Dependencies and Tooling
+
+## Workspace configuration (M-CARGO-WORKSPACE)
+- Edition, `rust-version`, `publish = false`, lints and dependency versions are set once in the root
+  `Cargo.toml` and inherited: `edition.workspace = true`, `[lints] workspace = true`,
+  `serde = { workspace = true }`.
+- Crates never declare their own lint tables or dependency versions.
+- The canonical lint block lives in `.cursor/skills/scaffolding-rust-crate/templates.md`; change it only
+  via a `chore(lints)` commit.
+- Toolchain is pinned in `rust-toolchain.toml` to an exact stable version with `rustfmt` and `clippy`.
+
+## Lint overrides
+- Use `#[expect(lint, reason = "…")]`, not `#[allow]` (M-LINT-OVERRIDE-EXPECT). `allow` without a reason is denied.
+- Scope overrides to the smallest item. Crate-wide overrides need an ADR.
+
+## Adding or updating a dependency (AGENTS.md rule 14)
+Ask before adding. Each new crate must have:
+- [ ] A concrete need that std or an existing dependency cannot meet;
+- [ ] Active maintenance, reasonable download/usage, no unresolved RUSTSEC advisories;
+- [ ] A license compatible with the distribution model **pending LEGAL-001** — permissive (MIT, Apache-2.0,
+      BSD, ISC, Zlib, Unicode) is pre-cleared; anything copyleft, PHP-licensed, or unknown is blocked until
+      legal review;
+- [ ] Minimal features (`default-features = false` where practical);
+- [ ] No bundled Zend Engine, libphp, or PHP binary — ever (master plan §0.1).
+
+Prefer well-established crates for infrastructure (e.g. `serde`, `thiserror`, `tracing`, `proptest`);
+each still passes the checklist above.
+
+## CI gate (every PR)
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
+cargo deny check            # advisories, licenses, bans, sources
+```
+Additional scheduled gates: `cargo hack --each-feature check` (features additive, M-FEATURES-ADDITIVE),
+unused-dependency scan, Miri for unsafe-permitted crates, fuzz runs, forbidden-PHP-binary scan of images.
+
+## Features
+- Cargo features are additive and never change WordPress-observable behavior silently.
+- Test-only code lives behind `test-util`; reference-oracle tooling never becomes a production feature.

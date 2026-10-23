@@ -1,0 +1,62 @@
+---
+description: Testing standards - unit, property, trait contract, integration, differential/oracle tests and evidence
+globs: **/*.rs,tests/**,lab/**
+alwaysApply: false
+---
+
+# Testing
+
+Tests are the evidence the master plan demands. A passing build is not completion (§11.3).
+**Everything gets tests**: every public function, every trait impl, every error path, every bug fix.
+
+## Coverage gates (enforced in CI with `cargo llvm-cov`)
+| Scope | Line coverage | Region/branch coverage |
+|---|---|---|
+| Foundation + domain + bridge crates | ≥ 95% | ≥ 90% |
+| Infrastructure + platform crates | ≥ 90% | ≥ 85% |
+| Workspace total | ≥ 90% | — |
+
+- New or changed code may not lower a crate's coverage. Uncovered lines need a written justification.
+- Coverage is necessary, not sufficient: foundation/domain crates also run mutation testing
+  (`cargo mutants`) on a schedule; surviving mutants are triaged as missing assertions.
+
+## Test layers
+| Layer | Location | Purpose |
+|---|---|---|
+| Unit | `#[cfg(test)] mod tests` beside the code | Pure logic, invariants, edge cases |
+| Property | `proptest` in unit or `tests/` | Parsers, serializers, coercions, round-trips |
+| Trait contract | generic `fn <trait>_contract<T: Trait>(..)` | LSP: every impl (real + fake) passes the same suite |
+| Integration | `crates/<name>/tests/` (M-INTEGRATION-TESTS) | Public API across modules |
+| Differential | `scenarios/differential/` run by `apps/test-orchestrator` | Native output vs reference WordPress/PHP oracle |
+| Fuzz | `fuzz/` (cargo-fuzz, outside the workspace) | Untrusted input: PHP source, HTTP, serialized data, SQL placeholders |
+| Browser / load | `e2e/` (Playwright, load tools) | Admin, editor, frontend workflows; SLOs |
+
+A virtual workspace does not compile a root-level `tests/` directory — never put Rust tests there.
+Shared fakes, comparators and scenario types live in `crates/test-harness` (dev-dependency only).
+
+## Ground truth
+- Expected values come from the reference oracle, official `.phpt` files, or WordPress source — never from
+  re-running the code under test (M-TAUTOLOGICAL-TESTS).
+- Record where each expected value came from (contract ID, oracle capture, upstream file/line).
+- Normalize only proven nondeterminism, each with a written reason (master plan §7.2).
+- Ladder A (PHP semantics), B (native Core), C (bridge) are separate suites; never count one as another.
+
+## Determinism
+- Inject clock, RNG seed, filesystem and network through ports; tests use fakes, not wall-clock or internet.
+- No `sleep` for synchronization; use explicit signals or a controllable clock.
+- Tests are order-independent and parallel-safe; each gets its own fixture DB/schema/tempdir.
+
+## Fakes over mocking frameworks
+- Prefer small hand-written fakes that implement the port trait and pass its contract suite.
+- Test utilities and fakes ship behind a `test-util` cargo feature, never in default builds (M-TEST-UTIL).
+
+## Hygiene
+- Test names state the behavior: `filters_run_in_priority_then_insertion_order`.
+- Arrange / act / assert; one behavior per test.
+- `unwrap()`/`expect()` are fine in tests. `#[ignore]` requires a linked ticket and reason; a skipped
+  required test is a failure for gating purposes.
+- Every bug fix lands with a regression test reduced to the smallest reproducer.
+
+## Reporting
+Completion reports list the exact test commands run and their pass/fail counts. Never claim a test passed
+without running it (AGENTS.md rule 16).

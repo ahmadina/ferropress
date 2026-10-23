@@ -1,0 +1,41 @@
+---
+description: Concurrency and async rules - request-affine PHP execution, deterministic ordering, blocking, cancellation
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Async and Concurrency
+
+WordPress semantics are single-threaded and order-sensitive within a request. Rust concurrency must not
+leak into observable behavior (master plan ADR-R7, ADR-R9).
+
+## Request-affine execution
+- A request (and its PHP VM context, globals, hook stack, output buffers) runs on **one** execution context
+  from start to teardown. Do not move request-affine VM objects across threads or async tasks.
+- Request-affine types are deliberately `!Send`; document this on the type. Never wrap them to fake `Send`.
+- Hooks, filters, plugin callbacks and SQL side effects execute **sequentially in reference order**.
+  Never parallelize hook dispatch, plugin loading or query execution that WordPress runs in sequence.
+- Request-local state is reset completely at teardown; only the immutable compiled-code cache survives.
+
+## Async boundaries
+- Use async for network/socket I/O at the edges (HTTP ingress, DB driver, outbound HTTP), per the async
+  runtime chosen by ADR.
+- Never block an async executor thread: CPU-heavy work and synchronous PHP execution run on dedicated
+  worker threads or a blocking pool.
+- Never hold a `std::sync::Mutex` guard (or any non-async lock) across `.await`.
+- Public async APIs use `async fn`, not hand-written `impl Future` (M-ASYNC-FN). Long loops yield (M-YIELD-POINTS).
+
+## Ownership of tasks
+- No detached `spawn` without an owner: every task has a handle, a cancellation path and a shutdown story.
+- Every external call (DB, HTTP, DNS, SMTP, VM execution) has an explicit timeout or budget.
+- Queues and channels are bounded; saturation is observable (metrics), not silent.
+
+## Shared state
+- Prefer message passing or owned data over shared mutable state.
+- Shared services are cheap to clone (`Arc` inside, `Clone` outside) (M-SERVICES-CLONE).
+- Cross-site/tenant data is never stored in process-global caches without a site/network key.
+- Lock ordering is documented wherever more than one lock can be held.
+
+## Verification
+- Concurrency-sensitive code gets interleaving or stress tests (multisite, WooCommerce stock/order paths).
+- Long-running soak tests assert no state leakage between users or sites (master plan Phase 10).

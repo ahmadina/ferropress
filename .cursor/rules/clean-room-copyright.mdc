@@ -1,0 +1,48 @@
+---
+description: Copyright, licensing and trademark rules - study WordPress behavior, never copy its code; implement independently in idiomatic Rust
+alwaysApply: true
+---
+
+# Clean Implementation and Copyright
+
+WordPress is GPL-2.0-or-later and its name is a WordPress Foundation trademark. We implement compatible
+**behavior** independently in Rust; we never copy or translate WordPress code. (Not legal advice —
+LEGAL-001 tracks counsel review.)
+
+## Reference source handling
+- Upstream WordPress and PHP sources are cloned only into `lab/wordpress-reference/src/` and
+  `lab/php-reference/src/`, which are **git-ignored**. Never commit upstream source, tests, assets or
+  translations into this repository.
+- Use the reference to learn behavior: read it, run it, trace it, capture oracle outputs.
+
+## What may enter the repository
+| Allowed (interoperability facts) | Forbidden (expression) |
+|---|---|
+| Function, class, hook, option, table, column, REST route and constant **names** | Copied or line-by-line translated PHP code |
+| Signatures, argument order, defaults, return shapes, error codes | Copied comments, docblocks, inline docs, help text |
+| DB schema, serialization formats, wire/file formats | WordPress CSS/JS/images/fonts/icons/translations |
+| Observed behavior written in **our own words** in `contracts/` | Upstream PHPUnit/`.phpt` test files (run them in `lab/`, don't vendor them) |
+| Oracle outputs captured from our own fixtures | WordPress logo, "WordPress" in product/crate/domain names |
+
+## Implementation workflow
+1. Study upstream behavior → write a contract entry describing inputs, outputs, ordering, side effects
+   and edge cases in our own words, with an upstream file reference for provenance.
+2. Implement from the **contract**, not from the PHP file open beside you. Use Rust-native data structures
+   and algorithms; only observable behavior must match.
+3. Prove equivalence with differential tests against the oracle.
+
+```rust
+// ❌ a Rust port of the PHP function, same structure, same variable names, same comments
+// ✅ an independent design (e.g. interned hook ids + priority-sorted vec) proven equal by oracle tests
+```
+
+## Third-party code
+- Never paste code from plugins, themes, Gutenberg, php-src or `php-rust` into the repo.
+- Dependencies must pass the license checklist in `rust-dependencies-tooling.mdc`.
+- Proprietary plugins/themes are tested in `lab/` only, never committed.
+
+## Naming and trademarks
+- Product name: **Ferropress**. Describe it as "compatible with WordPress" / "runs WordPress plugins and
+  themes"; never imply affiliation with or endorsement by WordPress or the WordPress Foundation.
+- Never use "WordPress" in product, repository, binary, domain or crate names; the `wp-` crate prefix
+  only names the API surface being implemented.

@@ -1,0 +1,62 @@
+---
+description: Rust API design conventions - naming, newtypes, visibility, conversions, builders, sealed traits
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Rust API Design
+
+Follow the [Rust API Guidelines checklist](https://rust-lang.github.io/api-guidelines/checklist.html).
+The project-specific essentials:
+
+## Naming
+- RFC 430 casing; conversions `as_` (cheap borrow), `to_` (expensive), `into_` (consuming) (C-CONV).
+- Getters have no `get_` prefix (C-GETTER). Short names without weasel words like `Manager`, `Helper`,
+  `Util`, `Service` (M-WEASEL-WORDS, M-SHORT-NAMES).
+- PHP/WordPress symbol names appear as string data in registries, not as Rust identifiers:
+  `fn apply_filters` in Rust is fine; `fn wp_insert_post_rust_impl` is not.
+
+## Strong types (C-NEWTYPE, M-STRONG-TYPES-GUARD)
+WordPress uses bare integers and strings everywhere; Rust must not.
+
+```rust
+// ❌ fn get_post_meta(post: u64, key: &str, single: bool)
+// ✅
+pub struct PostId(NonZeroU64);
+pub struct MetaKey(Box<str>);          // validated in MetaKey::new
+pub enum MetaCardinality { Single, All }
+pub fn post_meta(post: PostId, key: &MetaKey, cardinality: MetaCardinality) -> ...;
+```
+
+- Newtypes validate in their constructor and never expose a way to bypass it.
+- Replace `bool`/`Option` parameters that carry meaning with enums (C-CUSTOM-TYPE).
+- Flags sets use `bitflags`, not enums (C-BITFLAG).
+
+## Visibility and future-proofing
+- Struct fields are private (C-STRUCT-PRIVATE); expose behavior, not representation.
+- `#[non_exhaustive]` on public enums and option/config structs that may grow.
+- Traits not meant for downstream implementation are sealed (C-SEALED).
+- Essential functionality is inherent; traits add polymorphism on top (M-ESSENTIAL-FN-INHERENT).
+
+## Common traits and conversions
+- All public types implement `Debug` (non-empty, secrets redacted) (C-DEBUG, M-PUBLIC-DEBUG).
+- Derive `Clone, PartialEq, Eq, Hash, Default` where semantically valid (C-COMMON-TRAITS).
+- Conversions use `From`/`TryFrom`/`AsRef`, never ad-hoc `from_x` functions when a trait fits (C-CONV-TRAITS).
+- Types are `Send` (and `Sync` where sensible) unless they are deliberately request-affine; document which.
+
+## Signatures
+- Accept borrowed, general inputs: `&str`, `&[T]`, `impl AsRef<Path>`, `impl IntoIterator` (M-IMPL-ASREF).
+- Return owned, concrete types; caller decides where data lives (C-CALLER-CONTROL).
+- No out-parameters (C-NO-OUT). Consistent parameter order across a crate (M-PARAMETER-CONSISTENCY).
+- Do not expose `Arc<Mutex<..>>`, `Box<dyn ..>` or `Rc` in public signatures (M-AVOID-WRAPPERS).
+
+## Construction
+- Constructors are inherent `new`/`with_*` functions (C-CTOR).
+- Types with 4+ optional settings use a builder that validates in `build() -> Result<_, _>`
+  (C-BUILDER, M-BUILD-RESULT).
+- Avoid `Default` impls that perform I/O or pick production resources (M-MOCKABLE-SYSCALLS).
+
+## Performance hygiene
+- Pre-size collections when the size is known (M-INITIAL-CAPACITY); avoid needless `clone()`/`to_string()`.
+- Immutable owned sequences use `Box<str>` / `Box<[T]>` (M-BOX-DST).
+- Optimize only from measured profiles (master plan §10); never at the cost of observable behavior.

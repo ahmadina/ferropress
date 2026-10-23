@@ -26,3 +26,4 @@ Copy [`0000-template.md`](0000-template.md) to `NNNN-short-title.md` with the ne
 | [0003](0003-bridge-semantics.md) | Bridge semantics: PHP values and callables across the Rust boundary | Proposed |
 | [0004](0004-database-parity.md) | Database parity | Accepted |
 | [0005](0005-worker-and-tenant-isolation.md) | Worker and tenant isolation | Proposed |
+| [0006](0006-admin-and-editor-hosting.md) | Admin application and block-editor hosting | Accepted (admin) / Proposed (editor) |

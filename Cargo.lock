@@ -851,6 +851,7 @@ dependencies = [
  "anyhow",
  "cargo_metadata",
  "clap",
+ "php-lexer",
  "serde",
  "serde_json",
  "sha2",

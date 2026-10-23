@@ -212,10 +212,16 @@ mod tests {
         assert_eq!(xtask.location, CrateLocation::Xtask);
         assert_eq!(
             xtask.dependencies,
-            [Dependency {
-                name: "test-harness".to_owned(),
-                kind: DependencyKind::Normal,
-            }]
+            [
+                Dependency {
+                    name: "php-lexer".to_owned(),
+                    kind: DependencyKind::Normal,
+                },
+                Dependency {
+                    name: "test-harness".to_owned(),
+                    kind: DependencyKind::Normal,
+                }
+            ]
         );
         let harness = member("test-harness");
         assert_eq!(harness.location, CrateLocation::Crates);

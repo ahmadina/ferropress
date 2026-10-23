@@ -56,6 +56,10 @@ pub(crate) enum LabCommand {
     Serialize,
     /// Record how the reference PHP stores values under assignments and references into contracts/value
     Value,
+    /// Record how the reference PHP splits source text into tokens into contracts/lexer
+    Lexer,
+    /// Compare php-lexer with the reference PHP on every upstream source file (needs lab/upstream)
+    LexerCorpus,
     /// Run contracts/scenarios/SCENARIO.toml twice from fresh installs and require identical results
     Check {
         /// Scenario id
@@ -95,6 +99,8 @@ mod tests {
             ("lifecycle", LabCommand::Lifecycle),
             ("serialize", LabCommand::Serialize),
             ("value", LabCommand::Value),
+            ("lexer", LabCommand::Lexer),
+            ("lexer-corpus", LabCommand::LexerCorpus),
         ];
         for (name, command) in lab {
             assert_eq!(parse(&["lab", name]), Ok(Command::Lab(command)), "{name}");

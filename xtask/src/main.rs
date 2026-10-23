@@ -9,6 +9,8 @@ mod fetch;
 mod inventory;
 mod lab;
 mod layers;
+mod lexer;
+mod lexer_corpus;
 mod lifecycle;
 mod manifest;
 mod process;
@@ -342,6 +344,84 @@ fn run_lab_value(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<R
     })
 }
 
+fn run_lab_lexer(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let env = lab::lab_env(&manifest)?;
+    let output = process::capture_checked(
+        runner,
+        &lab::compose(
+            &env,
+            [
+                "exec",
+                "-T",
+                "--user",
+                "www-data",
+                "app",
+                "php",
+                lexer::SCRIPT,
+            ],
+        ),
+    )
+    .context("running the lexer oracle script")?;
+    let oracle = lexer::parse(&output)?;
+    lexer::write(&oracle, &repo_root.join(lexer::LEXER_DIR))?;
+    Ok(Report {
+        text: format!(
+            "lab lexer: wrote {} for PHP {} ({})",
+            lexer::LEXER_DIR,
+            oracle.php_version,
+            oracle.summary()
+        ),
+        success: true,
+    })
+}
+
+fn run_lab_lexer_corpus(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let env = lab::lab_env(&manifest)?;
+    let output = process::capture_checked(
+        runner,
+        &lab::compose(
+            &env,
+            [
+                "exec",
+                "-T",
+                "--user",
+                "www-data",
+                "app",
+                "php",
+                lexer_corpus::SCRIPT,
+            ],
+        ),
+    )
+    .context("running the lexer corpus script")?;
+    let entries = lexer_corpus::parse(&output)?;
+    let upstream = repo_root.join(lexer_corpus::UPSTREAM_DIR);
+    let summary = lexer_corpus::check(&entries, |path| fs::read(upstream.join(path)))?;
+    let report_path = repo_root.join(lexer_corpus::REPORT);
+    if let Some(parent) = report_path.parent() {
+        fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
+    }
+    fs::write(&report_path, summary.render())
+        .with_context(|| format!("writing {}", report_path.display()))?;
+    Ok(Report {
+        text: format!(
+            "lab lexer-corpus: {} files, {} tokens, {} differ (listed in {})",
+            summary.files,
+            summary.tokens,
+            summary.differences.len(),
+            lexer_corpus::REPORT
+        ),
+        success: summary.differences.is_empty(),
+    })
+}
+
 fn run_lab_lifecycle(
     repo_root: &Path,
     runner: &mut impl Runner,
@@ -461,6 +541,10 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                     return run_lab_serialize(repo_root(), &mut system_runner());
                 }
                 LabCommand::Value => return run_lab_value(repo_root(), &mut system_runner()),
+                LabCommand::Lexer => return run_lab_lexer(repo_root(), &mut system_runner()),
+                LabCommand::LexerCorpus => {
+                    return run_lab_lexer_corpus(repo_root(), &mut system_runner());
+                }
                 LabCommand::Lifecycle => {
                     return run_lab_lifecycle(
                         repo_root(),
@@ -1269,6 +1353,165 @@ path = "/"
         let blocked = TempRepo::new("value-blocked", Some(&lab_manifest_text()));
         fs::write(blocked.0.join("contracts/value"), b"not a directory").unwrap();
         let error = run_lab_value(&blocked.0, &mut value_runner(VALUE_OUTPUT)).unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    const LEXER_OUTPUT: &str = r#"{"schema": 1, "php_version": "8.5.12", "cases": [
+        {"name": "x", "short_open_tag": true, "source": "x", "tokens": [["T_INLINE_HTML", 1, 1]],
+         "warnings": [], "parse_error": null, "literals": []}]}"#;
+
+    fn lexer_runner(
+        output: &'static str,
+    ) -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        FakeRunner::new(move |invocation: &process::Invocation| {
+            let script = invocation.args.last().map(String::as_str) == Some(lexer::SCRIPT);
+            Ok(Some(if script { output } else { "" }.to_owned()))
+        })
+    }
+
+    #[test]
+    fn lab_lexer_runs_the_oracle_and_writes_the_cases() {
+        let repo = TempRepo::new("lexer-ok", Some(&lab_manifest_text()));
+        let mut runner = lexer_runner(LEXER_OUTPUT);
+        let report = run_lab_lexer(&repo.0, &mut runner).unwrap();
+        assert_eq!(
+            report,
+            Report {
+                text: "lab lexer: wrote contracts/lexer for PHP 8.5.12 (1 cases, 1 tokens, 0 parse errors)"
+                    .to_owned(),
+                success: true,
+            }
+        );
+        assert_eq!(runner.seen.len(), 1, "{:?}", runner.seen);
+        assert!(
+            runner.seen[0]
+                .ends_with("exec -T --user www-data app php /opt/ferropress/lexer-oracle.php"),
+            "{:?}",
+            runner.seen
+        );
+        assert_eq!(
+            lexer::Oracle::load(&repo.0.join(lexer::LEXER_DIR)).unwrap(),
+            lexer::parse(LEXER_OUTPUT).unwrap()
+        );
+    }
+
+    #[test]
+    fn lab_lexer_refuses_invalid_input_and_propagates_failures() {
+        let invalid = TempRepo::new("lexer-invalid", Some(&manifest_text(5)));
+        let mut runner = lexer_runner(LEXER_OUTPUT);
+        let report = run_lab_lexer(&invalid.0, &mut runner).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let incomplete = TempRepo::new("lexer-incomplete", Some(&manifest_text(1)));
+        let error = run_lab_lexer(&incomplete.0, &mut lexer_runner(LEXER_OUTPUT)).unwrap_err();
+        assert!(
+            error.to_string().starts_with("the manifest has no"),
+            "{error}"
+        );
+
+        let repo = TempRepo::new("lexer-fail", Some(&lab_manifest_text()));
+        let error = run_lab_lexer(&repo.0, &mut recording(false)).unwrap_err();
+        assert_eq!(error.to_string(), "running the lexer oracle script");
+
+        let error = run_lab_lexer(&repo.0, &mut lexer_runner("{}")).unwrap_err();
+        assert_eq!(error.to_string(), "parsing the lexer oracle's output");
+
+        let blocked = TempRepo::new("lexer-blocked", Some(&lab_manifest_text()));
+        fs::write(blocked.0.join("contracts/lexer"), b"not a directory").unwrap();
+        let error = run_lab_lexer(&blocked.0, &mut lexer_runner(LEXER_OUTPUT)).unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    /// Corpus output for `lab/upstream/platform/a.php` holding `<?php ;`.
+    fn corpus_output(digest_listing: &str) -> String {
+        format!(
+            r#"{{"path":"platform/a.php","sha256":"{}","tokens":2,"digest":"{}","warnings":[]}}"#,
+            manifest::bytes_sha256(b"<?php ;"),
+            manifest::bytes_sha256(digest_listing.as_bytes())
+        )
+    }
+
+    fn corpus_runner(
+        output: String,
+    ) -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        FakeRunner::new(move |invocation: &process::Invocation| {
+            let script = invocation.args.last().map(String::as_str) == Some(lexer_corpus::SCRIPT);
+            Ok(Some(if script {
+                output.clone()
+            } else {
+                String::new()
+            }))
+        })
+    }
+
+    fn corpus_repo(name: &str) -> TempRepo {
+        let repo = TempRepo::new(name, Some(&lab_manifest_text()));
+        let platform = repo.0.join("lab/upstream/platform");
+        fs::create_dir_all(&platform).unwrap();
+        fs::write(platform.join("a.php"), b"<?php ;").unwrap();
+        repo
+    }
+
+    #[test]
+    fn lab_lexer_corpus_compares_every_file_and_writes_the_report() {
+        let repo = corpus_repo("corpus-ok");
+        let mut runner = corpus_runner(corpus_output("T_OPEN_TAG\t6\t1\n;\t1\t1\n"));
+        let report = run_lab_lexer_corpus(&repo.0, &mut runner).unwrap();
+        assert_eq!(
+            report,
+            Report {
+                text: "lab lexer-corpus: 1 files, 2 tokens, 0 differ (listed in lab/captures/lexer-corpus.txt)"
+                    .to_owned(),
+                success: true,
+            }
+        );
+        assert!(
+            runner.seen[0]
+                .ends_with("exec -T --user www-data app php /opt/ferropress/lexer-corpus.php"),
+            "{:?}",
+            runner.seen
+        );
+        assert_eq!(
+            fs::read_to_string(repo.0.join(lexer_corpus::REPORT)).unwrap(),
+            ""
+        );
+
+        let differing = corpus_repo("corpus-differs");
+        let mut runner = corpus_runner(corpus_output("T_OPEN_TAG\t6\t1\n"));
+        let report = run_lab_lexer_corpus(&differing.0, &mut runner).unwrap();
+        assert!(!report.success);
+        assert_eq!(
+            fs::read_to_string(differing.0.join(lexer_corpus::REPORT)).unwrap(),
+            "platform/a.php: tokens differ (2 here, 2 in the reference)\n"
+        );
+    }
+
+    #[test]
+    fn lab_lexer_corpus_refuses_invalid_input_and_propagates_failures() {
+        let invalid = TempRepo::new("corpus-invalid", Some(&manifest_text(5)));
+        let mut runner = corpus_runner(String::new());
+        let report = run_lab_lexer_corpus(&invalid.0, &mut runner).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let repo = corpus_repo("corpus-fail");
+        let error = run_lab_lexer_corpus(&repo.0, &mut recording(false)).unwrap_err();
+        assert_eq!(error.to_string(), "running the lexer corpus script");
+
+        let error = run_lab_lexer_corpus(&repo.0, &mut corpus_runner(String::new())).unwrap_err();
+        assert_eq!(error.to_string(), "the corpus script reported no files");
+
+        let missing = TempRepo::new("corpus-missing", Some(&lab_manifest_text()));
+        let error =
+            run_lab_lexer_corpus(&missing.0, &mut corpus_runner(corpus_output(""))).unwrap_err();
+        assert_eq!(error.to_string(), "reading platform/a.php");
+
+        let blocked = corpus_repo("corpus-blocked");
+        fs::create_dir_all(blocked.0.join("lab")).unwrap();
+        fs::write(blocked.0.join("lab/captures"), b"not a directory").unwrap();
+        let error =
+            run_lab_lexer_corpus(&blocked.0, &mut corpus_runner(corpus_output(""))).unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

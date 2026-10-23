@@ -46,6 +46,9 @@ fn unknown_command_exits_with_usage_error() {
     let output = xtask(&["frobnicate"]);
     assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(stderr.contains("unknown command `frobnicate`"), "{stderr}");
-    assert!(stderr.contains("usage: cargo xtask"), "{stderr}");
+    assert!(
+        stderr.contains("unrecognized subcommand 'frobnicate'"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("Usage: cargo xtask"), "{stderr}");
 }

@@ -1,5 +1,6 @@
 //! Repository automation for Ferropress, invoked as `cargo xtask <command>`.
 
+mod cli;
 mod fetch;
 mod lab;
 mod layers;
@@ -7,83 +8,17 @@ mod manifest;
 mod process;
 mod workspace;
 
-use std::fmt;
 use std::fs;
 use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Context as _;
+use clap::Parser as _;
+use cli::{Cli, Command, LabCommand};
 use lab::LabAction;
 use layers::Finding;
 use manifest::{ArchiveStatus, Manifest, Problem};
 use process::{Runner, SystemRunner};
-
-const USAGE: &str = "usage: cargo xtask <command>
-
-commands:
-  check-layers     verify that crate dependencies follow the workspace layer rules
-  verify-manifest  validate the reference manifest and hash any downloaded archives
-  lab up           build and start the reference lab stack and wait until it is healthy
-  lab down         stop the reference lab stack, keeping its database
-  lab reset        stop the stack, delete its database and start it from scratch
-  lab fetch        download pinned upstream sources and archives into git-ignored lab directories
-  help             show this message";
-
-/// Exit status for invalid command-line usage.
-const USAGE_EXIT_CODE: u8 = 2;
-
-#[derive(Debug, PartialEq, Eq)]
-enum Command {
-    CheckLayers,
-    VerifyManifest,
-    Lab(LabAction),
-    LabFetch,
-    Help,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum UsageError {
-    MissingCommand,
-    UnknownCommand(String),
-    MissingLabAction,
-    UnknownLabAction(String),
-    UnexpectedArgument(String),
-}
-
-impl fmt::Display for UsageError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::MissingCommand => f.write_str("no command given"),
-            Self::UnknownCommand(command) => write!(f, "unknown command `{command}`"),
-            Self::MissingLabAction => f.write_str("`lab` needs an action: up, down or reset"),
-            Self::UnknownLabAction(action) => write!(f, "unknown lab action `{action}`"),
-            Self::UnexpectedArgument(argument) => write!(f, "unexpected argument `{argument}`"),
-        }
-    }
-}
-
-fn parse(args: impl IntoIterator<Item = String>) -> Result<Command, UsageError> {
-    let mut args = args.into_iter();
-    let command = match args.next().as_deref() {
-        None => return Err(UsageError::MissingCommand),
-        Some("check-layers") => Command::CheckLayers,
-        Some("verify-manifest") => Command::VerifyManifest,
-        Some("lab") => match args.next().as_deref() {
-            None => return Err(UsageError::MissingLabAction),
-            Some("up") => Command::Lab(LabAction::Up),
-            Some("down") => Command::Lab(LabAction::Down),
-            Some("reset") => Command::Lab(LabAction::Reset),
-            Some("fetch") => Command::LabFetch,
-            Some(other) => return Err(UsageError::UnknownLabAction(other.to_owned())),
-        },
-        Some("help" | "-h" | "--help") => Command::Help,
-        Some(other) => return Err(UsageError::UnknownCommand(other.to_owned())),
-    };
-    match args.next() {
-        Some(extra) => Err(UsageError::UnexpectedArgument(extra)),
-        None => Ok(command),
-    }
-}
 
 /// Outcome of a command: the text to show and whether it succeeded.
 #[derive(Debug, PartialEq, Eq)]
@@ -241,36 +176,34 @@ fn system_runner() -> SystemRunner<'static> {
 
 fn run(command: &Command) -> anyhow::Result<Report> {
     match command {
-        Command::Help => Ok(Report {
-            text: USAGE.to_owned(),
-            success: true,
-        }),
         Command::CheckLayers => check_layers(),
         Command::VerifyManifest => verify_manifest(repo_root()),
-        Command::Lab(action) => run_lab(repo_root(), *action, &mut system_runner()),
-        Command::LabFetch => run_lab_fetch(repo_root(), &mut system_runner()),
+        Command::Lab(lab) => {
+            let action = match lab {
+                LabCommand::Up => LabAction::Up,
+                LabCommand::Down => LabAction::Down,
+                LabCommand::Reset => LabAction::Reset,
+                LabCommand::Fetch => return run_lab_fetch(repo_root(), &mut system_runner()),
+            };
+            run_lab(repo_root(), action, &mut system_runner())
+        }
     }
 }
 
 fn main() -> ExitCode {
-    match parse(std::env::args().skip(1)) {
-        Ok(command) => match run(&command) {
-            Ok(report) if report.success => {
-                print_out(&report.text);
-                ExitCode::SUCCESS
-            }
-            Ok(report) => {
-                print_err(&report.text);
-                ExitCode::FAILURE
-            }
-            Err(error) => {
-                print_err(&format!("error: {error:#}"));
-                ExitCode::FAILURE
-            }
-        },
+    let cli = Cli::parse();
+    match run(&cli.command) {
+        Ok(report) if report.success => {
+            print_out(&report.text);
+            ExitCode::SUCCESS
+        }
+        Ok(report) => {
+            print_err(&report.text);
+            ExitCode::FAILURE
+        }
         Err(error) => {
-            print_err(&format!("error: {error}\n\n{USAGE}"));
-            ExitCode::from(USAGE_EXIT_CODE)
+            print_err(&format!("error: {error:#}"));
+            ExitCode::FAILURE
         }
     }
 }
@@ -297,75 +230,6 @@ mod tests {
     use crate::layers::Layer;
     use crate::process::testing::FakeRunner;
     use crate::workspace::DependencyKind;
-
-    fn args(list: &[&str]) -> Vec<String> {
-        list.iter().map(|&arg| arg.to_owned()).collect()
-    }
-
-    #[test]
-    fn parses_known_commands() {
-        assert_eq!(parse(args(&["check-layers"])), Ok(Command::CheckLayers));
-        assert_eq!(
-            parse(args(&["verify-manifest"])),
-            Ok(Command::VerifyManifest)
-        );
-        assert_eq!(parse(args(&["lab", "up"])), Ok(Command::Lab(LabAction::Up)));
-        assert_eq!(
-            parse(args(&["lab", "down"])),
-            Ok(Command::Lab(LabAction::Down))
-        );
-        assert_eq!(
-            parse(args(&["lab", "reset"])),
-            Ok(Command::Lab(LabAction::Reset))
-        );
-        assert_eq!(parse(args(&["lab", "fetch"])), Ok(Command::LabFetch));
-        for help in ["help", "-h", "--help"] {
-            assert_eq!(parse(args(&[help])), Ok(Command::Help), "{help}");
-        }
-    }
-
-    #[test]
-    fn rejects_missing_unknown_and_extra_arguments() {
-        assert_eq!(parse(args(&[])), Err(UsageError::MissingCommand));
-        assert_eq!(
-            parse(args(&["build"])),
-            Err(UsageError::UnknownCommand("build".into()))
-        );
-        assert_eq!(
-            parse(args(&["check-layers", "--fix"])),
-            Err(UsageError::UnexpectedArgument("--fix".into()))
-        );
-        assert_eq!(parse(args(&["lab"])), Err(UsageError::MissingLabAction));
-        assert_eq!(
-            parse(args(&["lab", "start"])),
-            Err(UsageError::UnknownLabAction("start".into()))
-        );
-        assert_eq!(
-            parse(args(&["lab", "up", "now"])),
-            Err(UsageError::UnexpectedArgument("now".into()))
-        );
-    }
-
-    #[test]
-    fn usage_errors_render_readably() {
-        assert_eq!(UsageError::MissingCommand.to_string(), "no command given");
-        assert_eq!(
-            UsageError::UnknownCommand("x".into()).to_string(),
-            "unknown command `x`"
-        );
-        assert_eq!(
-            UsageError::UnexpectedArgument("y".into()).to_string(),
-            "unexpected argument `y`"
-        );
-        assert_eq!(
-            UsageError::MissingLabAction.to_string(),
-            "`lab` needs an action: up, down or reset"
-        );
-        assert_eq!(
-            UsageError::UnknownLabAction("z".into()).to_string(),
-            "unknown lab action `z`"
-        );
-    }
 
     #[test]
     fn report_passes_without_findings() {
@@ -405,13 +269,6 @@ mod tests {
     fn check_layers_passes_on_this_workspace() {
         let report = check_layers().unwrap();
         assert!(report.success, "{}", report.text);
-    }
-
-    #[test]
-    fn help_runs_successfully() {
-        let report = run(&Command::Help).unwrap();
-        assert!(report.success);
-        assert_eq!(report.text, USAGE);
     }
 
     #[test]

@@ -218,6 +218,10 @@ mod tests {
                     kind: DependencyKind::Normal,
                 },
                 Dependency {
+                    name: "php-parser".to_owned(),
+                    kind: DependencyKind::Normal,
+                },
+                Dependency {
                     name: "test-harness".to_owned(),
                     kind: DependencyKind::Normal,
                 }

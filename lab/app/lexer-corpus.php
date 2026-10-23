@@ -68,24 +68,33 @@ function corpus_tokenize( string $source ): array {
 	return array( $tokens, array_map( 'corpus_bytes', $matches[1] ) );
 }
 
+/** Every source to read, path => text: platform files whole, PHP tests through their FILE section. */
+function corpus_sources(): Generator {
+	$sources = array();
+	foreach ( corpus_files( 'platform', '.php' ) as $path ) {
+		$sources[ $path ] = false;
+	}
+	foreach ( corpus_files( 'php', '.phpt' ) as $path ) {
+		$sources[ $path ] = true;
+	}
+	foreach ( $sources as $path => $is_test ) {
+		$text   = (string) file_get_contents( UPSTREAM . '/' . $path );
+		$source = $is_test ? corpus_file_section( $text ) : $text;
+		if ( null !== $source ) {
+			yield (string) $path => $source;
+		}
+	}
+}
+
+if ( realpath( (string) ( $_SERVER['SCRIPT_FILENAME'] ?? '' ) ) !== __FILE__ ) {
+	return;
+}
+
 ini_set( 'display_errors', 'stdout' );
 ini_set( 'html_errors', '0' );
 ini_set( 'memory_limit', '1G' );
 
-$sources = array();
-foreach ( corpus_files( 'platform', '.php' ) as $path ) {
-	$sources[ $path ] = false;
-}
-foreach ( corpus_files( 'php', '.phpt' ) as $path ) {
-	$sources[ $path ] = true;
-}
-
-foreach ( $sources as $path => $is_test ) {
-	$text   = (string) file_get_contents( UPSTREAM . '/' . $path );
-	$source = $is_test ? corpus_file_section( $text ) : $text;
-	if ( null === $source ) {
-		continue;
-	}
+foreach ( corpus_sources() as $path => $source ) {
 	list( $tokens, $warnings ) = corpus_tokenize( $source );
 	$digest = hash_init( 'sha256' );
 	foreach ( $tokens as $token ) {

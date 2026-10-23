@@ -16,6 +16,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 test-harness = { workspace = true }
 php-lexer = { path = "../crates/php-lexer" }
+php-parser = { path = "../crates/php-parser" }
 sha2 = { workspace = true }
 toml = { workspace = true }
 ureq = { workspace = true }

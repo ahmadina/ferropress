@@ -1,18 +1,24 @@
 //! Repository automation for Ferropress, invoked as `cargo xtask <command>`.
 
 mod layers;
+mod manifest;
 mod workspace;
 
 use std::fmt;
+use std::fs;
+use std::path::Path;
 use std::process::ExitCode;
 
+use anyhow::Context as _;
 use layers::Finding;
+use manifest::{ArchiveStatus, Manifest, Problem};
 
 const USAGE: &str = "usage: cargo xtask <command>
 
 commands:
-  check-layers  verify that crate dependencies follow the workspace layer rules
-  help          show this message";
+  check-layers     verify that crate dependencies follow the workspace layer rules
+  verify-manifest  validate the reference manifest and hash any downloaded archives
+  help             show this message";
 
 /// Exit status for invalid command-line usage.
 const USAGE_EXIT_CODE: u8 = 2;
@@ -20,6 +26,7 @@ const USAGE_EXIT_CODE: u8 = 2;
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
     CheckLayers,
+    VerifyManifest,
     Help,
 }
 
@@ -45,6 +52,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Command, UsageError> 
     let command = match args.next().as_deref() {
         None => return Err(UsageError::MissingCommand),
         Some("check-layers") => Command::CheckLayers,
+        Some("verify-manifest") => Command::VerifyManifest,
         Some("help" | "-h" | "--help") => Command::Help,
         Some(other) => return Err(UsageError::UnknownCommand(other.to_owned())),
     };
@@ -85,13 +93,80 @@ fn check_layers() -> anyhow::Result<Report> {
     Ok(layer_report(members.len(), &findings))
 }
 
+fn manifest_report(
+    manifest: &Manifest,
+    problems: &[Problem],
+    archives: &[(&str, ArchiveStatus)],
+) -> Report {
+    if !problems.is_empty() {
+        let mut text = format!("manifest invalid: {} problem(s)", problems.len());
+        for problem in problems {
+            text.push_str("\n  - ");
+            text.push_str(&problem.to_string());
+        }
+        return Report {
+            text,
+            success: false,
+        };
+    }
+    let mut success = true;
+    let mut text = format!(
+        "manifest valid: {} source(s), {} archive(s), {} image(s)",
+        manifest.source.len(),
+        manifest.archive.len(),
+        manifest.image.len()
+    );
+    for (id, status) in archives {
+        let line = match status {
+            ArchiveStatus::Verified => format!("archive `{id}`: sha256 verified"),
+            ArchiveStatus::NotFetched => format!("archive `{id}`: not downloaded"),
+            ArchiveStatus::Mismatch { actual } => {
+                success = false;
+                format!("archive `{id}`: sha256 mismatch, file hashes to {actual}")
+            }
+        };
+        text.push_str("\n  - ");
+        text.push_str(&line);
+    }
+    Report { text, success }
+}
+
+fn verify_manifest(repo_root: &Path) -> anyhow::Result<Report> {
+    let path = repo_root.join(manifest::MANIFEST_PATH);
+    let text = fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+    let manifest = manifest::parse(&text).with_context(|| format!("parsing {}", path.display()))?;
+    let problems = manifest::validate(&manifest);
+    let mut archives = Vec::new();
+    if problems.is_empty() {
+        for archive in &manifest.archive {
+            let status = manifest::verify_archive(repo_root, archive)
+                .with_context(|| format!("hashing archive `{}`", archive.id))?;
+            archives.push((archive.id.as_str(), status));
+        }
+    }
+    Ok(manifest_report(&manifest, &problems, &archives))
+}
+
+/// The repository root: the parent of this crate's directory.
+fn repo_root() -> &'static Path {
+    let xtask_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    xtask_dir.parent().unwrap_or(xtask_dir)
+}
+
+fn run(command: &Command) -> anyhow::Result<Report> {
+    match command {
+        Command::Help => Ok(Report {
+            text: USAGE.to_owned(),
+            success: true,
+        }),
+        Command::CheckLayers => check_layers(),
+        Command::VerifyManifest => verify_manifest(repo_root()),
+    }
+}
+
 fn main() -> ExitCode {
     match parse(std::env::args().skip(1)) {
-        Ok(Command::Help) => {
-            print_out(USAGE);
-            ExitCode::SUCCESS
-        }
-        Ok(Command::CheckLayers) => match check_layers() {
+        Ok(command) => match run(&command) {
             Ok(report) if report.success => {
                 print_out(&report.text);
                 ExitCode::SUCCESS
@@ -141,6 +216,10 @@ mod tests {
     #[test]
     fn parses_known_commands() {
         assert_eq!(parse(args(&["check-layers"])), Ok(Command::CheckLayers));
+        assert_eq!(
+            parse(args(&["verify-manifest"])),
+            Ok(Command::VerifyManifest)
+        );
         for help in ["help", "-h", "--help"] {
             assert_eq!(parse(args(&[help])), Ok(Command::Help), "{help}");
         }
@@ -210,5 +289,125 @@ mod tests {
     fn check_layers_passes_on_this_workspace() {
         let report = check_layers().unwrap();
         assert!(report.success, "{}", report.text);
+    }
+
+    #[test]
+    fn help_runs_successfully() {
+        let report = run(&Command::Help).unwrap();
+        assert!(report.success);
+        assert_eq!(report.text, USAGE);
+    }
+
+    #[test]
+    fn repo_root_contains_the_manifest() {
+        assert!(repo_root().join(manifest::MANIFEST_PATH).is_file());
+    }
+
+    #[test]
+    fn committed_manifest_verifies() {
+        let report = run(&Command::VerifyManifest).unwrap();
+        assert!(report.success, "{}", report.text);
+        assert!(
+            report.text.starts_with("manifest valid:"),
+            "{}",
+            report.text
+        );
+    }
+
+    const ABC_SHA256: &str = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+
+    fn manifest_text(schema: u32) -> String {
+        format!(
+            r#"schema = {schema}
+
+[[archive]]
+id = "release"
+version = "1.0"
+url = "https://example.org/release.tar.gz"
+sha256 = "{ABC_SHA256}"
+file = "lab/packages/release.tar.gz"
+"#
+        )
+    }
+
+    struct TempRepo(std::path::PathBuf);
+
+    impl TempRepo {
+        fn new(name: &str, manifest: Option<&str>) -> Self {
+            let path =
+                std::env::temp_dir().join(format!("xtask-main-{}-{name}", std::process::id()));
+            let _ = fs::remove_dir_all(&path);
+            fs::create_dir_all(path.join("contracts")).unwrap();
+            fs::create_dir_all(path.join("lab/packages")).unwrap();
+            if let Some(text) = manifest {
+                fs::write(path.join(manifest::MANIFEST_PATH), text).unwrap();
+            }
+            Self(path)
+        }
+    }
+
+    impl Drop for TempRepo {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn verify_manifest_reports_archive_states() {
+        let repo = TempRepo::new("states", Some(&manifest_text(1)));
+        let report = verify_manifest(&repo.0).unwrap();
+        assert!(report.success);
+        assert_eq!(
+            report.text,
+            "manifest valid: 0 source(s), 1 archive(s), 0 image(s)\n  - archive `release`: not downloaded"
+        );
+
+        let archive = repo.0.join("lab/packages/release.tar.gz");
+        fs::write(&archive, b"abc").unwrap();
+        let report = verify_manifest(&repo.0).unwrap();
+        assert!(report.success);
+        assert!(report.text.ends_with("archive `release`: sha256 verified"));
+
+        fs::write(&archive, b"tampered").unwrap();
+        let report = verify_manifest(&repo.0).unwrap();
+        assert!(!report.success);
+        assert!(
+            report
+                .text
+                .contains("archive `release`: sha256 mismatch, file hashes to ")
+        );
+    }
+
+    #[test]
+    fn verify_manifest_lists_problems_without_hashing() {
+        let repo = TempRepo::new("invalid", Some(&manifest_text(7)));
+        let report = verify_manifest(&repo.0).unwrap();
+        assert!(!report.success);
+        assert_eq!(
+            report.text,
+            "manifest invalid: 1 problem(s)\n  - `manifest`.schema: schema 7 is not supported (expected 1)"
+        );
+    }
+
+    #[test]
+    fn verify_manifest_fails_on_missing_or_malformed_file() {
+        let missing = TempRepo::new("missing", None);
+        let error = verify_manifest(&missing.0).unwrap_err();
+        assert!(format!("{error:#}").starts_with("reading "), "{error:#}");
+
+        let malformed = TempRepo::new("malformed", Some("schema = ["));
+        let error = verify_manifest(&malformed.0).unwrap_err();
+        assert!(format!("{error:#}").starts_with("parsing "), "{error:#}");
+    }
+
+    #[test]
+    fn verify_manifest_propagates_hashing_errors() {
+        let repo = TempRepo::new("hash-error", Some(&manifest_text(1)));
+        fs::create_dir_all(repo.0.join("lab/packages/release.tar.gz")).unwrap();
+        let error = verify_manifest(&repo.0).unwrap_err();
+        assert!(
+            format!("{error:#}").starts_with("hashing archive `release`"),
+            "{error:#}"
+        );
     }
 }

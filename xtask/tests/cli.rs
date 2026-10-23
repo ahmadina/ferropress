@@ -23,6 +23,14 @@ fn check_layers_succeeds_on_the_workspace() {
 }
 
 #[test]
+fn verify_manifest_succeeds_on_the_committed_manifest() {
+    let output = xtask(&["verify-manifest"]);
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(output.status.success(), "{stdout}");
+    assert!(stdout.starts_with("manifest valid:"), "{stdout}");
+}
+
+#[test]
 fn help_prints_usage() {
     let output = xtask(&["help"]);
     assert!(output.status.success());

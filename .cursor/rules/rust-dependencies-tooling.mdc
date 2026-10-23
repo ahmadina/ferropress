@@ -23,9 +23,10 @@ alwaysApply: false
 Ask before adding. Each new crate must have:
 - [ ] A concrete need that std or an existing dependency cannot meet;
 - [ ] Active maintenance, reasonable download/usage, no unresolved RUSTSEC advisories;
-- [ ] A license compatible with the distribution model **pending LEGAL-001** — permissive (MIT, Apache-2.0,
-      BSD, ISC, Zlib, Unicode) is pre-cleared; anything copyleft, PHP-licensed, or unknown is blocked until
-      legal review;
+- [ ] A license compatible with Ferropress's **GPL-2.0-or-later** — MIT, BSD-2/3-Clause, ISC, Zlib,
+      Unicode-3.0, LGPL-2.1+ and GPL-2.0+ are pre-cleared; dual "MIT OR Apache-2.0" crates are used under MIT;
+      Apache-2.0-only crates are compatible only with GPLv3 and need review; PHP License, proprietary,
+      unknown, or otherwise GPL-incompatible licenses are blocked;
 - [ ] Minimal features (`default-features = false` where practical);
 - [ ] No bundled Zend Engine, libphp, or PHP binary — ever (master plan §0.1).
 

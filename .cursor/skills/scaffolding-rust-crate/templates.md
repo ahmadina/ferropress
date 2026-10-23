@@ -13,6 +13,7 @@ edition = "2024"
 rust-version = "1.94"
 publish = false
 version = "0.0.0"
+license = "GPL-2.0-or-later"
 
 [workspace.dependencies]
 # Internal crates (path deps) and approved external crates are declared here only.
@@ -61,7 +62,7 @@ semicolon_outside_block = "warn"
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
 multiple_crate_versions = "allow"
-cargo_common_metadata = "allow"   # license/repository metadata pending LEGAL-001
+cargo_common_metadata = "allow"   # repository/keywords metadata added once the GitHub URL exists
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
@@ -99,6 +100,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+license.workspace = true
 
 [features]
 test-util = []

@@ -42,4 +42,5 @@ independently; see the clean implementation policy in the master plan (§0.5).
 
 ## License
 
-To be confirmed before the first release (GPL-2.0-or-later recommended; see master plan §0.3).
+Ferropress is free software, licensed under the GNU General Public License, version 2 or (at your option)
+any later version (`GPL-2.0-or-later`). See [LICENSE](LICENSE).

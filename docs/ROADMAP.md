@@ -47,6 +47,11 @@ Status legend: `[x]` done · `[ ]` not started
 - [x] 15. `php-serialize`: byte-exact serialize/unserialize with property tests and fuzzing
 - [x] 16. `php-value`: value model (ordered arrays, references, copy-on-write, object handles)
 - [ ] 17. Lexer → parser → bytecode compiler → VM core (one step each), checked against the PHP test suite
+  - [x] Lexer: `php-lexer`, byte-exact tokens, lines and scanner diagnostics (`contracts/lexer/`,
+        recorded by `xtask lab lexer`; `xtask lab lexer-corpus` matches every upstream source file)
+  - [ ] Parser
+  - [ ] Bytecode compiler
+  - [ ] VM core
 - [ ] 18. Language features: functions and closures; classes, interfaces, traits, enums; exceptions;
       generators and fibers; include/require and autoloading
 - [ ] 19. Built-in function families: strings, arrays, math, JSON, PCRE, mbstring, date/time, streams,

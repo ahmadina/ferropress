@@ -1,0 +1,23 @@
+schema = 1
+id = "sample-post"
+description = "An anonymous visitor loads the front page, then opens the sample post"
+compare = [
+    "response.status",
+    "response.headers",
+    "response.body",
+    "hooks",
+    "queries",
+    "mail",
+    "cron",
+    "database",
+]
+
+[[steps]]
+operation = "http"
+method = "GET"
+path = "/"
+
+[[steps]]
+operation = "http"
+method = "GET"
+path = "/?p=1"

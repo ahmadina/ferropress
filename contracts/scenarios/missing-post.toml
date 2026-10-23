@@ -1,0 +1,18 @@
+schema = 1
+id = "missing-post"
+description = "An anonymous visitor requests a post that does not exist"
+compare = [
+    "response.status",
+    "response.headers",
+    "response.body",
+    "hooks",
+    "queries",
+    "mail",
+    "cron",
+    "database",
+]
+
+[[steps]]
+operation = "http"
+method = "GET"
+path = "/?p=999"

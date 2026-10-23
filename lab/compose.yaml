@@ -1,0 +1,48 @@
+# Reference lab stack. Start it with `cargo xtask lab up`, which supplies the pinned LAB_* values from
+# contracts/reference-manifest.toml. Lab-only credentials; nothing is reachable beyond localhost.
+name: ferropress-lab
+
+services:
+  database:
+    image: ${LAB_DB_IMAGE:?run through cargo xtask lab}
+    environment:
+      MYSQL_DATABASE: reference
+      MYSQL_USER: reference
+      MYSQL_PASSWORD: reference
+      MYSQL_ROOT_PASSWORD: reference-root
+    volumes:
+      - database:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--host=127.0.0.1", "--user=reference", "--password=reference", "--silent"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+      start_period: 10s
+
+  app:
+    build:
+      context: app
+      args:
+        LAB_PHP_IMAGE: ${LAB_PHP_IMAGE:?run through cargo xtask lab}
+        LAB_PLATFORM_URL: ${LAB_PLATFORM_URL:?run through cargo xtask lab}
+        LAB_PLATFORM_SHA256: ${LAB_PLATFORM_SHA256:?run through cargo xtask lab}
+    image: ferropress-lab-app:local
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      LAB_DB_NAME: reference
+      LAB_DB_USER: reference
+      LAB_DB_PASSWORD: reference
+      LAB_DB_HOST: database
+    ports:
+      - "127.0.0.1:8080:80"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://localhost/"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  database:

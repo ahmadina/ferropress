@@ -20,7 +20,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] ADR-0004 Database parity
   - [x] ADR-0005 Worker and tenant isolation
   - [x] ADR-0006 Admin application and block-editor hosting
-- [ ] 6. `contracts/reference-manifest.yaml` with pinned versions and hashes; `xtask verify-manifest`
+- [x] 6. `contracts/reference-manifest.toml` with pinned versions and hashes; `xtask verify-manifest`
 
 ## Phase 1 — Reference lab (oracle)
 

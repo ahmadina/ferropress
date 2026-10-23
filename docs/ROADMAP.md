@@ -24,7 +24,7 @@ Status legend: `[x]` done · `[ ]` not started
 
 ## Phase 1 — Reference lab (oracle)
 
-- [ ] 7. `lab/` Docker stack: stock WordPress 7.1.3 + PHP 8.5 + MySQL; `xtask lab up|down|reset`
+- [ ] 7. `lab/` Docker stack: pinned upstream reference platform + PHP 8.5 + MySQL; `xtask lab up|down|reset`
 - [ ] 8. `xtask lab fetch`: clone upstream sources at pinned tags into git-ignored directories
 - [ ] 9. Capture tooling: HTTP responses, ordered hook trace, SQL log, DB diff, emails, cron events
 - [ ] 10. `test-harness` crate: scenario schema, comparators, reviewed normalizations, fakes
@@ -49,19 +49,19 @@ Status legend: `[x]` done · `[ ]` not started
 - [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
       classes extend Rust-owned classes
 
-## Phase 4 — Native WordPress kernel
+## Phase 4 — Native CMS kernel
 
-- [ ] 21. `wp-types`, `wp-hooks`, `wp-request`, `wp-bootstrap`, `wp-php-bindings`
+- [ ] 21. `cms-types`, `cms-hooks`, `cms-request`, `cms-bootstrap`, `php-bindings`
 - [ ] 22. Milestone: a real plugin loads and produces the same hook trace as the reference
 
 ## Phase 5 — Data, users and queries
 
-- [ ] 23. `wp-db` + `infra-mysql`, `wp-options`, `wp-cache`, `wp-content`, `wp-taxonomy`, `wp-comments`,
-      `wp-users`, `wp-auth`, `wp-query` against existing WordPress databases
+- [ ] 23. `cms-db` + `infra-mysql`, `cms-options`, `cms-cache`, `cms-content`, `cms-taxonomy`, `cms-comments`,
+      `cms-users`, `cms-auth`, `cms-query` against existing site databases
 
 ## Phase 6 — Rendering
 
-- [ ] 24. `wp-rewrite`, `wp-formatting`, `wp-assets`, `wp-themes`, `wp-blocks`, `wp-media`, `platform-server`
+- [ ] 24. `cms-rewrite`, `cms-formatting`, `cms-assets`, `cms-themes`, `cms-blocks`, `cms-media`, `platform-server`
 - [ ] 25. Milestone: a classic theme and a block theme render byte-identical HTML to the reference
 
 ## Phases 7–12

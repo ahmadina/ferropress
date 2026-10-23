@@ -22,6 +22,8 @@ cargo xtask lab serialize                 # record serialized-format outcomes in
 cargo xtask lab value                     # record value-model scenarios into contracts/value/
 cargo xtask lab lexer                     # record lexer cases into contracts/lexer/
 cargo xtask lab lexer-corpus              # compare our lexer with the reference on the upstream sources
+cargo xtask lab parser                    # record parser cases into contracts/parser/
+cargo xtask lab parser-corpus             # compare our parser with the reference on the upstream sources
 ```
 
 `lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
@@ -189,6 +191,27 @@ warnings. xtask lexes the same files with `crates/php-lexer` (a file whose bytes
 from the lab's counts as a difference) and writes every difference to `captures/lexer-corpus.txt`; the
 command fails when any file differs. Nothing from
 the corpus is committed.
+
+## Parser
+
+`lab parser` runs our own script (`app/parser-oracle.php`) in the running lab. The cases are
+hand-written sources, the lexer oracle's cases, 3000 random expressions and 2500 one-token edits of
+valid hand-written cases (fixed seed), and hand-written cases grouped by grammar area, listed last so
+adding some leaves the seeded ones unchanged. For every case the script records the error parsing it
+raises (class, message, line), the warnings raised on the way, and the engine's rendering of the code:
+the message of a failed `assert()` on a closure whose body is the case. Renderings come from a worker
+process that is restarted when compiling a case ends it.
+
+The result is written to `contracts/parser/cases.jsonl` (a header line, then one case per line, byte
+strings encoded as above). `crates/php-parser` replays every case; the rules they prove are in
+`contracts/runtime/parser.md`.
+
+## Parser corpus
+
+`lab parser-corpus` parses the same upstream files as `lab lexer-corpus` with our script
+(`app/parser-corpus.php`), recording per file its SHA-256, the error parsing it raises and its
+warnings. xtask parses the same files with `crates/php-parser`, writes every difference to
+`captures/parser-corpus.txt` and fails when any file differs. Nothing from the corpus is committed.
 
 ## Pinning
 

@@ -49,7 +49,9 @@ Status legend: `[x]` done · `[ ]` not started
 - [ ] 17. Lexer → parser → bytecode compiler → VM core (one step each), checked against the PHP test suite
   - [x] Lexer: `php-lexer`, byte-exact tokens, lines and scanner diagnostics (`contracts/lexer/`,
         recorded by `xtask lab lexer`; `xtask lab lexer-corpus` matches every upstream source file)
-  - [ ] Parser
+  - [x] Parser: `php-parser`, syntax tree with the reference's errors, warnings and `assert()`
+        rendering (`contracts/parser/`, recorded by `xtask lab parser`; `xtask lab parser-corpus`
+        matches every upstream source file)
   - [ ] Bytecode compiler
   - [ ] VM core
 - [ ] 18. Language features: functions and closures; classes, interfaces, traits, enums; exceptions;

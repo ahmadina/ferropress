@@ -27,6 +27,9 @@ services:
         LAB_PLATFORM_URL: ${LAB_PLATFORM_URL:?run through cargo xtask lab}
         LAB_PLATFORM_SHA256: ${LAB_PLATFORM_SHA256:?run through cargo xtask lab}
     image: ferropress-lab-app:local
+    # The upstream checkouts, read-only, for corpus checks such as `cargo xtask lab lexer-corpus`.
+    volumes:
+      - ./upstream:/opt/upstream:ro
     depends_on:
       database:
         condition: service_healthy

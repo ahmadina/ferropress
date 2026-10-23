@@ -49,23 +49,24 @@ pub fn decode_single_quoted(body: &[u8]) -> Vec<u8> {
 ///
 /// # Errors
 ///
-/// [`LexError::InvalidCodepointEscape`] or [`LexError::CodepointTooLarge`] for a malformed `\u{…}`.
-pub fn decode_double_quoted(body: &[u8], quote: Quote) -> Result<Decoded, LexError> {
+/// An [`EscapeFailure`] carrying [`LexError::InvalidCodepointEscape`] or
+/// [`LexError::CodepointTooLarge`] for a malformed `\u{…}`.
+pub fn decode_double_quoted(body: &[u8], quote: Quote) -> Result<Decoded, EscapeFailure> {
     let mut bytes = Vec::with_capacity(body.len());
     let mut warnings = Vec::new();
     scan(body, quote, Some(&mut bytes), &mut |warning| {
         warnings.push(warning);
-    })
-    .map_err(|failure| failure.error)?;
+    })?;
     Ok(Decoded { bytes, warnings })
 }
 
 /// Where escape decoding stopped and why.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct EscapeFailure {
-    pub(crate) error: LexError,
+pub struct EscapeFailure {
+    /// The error raised.
+    pub error: LexError,
     /// Offset in the body of the backslash starting the bad sequence.
-    pub(crate) at: usize,
+    pub at: usize,
 }
 
 /// Walks the escapes of `body`, writing the decoded bytes to `out` when given and reporting octal
@@ -219,7 +220,7 @@ mod tests {
     fn decode(body: &[u8]) -> Vec<u8> {
         match decode_double_quoted(body, Quote::Double) {
             Ok(Decoded { bytes, .. }) => bytes,
-            Err(error) => panic!("{error}"),
+            Err(failure) => panic!("{}", failure.error),
         }
     }
 
@@ -287,9 +288,13 @@ mod tests {
         }
         for body in [&br"\u{110000}"[..], br"\u{1000000000000000000000}"] {
             assert_eq!(
-                decode_double_quoted(body, Quote::Double),
+                decode_double_quoted(body, Quote::Double).map_err(|failure| failure.error),
                 Err(LexError::CodepointTooLarge)
             );
         }
+        assert_eq!(
+            decode_double_quoted(b"a\n\\u{}", Quote::Heredoc).map_err(|failure| failure.at),
+            Err(2)
+        );
     }
 }

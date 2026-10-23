@@ -30,7 +30,7 @@ mod token;
 mod tokenize;
 
 pub use diagnostic::{Diagnostic, LexError, LexWarning};
-pub use escape::{Decoded, Quote, decode_double_quoted, decode_single_quoted};
-pub use lexer::{Lexer, LexerOptions, SourceTooLarge};
+pub use escape::{Decoded, EscapeFailure, Quote, decode_double_quoted, decode_single_quoted};
+pub use lexer::{HeredocBody, Lexer, LexerOptions, SourceTooLarge};
 pub use token::{Token, TokenKind};
 pub use tokenize::{Tokens, tokenize};

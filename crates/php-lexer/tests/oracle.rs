@@ -146,7 +146,7 @@ fn decode(text: &[u8]) -> Result<Vec<u8>, String> {
     } else {
         decode_double_quoted(body, Quote::Double)
             .map(|decoded| decoded.bytes)
-            .map_err(|error| error.to_string())
+            .map_err(|failure| failure.error.to_string())
     }
 }
 

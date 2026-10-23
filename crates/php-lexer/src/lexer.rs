@@ -61,8 +61,37 @@ struct Heredoc {
     /// Where the label lies in the source.
     label_start: usize,
     label_len: usize,
-    /// Indentation the closing token is expected to span.
-    indentation: usize,
+    /// Indentation the closing token is expected to span and the body is stripped of.
+    indentation: Indentation,
+}
+
+/// The indentation of a closing label line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct Indentation {
+    width: usize,
+    /// Whether it consists of spaces only (false for an empty or tab-only indentation).
+    uses_spaces: bool,
+}
+
+impl Indentation {
+    fn new(width: usize, spacing: Spacing) -> Self {
+        Self {
+            width,
+            uses_spaces: spacing.spaces && !spacing.tabs,
+        }
+    }
+}
+
+/// What the parser needs to strip the indentation off the heredoc or nowdoc body being read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HeredocBody {
+    /// Indentation removed from every body line: measured ahead for a heredoc, read from the
+    /// closing line for a nowdoc (0 until that line is found).
+    pub indentation: usize,
+    /// Whether that indentation consists of spaces only.
+    pub uses_spaces: bool,
+    /// Whether the last token read ended right before the closing label.
+    pub at_closing_label: bool,
 }
 
 /// One scanning step.
@@ -168,7 +197,7 @@ pub struct Lexer<'s> {
     /// Set on the throwaway copy that measures a heredoc's closing indentation.
     scan_ahead: bool,
     /// Indentation of the last closing label the throwaway copy found.
-    measured_indentation: usize,
+    measured_indentation: Indentation,
 }
 
 impl<'s> Lexer<'s> {
@@ -197,7 +226,7 @@ impl<'s> Lexer<'s> {
             token_start: 0,
             finished: false,
             scan_ahead: false,
-            measured_indentation: 0,
+            measured_indentation: Indentation::default(),
         };
         if options.skip_shebang {
             lexer.skip_shebang();
@@ -218,6 +247,15 @@ impl<'s> Lexer<'s> {
     /// Offset where the next token starts.
     pub const fn offset(&self) -> usize {
         self.position
+    }
+
+    /// The innermost heredoc or nowdoc still open, if any.
+    pub fn open_heredoc(&self) -> Option<HeredocBody> {
+        self.current_heredoc().map(|heredoc| HeredocBody {
+            indentation: heredoc.indentation.width,
+            uses_spaces: heredoc.indentation.uses_spaces,
+            at_closing_label: self.state == State::EndHeredoc,
+        })
     }
 
     /// Line the next token starts on.
@@ -920,7 +958,7 @@ impl<'s> Lexer<'s> {
         self.heredocs.push(Heredoc {
             label_start: found.label_start,
             label_len: found.label_len,
-            indentation: 0,
+            indentation: Indentation::default(),
         });
         self.state = if found.nowdoc {
             State::Nowdoc
@@ -934,7 +972,7 @@ impl<'s> Lexer<'s> {
         let heredoc = Heredoc {
             label_start: found.label_start,
             label_len: found.label_len,
-            indentation: body - end,
+            indentation: Indentation::new(body - end, spacing),
         };
         if self.byte_is(body, is_label_start) && self.closes(heredoc, body) {
             if spacing.mixed() {
@@ -951,8 +989,8 @@ impl<'s> Lexer<'s> {
                 first,
                 Some(TokenKind::Variable | TokenKind::DollarOpenCurlyBraces | TokenKind::CurlyOpen)
             );
-            if interpolates && indentation > 0 {
-                self.error(LexError::BodyIndentation(indentation));
+            if interpolates && indentation.width > 0 {
+                self.error(LexError::BodyIndentation(indentation.width));
             }
             self.replace_heredoc(Heredoc {
                 indentation,
@@ -983,7 +1021,7 @@ impl<'s> Lexer<'s> {
             token_start: position,
             finished: false,
             scan_ahead: true,
-            measured_indentation: 0,
+            measured_indentation: Indentation::default(),
         }
     }
 
@@ -991,7 +1029,7 @@ impl<'s> Lexer<'s> {
     /// or an error is raised. Returns the indentation of the last closing label seen (nested
     /// heredocs overwrite it, as in PHP; 0 when none was seen) and the kind of the first token read
     /// without error.
-    fn read_ahead(&self, body: usize, line: u32) -> (usize, Option<TokenKind>) {
+    fn read_ahead(&self, body: usize, line: u32) -> (Indentation, Option<TokenKind>) {
         let mut probe = self.probe(body, line);
         let mut depth = 1_usize;
         let mut first = None;
@@ -1084,7 +1122,7 @@ impl<'s> Lexer<'s> {
                         }
                         self.state = State::EndHeredoc;
                         if self.scan_ahead {
-                            self.measured_indentation = at - line_start;
+                            self.measured_indentation = Indentation::new(at - line_start, spacing);
                             return token(TokenKind::StringFragment, at);
                         }
                         return token(TokenKind::StringFragment, line_start);
@@ -1131,7 +1169,7 @@ impl<'s> Lexer<'s> {
                     self.error(LexError::MixedIndentation);
                 }
                 self.replace_heredoc(Heredoc {
-                    indentation: at - line_start,
+                    indentation: Indentation::new(at - line_start, spacing),
                     ..heredoc
                 });
                 self.state = State::EndHeredoc;
@@ -1147,7 +1185,7 @@ impl<'s> Lexer<'s> {
             return Step::Restart;
         };
         self.state = State::Code;
-        let end = (start + heredoc.indentation + heredoc.label_len).min(self.source.len());
+        let end = (start + heredoc.indentation.width + heredoc.label_len).min(self.source.len());
         token(TokenKind::EndHeredoc, end)
     }
 

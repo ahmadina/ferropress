@@ -96,6 +96,44 @@ fn closing_label_spans_the_indentation_measured_ahead() {
     );
 }
 
+/// The open heredoc after each token: (indentation, uses spaces, at closing label).
+fn heredoc_states(source: &[u8]) -> Vec<Option<(usize, bool, bool)>> {
+    let Ok(mut lexer) = Lexer::new(source, LexerOptions::default()) else {
+        return Vec::new();
+    };
+    let mut states = Vec::new();
+    while lexer.next().is_some() {
+        states.push(
+            lexer
+                .open_heredoc()
+                .map(|body| (body.indentation, body.uses_spaces, body.at_closing_label)),
+        );
+    }
+    states
+}
+
+#[test]
+fn open_heredoc_reports_the_indentation_to_strip() {
+    let spaces = heredoc_states(b"<?php <<<A\n  x\n  A;");
+    assert_eq!(
+        spaces,
+        [
+            None,
+            Some((2, true, false)),
+            Some((2, true, true)),
+            None,
+            None
+        ]
+    );
+    let tabs = heredoc_states(b"<?php <<<A\n\tx\n\tA;");
+    assert_eq!(tabs[1], Some((1, false, false)));
+    let nowdoc = heredoc_states(b"<?php <<<'A'\n   x\n   A;");
+    assert_eq!(nowdoc[1], Some((0, false, false)));
+    assert_eq!(nowdoc[2], Some((3, true, true)));
+    let empty = heredoc_states(b"<?php <<<A\n A;");
+    assert_eq!(empty[1], Some((1, true, true)));
+}
+
 #[test]
 fn oversized_sources_are_refused() {
     assert_eq!(Lexer::MAX_SOURCE_LEN, u32::MAX as usize - 1);

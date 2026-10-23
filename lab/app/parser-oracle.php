@@ -618,6 +618,10 @@ function parser_record( string $name, string $source, ParserRenderer $renderer )
 	);
 }
 
+if ( realpath( (string) ( $_SERVER['SCRIPT_FILENAME'] ?? '' ) ) !== __FILE__ ) {
+	return;
+}
+
 if ( in_array( PARSER_WORKER_FLAG, $argv ?? array(), true ) ) {
 	parser_render_worker();
 	return;

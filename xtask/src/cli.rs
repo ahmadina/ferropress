@@ -64,6 +64,8 @@ pub(crate) enum LabCommand {
     Parser,
     /// Compare php-parser with the reference PHP on every upstream source file (needs lab/upstream)
     ParserCorpus,
+    /// Record what the reference PHP reports while compiling source text into contracts/compiler
+    Compiler,
     /// Run contracts/scenarios/SCENARIO.toml twice from fresh installs and require identical results
     Check {
         /// Scenario id
@@ -107,6 +109,7 @@ mod tests {
             ("lexer-corpus", LabCommand::LexerCorpus),
             ("parser", LabCommand::Parser),
             ("parser-corpus", LabCommand::ParserCorpus),
+            ("compiler", LabCommand::Compiler),
         ];
         for (name, command) in lab {
             assert_eq!(parse(&["lab", name]), Ok(Command::Lab(command)), "{name}");

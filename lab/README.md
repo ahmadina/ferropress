@@ -24,6 +24,7 @@ cargo xtask lab lexer                     # record lexer cases into contracts/le
 cargo xtask lab lexer-corpus              # compare our lexer with the reference on the upstream sources
 cargo xtask lab parser                    # record parser cases into contracts/parser/
 cargo xtask lab parser-corpus             # compare our parser with the reference on the upstream sources
+cargo xtask lab compiler                  # record compile-time diagnostics into contracts/compiler/
 ```
 
 `lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
@@ -212,6 +213,20 @@ strings encoded as above). `crates/php-parser` replays every case; the rules the
 (`app/parser-corpus.php`), recording per file its SHA-256, the error parsing it raises and its
 warnings. xtask parses the same files with `crates/php-parser`, writes every difference to
 `captures/parser-corpus.txt` and fails when any file differs. Nothing from the corpus is committed.
+
+## Compiler
+
+`lab compiler` runs our own script (`app/compiler-oracle.php`) in the running lab. It writes every case
+to a file of its own and compiles the files in lint mode (`php -l`), many per process; lint mode compiles
+without running anything and carries no classes or functions from one file into the next. For every case
+it records the diagnostics compiling it reported, in order: severity (`Fatal error`, `Warning`,
+`Deprecated`, …), message and line. A file stops at its first fatal error, and a message naming the
+case's own file shows `%file%` in its place. The cases are hand-written sources grouped by the compiler
+area they probe, followed by every parser oracle case that parses.
+
+The result is written to `contracts/compiler/cases.jsonl` (a header line recording the PHP version,
+`short_open_tag` and `zend.assertions`, then one case per line, byte strings encoded as above). A second
+run produces a byte-identical file.
 
 ## Pinning
 

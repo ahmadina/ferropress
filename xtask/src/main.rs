@@ -3,6 +3,7 @@
 mod capture;
 mod check;
 mod cli;
+mod compiler;
 mod dashboard;
 mod dbdiff;
 mod fetch;
@@ -416,6 +417,41 @@ fn run_lab_parser(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<
     })
 }
 
+fn run_lab_compiler(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let env = lab::lab_env(&manifest)?;
+    let output = process::capture_checked(
+        runner,
+        &lab::compose(
+            &env,
+            [
+                "exec",
+                "-T",
+                "--user",
+                "www-data",
+                "app",
+                "php",
+                compiler::SCRIPT,
+            ],
+        ),
+    )
+    .context("running the compiler oracle script")?;
+    let oracle = compiler::parse(&output)?;
+    compiler::write(&oracle, &repo_root.join(compiler::COMPILER_DIR))?;
+    Ok(Report {
+        text: format!(
+            "lab compiler: wrote {} for PHP {} ({})",
+            compiler::COMPILER_DIR,
+            oracle.php_version,
+            oracle.summary()
+        ),
+        success: true,
+    })
+}
+
 fn run_lab_lexer_corpus(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
     let manifest = match load_valid_manifest(repo_root)? {
         Ok(manifest) => manifest,
@@ -626,6 +662,7 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                     return run_lab_lexer_corpus(repo_root(), &mut system_runner());
                 }
                 LabCommand::Parser => return run_lab_parser(repo_root(), &mut system_runner()),
+                LabCommand::Compiler => return run_lab_compiler(repo_root(), &mut system_runner()),
                 LabCommand::ParserCorpus => {
                     return run_lab_parser_corpus(repo_root(), &mut system_runner());
                 }
@@ -1571,6 +1608,75 @@ path = "/"
         let blocked = TempRepo::new("parser-blocked", Some(&lab_manifest_text()));
         fs::write(blocked.0.join("contracts/parser"), b"not a directory").unwrap();
         let error = run_lab_parser(&blocked.0, &mut parser_runner(PARSER_OUTPUT)).unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    const COMPILER_OUTPUT: &str = r#"{"schema": 1, "php_version": "8.5.12", "short_open_tag": true,
+        "zend_assertions": 1, "cases": [{"name": "x", "source": "<?php $a[];",
+         "diagnostics": [["Fatal error", "Cannot use [] for reading", 1]]}]}"#;
+
+    fn compiler_runner(
+        output: &'static str,
+    ) -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        FakeRunner::new(move |invocation: &process::Invocation| {
+            let script = invocation.args.last().map(String::as_str) == Some(compiler::SCRIPT);
+            Ok(Some(if script { output } else { "" }.to_owned()))
+        })
+    }
+
+    #[test]
+    fn lab_compiler_runs_the_oracle_and_writes_the_cases() {
+        let repo = TempRepo::new("compiler-ok", Some(&lab_manifest_text()));
+        let mut runner = compiler_runner(COMPILER_OUTPUT);
+        let report = run_lab_compiler(&repo.0, &mut runner).unwrap();
+        assert_eq!(
+            report,
+            Report {
+                text: "lab compiler: wrote contracts/compiler for PHP 8.5.12 (1 cases, 1 fatal errors, 0 warnings, 0 deprecations)"
+                    .to_owned(),
+                success: true,
+            }
+        );
+        assert_eq!(runner.seen.len(), 1, "{:?}", runner.seen);
+        assert!(
+            runner.seen[0]
+                .ends_with("exec -T --user www-data app php /opt/ferropress/compiler-oracle.php"),
+            "{:?}",
+            runner.seen
+        );
+        assert_eq!(
+            compiler::Oracle::load(&repo.0.join(compiler::COMPILER_DIR)).unwrap(),
+            compiler::parse(COMPILER_OUTPUT).unwrap()
+        );
+    }
+
+    #[test]
+    fn lab_compiler_refuses_invalid_input_and_propagates_failures() {
+        let invalid = TempRepo::new("compiler-invalid", Some(&manifest_text(5)));
+        let mut runner = compiler_runner(COMPILER_OUTPUT);
+        let report = run_lab_compiler(&invalid.0, &mut runner).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let incomplete = TempRepo::new("compiler-incomplete", Some(&manifest_text(1)));
+        let error =
+            run_lab_compiler(&incomplete.0, &mut compiler_runner(COMPILER_OUTPUT)).unwrap_err();
+        assert!(
+            error.to_string().starts_with("the manifest has no"),
+            "{error}"
+        );
+
+        let repo = TempRepo::new("compiler-fail", Some(&lab_manifest_text()));
+        let error = run_lab_compiler(&repo.0, &mut recording(false)).unwrap_err();
+        assert_eq!(error.to_string(), "running the compiler oracle script");
+
+        let error = run_lab_compiler(&repo.0, &mut compiler_runner("{}")).unwrap_err();
+        assert_eq!(error.to_string(), "parsing the compiler oracle's output");
+
+        let blocked = TempRepo::new("compiler-blocked", Some(&lab_manifest_text()));
+        fs::write(blocked.0.join("contracts/compiler"), b"not a directory").unwrap();
+        let error =
+            run_lab_compiler(&blocked.0, &mut compiler_runner(COMPILER_OUTPUT)).unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

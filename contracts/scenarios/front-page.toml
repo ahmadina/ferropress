@@ -1,0 +1,23 @@
+schema = 1
+id = "front-page"
+description = "An anonymous visitor loads the front page of an installed site"
+compare = [
+    "response.status",
+    "response.headers",
+    "response.body",
+    "hooks",
+    "queries",
+    "mail",
+    "cron",
+    "database",
+]
+
+[[steps]]
+operation = "http"
+method = "GET"
+path = "/"
+
+[[normalizations]]
+location = "response.headers.date"
+reason = "the Date header is the wall-clock time of each run; two consecutive reference captures from the same state differed only in this field"
+reviewed_by = "cursor-agent"

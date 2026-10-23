@@ -1,0 +1,46 @@
+schema = 1
+id = "request-lifecycle"
+title = "Order of the request lifecycle"
+summary = """
+A front-end request moves through fixed phases, each announced by an action fired once, outside any
+other hook. In a network, the current network and site are resolved first and `ms_loaded` fires. Must-use
+plugins load next, each followed by `mu_plugin_loaded` with its path; in a network, network-wide plugins
+follow, each followed by `network_plugin_loaded`; then `muplugins_loaded` fires. Site plugins load, each
+followed by `plugin_loaded`, and `plugins_loaded` fires once all are in. Theme setup sits between
+`setup_theme` and `after_setup_theme`: the functions file of a child theme loads before that of its
+parent. Then `init` and `wp_loaded` fire. Handling the request itself fires `parse_request` while the
+request is matched to query variables, `wp` once the main query is ready, and `template_redirect` just
+before a template is chosen and rendered. After the response is produced, a shutdown handler registered
+during boot fires `shutdown`, the last action of the request, and closes the object cache.
+"""
+upstream = [
+    "wp-settings.php",
+    "wp-includes/ms-settings.php",
+    "wp-includes/class-wp.php",
+    "wp-includes/template-loader.php",
+    "wp-includes/load.php",
+]
+evidence = [
+    "contracts/lifecycle/single-front-page.jsonl",
+    "contracts/lifecycle/network-main-site.jsonl",
+    "contracts/lifecycle/network-second-site.jsonl",
+]
+
+[covers]
+functions = ["shutdown_action_hook"]
+hooks = [
+    "action:ms_loaded",
+    "action:mu_plugin_loaded",
+    "action:network_plugin_loaded",
+    "action:muplugins_loaded",
+    "action:plugin_loaded",
+    "action:plugins_loaded",
+    "action:setup_theme",
+    "action:after_setup_theme",
+    "action:init",
+    "action:wp_loaded",
+    "action:parse_request",
+    "action:wp",
+    "action:template_redirect",
+    "action:shutdown",
+]

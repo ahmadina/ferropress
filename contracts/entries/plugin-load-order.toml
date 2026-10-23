@@ -1,0 +1,43 @@
+schema = 1
+id = "plugin-load-order"
+title = "Which plugins load, and in what order"
+summary = """
+Three groups load in a fixed order. Must-use plugins are the files directly inside the must-use plugin
+directory whose names end in `.php`; subdirectories are not searched. They load first, in ascending
+string order of their full paths, and cannot be deactivated. In a network, network-wide plugins follow:
+the plugin paths recorded as active for the whole network, in ascending string order. Site plugins come
+last, in the stored order of the `active_plugins` option. Activating a plugin re-sorts that list in
+ascending string order, so plugins load by path rather than by activation time: the lab fixtures are
+activated in reverse order and still load alphabetically.
+
+A listed plugin is skipped unless its path passes file-name validation, ends in `.php` and exists in the
+plugins directory. A site plugin that is also active network-wide loads once, as a network plugin. No
+site plugins load while the platform is installing, and paused plugins are skipped in recovery mode.
+When the `hack_file` option is set and a legacy hacks file exists at the installation root, that file
+loads before the site plugins.
+"""
+upstream = [
+    "wp-settings.php",
+    "wp-includes/load.php",
+    "wp-includes/ms-load.php",
+    "wp-admin/includes/plugin.php",
+]
+evidence = [
+    "contracts/lifecycle/single-front-page.jsonl",
+    "contracts/lifecycle/network-main-site.jsonl",
+    "contracts/lifecycle/network-second-site.jsonl",
+]
+
+[covers]
+functions = [
+    "wp_get_mu_plugins",
+    "wp_get_active_network_plugins",
+    "wp_get_active_and_valid_plugins",
+    "activate_plugin",
+]
+hooks = [
+    "action:mu_plugin_loaded",
+    "action:network_plugin_loaded",
+    "action:plugin_loaded",
+]
+options = ["active_plugins", "hack_file"]

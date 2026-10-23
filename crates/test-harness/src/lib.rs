@@ -11,11 +11,15 @@
 //! It is test support only: production crates may depend on it solely as a dev-dependency, which
 //! `cargo xtask check-layers` enforces.
 
+mod compare;
 mod error;
+#[cfg(any(test, feature = "test-util"))]
+pub mod fakes;
 mod normalize;
 mod observation;
 mod scenario;
 
+pub use compare::{Mismatch, compare};
 pub use error::{InvalidRequestPath, InvalidSlug, ScenarioError};
 pub use normalize::{Location, NORMALIZED, Normalization};
 pub use observation::{

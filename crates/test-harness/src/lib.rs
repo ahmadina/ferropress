@@ -7,6 +7,8 @@
 //!
 //! A [`Scenario`] lists the steps to run on both sides, the [`Aspect`]s to compare and the
 //! [`Normalization`]s accepted in review; every normalization states a reason and a reviewer.
+//! [`run`] performs a scenario on two [`Target`]s and [`compare`]s their observations step by step.
+//! The `test-util` feature adds the `fakes` module with a scripted target.
 //!
 //! It is test support only: production crates may depend on it solely as a dev-dependency, which
 //! `cargo xtask check-layers` enforces.
@@ -17,6 +19,7 @@ mod error;
 pub mod fakes;
 mod normalize;
 mod observation;
+mod run;
 mod scenario;
 
 pub use compare::{Mismatch, compare};
@@ -26,4 +29,5 @@ pub use observation::{
     CronEvent, DatabaseDiff, HookEvent, HookKind, Mail, Method, Observation, Request, RequestPath,
     Response, Slug, TableDiff, Trace,
 };
+pub use run::{Report, RunError, Side, StepReport, Target, run};
 pub use scenario::{Aspect, Scenario, Step};

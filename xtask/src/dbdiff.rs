@@ -6,17 +6,7 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
-use serde::Serialize;
-
-/// Rows that differ in one table, each list sorted.
-#[derive(Debug, Default, PartialEq, Eq, Serialize)]
-pub(crate) struct TableDiff {
-    pub(crate) added: Vec<String>,
-    pub(crate) removed: Vec<String>,
-}
-
-/// Changed tables by name; unchanged tables are omitted.
-pub(crate) type DatabaseDiff = BTreeMap<String, TableDiff>;
+use test_harness::{DatabaseDiff, TableDiff};
 
 fn rows_by_table(dump: &str) -> BTreeMap<&str, Vec<&str>> {
     let mut tables: BTreeMap<&str, Vec<&str>> = BTreeMap::new();

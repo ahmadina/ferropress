@@ -1,14 +1,12 @@
 //! `lab capture`: record one request against the reference lab as a JSON artifact — the HTTP response,
 //! the ordered hook trace, SQL statements, outgoing mail, the cron schedule and database row changes.
 
-use std::fmt;
-use std::str::FromStr;
 use std::time::Duration;
 
 use anyhow::Context as _;
-use serde::{Deserialize, Serialize};
+use test_harness::{Method, Observation, Request, RequestPath, Response, Slug, Trace};
 
-use crate::dbdiff::{self, DatabaseDiff};
+use crate::dbdiff;
 use crate::lab;
 use crate::manifest;
 use crate::process::{self, Runner};
@@ -16,175 +14,14 @@ use crate::process::{self, Runner};
 /// Where capture artifacts are written, relative to the repository root (git-ignored).
 pub(crate) const CAPTURE_DIR: &str = "lab/captures";
 
-const CAPTURE_SCHEMA: u32 = 1;
-const TRACE_SCHEMA: u32 = 1;
 const CAPTURE_HEADER: &str = "x-ferropress-capture";
 const USER_AGENT: &str = "ferropress-lab-capture";
 /// Inside the app container: where the capture plugin writes its trace.
 const CONTAINER_TRACE_DIR: &str = "/tmp/ferropress-capture";
 const MAX_BODY_BYTES: u64 = 64 * 1024 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
-const NAME_MAX_LEN: usize = 64;
 /// Runs inside the database container, which already holds the lab credentials in its environment.
 const DUMP_SCRIPT: &str = r#"MYSQL_PWD="$MYSQL_PASSWORD" exec mysqldump --user="$MYSQL_USER" --skip-dump-date --skip-extended-insert --order-by-primary --compact --no-create-info --no-tablespaces --skip-triggers "$MYSQL_DATABASE""#;
-
-/// Capture identifier: lowercase ASCII letters, digits and hyphens, starting with a letter or digit.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CaptureName(String);
-
-impl CaptureName {
-    pub(crate) fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl FromStr for CaptureName {
-    type Err = String;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let valid_start = value
-            .bytes()
-            .next()
-            .is_some_and(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit());
-        let valid_bytes = value
-            .bytes()
-            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-');
-        if valid_start && valid_bytes && value.len() <= NAME_MAX_LEN {
-            Ok(Self(value.to_owned()))
-        } else {
-            Err(format!(
-                "`{value}` must be 1-{NAME_MAX_LEN} lowercase letters, digits or hyphens, \
-                 starting with a letter or digit"
-            ))
-        }
-    }
-}
-
-impl fmt::Display for CaptureName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-/// Request target: an absolute path with optional query, without spaces, control characters or fragment.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RequestPath(String);
-
-impl FromStr for RequestPath {
-    type Err = String;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let valid = value.starts_with('/')
-            && !value.starts_with("//")
-            && !value.contains('#')
-            && !value.chars().any(|c| c.is_whitespace() || c.is_control());
-        if valid {
-            Ok(Self(value.to_owned()))
-        } else {
-            Err(format!(
-                "`{value}` must start with a single `/` and contain no spaces, control characters or `#`"
-            ))
-        }
-    }
-}
-
-impl fmt::Display for RequestPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub(crate) enum HookKind {
-    Action,
-    Filter,
-}
-
-/// One hook invocation, in firing order.
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct HookEvent {
-    pub(crate) kind: HookKind,
-    pub(crate) name: String,
-    /// Number of arguments passed to the hook's callbacks.
-    pub(crate) args: u32,
-    /// Hook nesting depth; 1 for a hook fired outside any other hook.
-    pub(crate) depth: u32,
-}
-
-/// A message handed to the mail API; the lab never delivers it.
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct Mail {
-    pub(crate) to: Vec<String>,
-    pub(crate) subject: String,
-    pub(crate) message: String,
-    pub(crate) headers: Vec<String>,
-    pub(crate) attachments: Vec<String>,
-}
-
-/// A scheduled event, without its wall-clock run time.
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct CronEvent {
-    pub(crate) hook: String,
-    pub(crate) schedule: Option<String>,
-    pub(crate) interval: Option<u64>,
-    pub(crate) args: Vec<serde_json::Value>,
-}
-
-/// What the capture plugin records inside the request.
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct Trace {
-    pub(crate) schema: u32,
-    pub(crate) hooks: Vec<HookEvent>,
-    pub(crate) queries: Vec<String>,
-    pub(crate) mail: Vec<Mail>,
-    pub(crate) cron: Vec<CronEvent>,
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize)]
-pub(crate) struct Request {
-    pub(crate) method: &'static str,
-    pub(crate) path: String,
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize)]
-pub(crate) struct Response {
-    pub(crate) status: u16,
-    pub(crate) headers: Vec<(String, String)>,
-    /// Body as UTF-8, with invalid sequences replaced; `body_sha256` covers the exact bytes.
-    pub(crate) body: String,
-    pub(crate) body_sha256: String,
-}
-
-/// The complete capture artifact.
-#[derive(Debug, PartialEq, Serialize)]
-pub(crate) struct Capture {
-    pub(crate) schema: u32,
-    pub(crate) name: String,
-    pub(crate) request: Request,
-    pub(crate) response: Response,
-    pub(crate) trace: Trace,
-    pub(crate) database: DatabaseDiff,
-}
-
-impl Capture {
-    /// One-line summary for the command output.
-    pub(crate) fn summary(&self) -> String {
-        format!(
-            "status {}, {} hooks, {} queries, {} mails, {} cron events, {} tables changed",
-            self.response.status,
-            self.trace.hooks.len(),
-            self.trace.queries.len(),
-            self.trace.mail.len(),
-            self.trace.cron.len(),
-            self.database.len()
-        )
-    }
-}
 
 /// A raw HTTP response.
 #[derive(Debug, PartialEq, Eq)]
@@ -263,11 +100,11 @@ fn dump_database(
 /// Records `GET path` against the running lab stack.
 pub(crate) fn capture(
     env: &[(&'static str, String)],
-    name: &CaptureName,
+    name: &Slug,
     path: &RequestPath,
     runner: &mut impl Runner,
     http: &mut impl HttpClient,
-) -> anyhow::Result<Capture> {
+) -> anyhow::Result<Observation> {
     let trace_file = format!("{CONTAINER_TRACE_DIR}/{name}.json");
     let before = dump_database(runner, env)?;
     process::run_checked(
@@ -291,18 +128,19 @@ pub(crate) fn capture(
     let trace: Trace =
         serde_json::from_str(&raw_trace).context("parsing the capture plugin's trace")?;
     anyhow::ensure!(
-        trace.schema == TRACE_SCHEMA,
-        "the capture plugin wrote trace schema {}, expected {TRACE_SCHEMA}",
-        trace.schema
+        trace.schema == Trace::SCHEMA,
+        "the capture plugin wrote trace schema {}, expected {}",
+        trace.schema,
+        Trace::SCHEMA
     );
     let after = dump_database(runner, env)?;
 
-    Ok(Capture {
-        schema: CAPTURE_SCHEMA,
-        name: name.as_str().to_owned(),
+    Ok(Observation {
+        schema: Observation::SCHEMA,
+        name: name.clone(),
         request: Request {
-            method: "GET",
-            path: path.to_string(),
+            method: Method::Get,
+            path: path.clone(),
         },
         response: Response {
             status: response.status,
@@ -335,48 +173,12 @@ mod tests {
         "cron": [{"hook": "daily_job", "schedule": "daily", "interval": 86400, "args": [1, "x"]}]
     }"#;
 
-    fn name(value: &str) -> CaptureName {
+    fn name(value: &str) -> Slug {
         value.parse().unwrap()
     }
 
     fn path(value: &str) -> RequestPath {
         value.parse().unwrap()
-    }
-
-    #[test]
-    fn capture_names_are_validated() {
-        for good in ["home", "a", "post-42", "0"] {
-            assert_eq!(name(good).as_str(), good);
-            assert_eq!(name(good).to_string(), good);
-        }
-        let too_long = "a".repeat(NAME_MAX_LEN + 1);
-        for bad in ["", "-a", "Home", "a_b", "a b", "../x", too_long.as_str()] {
-            let error = bad.parse::<CaptureName>().unwrap_err();
-            assert!(error.contains("lowercase letters"), "{bad}: {error}");
-        }
-    }
-
-    #[test]
-    fn request_paths_are_validated() {
-        for good in ["/", "/?p=1", "/a/b?x=y&z=%20"] {
-            assert_eq!(path(good).to_string(), good);
-        }
-        for bad in ["", "a", "//evil.example", "/a b", "/a#frag", "/a\n"] {
-            let error = bad.parse::<RequestPath>().unwrap_err();
-            assert!(
-                error.contains("must start with a single"),
-                "{bad:?}: {error}"
-            );
-        }
-    }
-
-    #[test]
-    fn trace_parses_and_rejects_unknown_fields() {
-        let trace: Trace = serde_json::from_str(TRACE).unwrap();
-        assert_eq!(trace.hooks[1].kind, HookKind::Filter);
-        assert_eq!(trace.cron[0].interval, Some(86_400));
-        let extra = TRACE.replace(r#""queries""#, r#""extra": 1, "queries""#);
-        assert!(serde_json::from_str::<Trace>(&extra).is_err());
     }
 
     struct FakeHttp {
@@ -469,7 +271,7 @@ mod tests {
             "docker compose --file lab/compose.yaml exec -T app cat /tmp/ferropress-capture/home.json"
         );
 
-        assert_eq!(capture.request.path, "/?p=1");
+        assert_eq!(capture.request.path.as_str(), "/?p=1");
         assert_eq!(capture.response.status, 200);
         assert_eq!(capture.response.body, "<html>\u{fffd}</html>");
         assert_eq!(

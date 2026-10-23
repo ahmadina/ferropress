@@ -15,13 +15,14 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Context as _;
-use capture::{CaptureName, HttpClient, RequestPath, UreqClient};
+use capture::{HttpClient, UreqClient};
 use clap::Parser as _;
 use cli::{Cli, Command, LabCommand};
 use lab::LabAction;
 use layers::Finding;
 use manifest::{ArchiveStatus, Manifest, Problem};
 use process::{Runner, SystemRunner};
+use test_harness::{RequestPath, Slug};
 
 /// Outcome of a command: the text to show and whether it succeeded.
 #[derive(Debug, PartialEq, Eq)]
@@ -168,7 +169,7 @@ fn run_lab_fetch(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<R
 
 fn run_lab_capture(
     repo_root: &Path,
-    name: &CaptureName,
+    name: &Slug,
     path: &RequestPath,
     runner: &mut impl Runner,
     http: &mut impl HttpClient,
@@ -556,7 +557,7 @@ digest = "{digest}"
     #[test]
     fn lab_capture_writes_the_artifact() {
         let repo = TempRepo::new("capture-ok", Some(&lab_manifest_text()));
-        let name: CaptureName = "home".parse().unwrap();
+        let name: Slug = "home".parse().unwrap();
         let path: RequestPath = "/".parse().unwrap();
         let report =
             run_lab_capture(&repo.0, &name, &path, &mut capture_runner(), &mut OkHttp).unwrap();
@@ -575,7 +576,7 @@ digest = "{digest}"
 
     #[test]
     fn lab_capture_refuses_invalid_manifest_and_propagates_failures() {
-        let name: CaptureName = "home".parse().unwrap();
+        let name: Slug = "home".parse().unwrap();
         let path: RequestPath = "/".parse().unwrap();
 
         let invalid = TempRepo::new("capture-invalid", Some(&manifest_text(5)));

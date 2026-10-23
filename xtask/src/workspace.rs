@@ -205,13 +205,20 @@ mod tests {
     }
 
     #[test]
-    fn load_finds_xtask_in_this_workspace() {
+    fn load_finds_the_members_of_this_workspace() {
         let members = load().unwrap();
-        let xtask = members
-            .iter()
-            .find(|member| member.name == "xtask")
-            .unwrap();
+        let member = |name: &str| members.iter().find(|m| m.name == name).unwrap();
+        let xtask = member("xtask");
         assert_eq!(xtask.location, CrateLocation::Xtask);
-        assert!(xtask.dependencies.is_empty());
+        assert_eq!(
+            xtask.dependencies,
+            [Dependency {
+                name: "test-harness".to_owned(),
+                kind: DependencyKind::Normal,
+            }]
+        );
+        let harness = member("test-harness");
+        assert_eq!(harness.location, CrateLocation::Crates);
+        assert!(harness.dependencies.is_empty());
     }
 }

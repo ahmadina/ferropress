@@ -2,7 +2,7 @@
 
 use clap::{Parser, Subcommand};
 
-use crate::capture::{CaptureName, RequestPath};
+use test_harness::{RequestPath, Slug};
 
 /// Repository automation for Ferropress.
 #[derive(Debug, Parser)]
@@ -38,7 +38,7 @@ pub(crate) enum LabCommand {
     /// Record one GET request against the running lab into lab/captures/NAME.json
     Capture {
         /// Capture name: lowercase letters, digits and hyphens
-        name: CaptureName,
+        name: Slug,
         /// Request path with optional query string
         #[arg(default_value = "/")]
         path: RequestPath,

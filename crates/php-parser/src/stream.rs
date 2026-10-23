@@ -59,6 +59,7 @@ pub(crate) struct Stream<'s> {
     ahead: VecDeque<Tok>,
     contexts: Vec<Context>,
     stopped: bool,
+    halted: bool,
     warnings: Vec<Warning>,
 }
 
@@ -71,6 +72,7 @@ impl<'s> Stream<'s> {
             ahead: VecDeque::with_capacity(2),
             contexts: vec![Context::Code(0)],
             stopped: false,
+            halted: false,
             warnings: Vec::new(),
         })
     }
@@ -130,9 +132,11 @@ impl<'s> Stream<'s> {
         }
     }
 
-    /// Stops reading after `__halt_compiler();`: every later token is the end of input.
+    /// Stops reading after `__halt_compiler();`: every later token is the end of input, which
+    /// fails like a real end of input while a bracket is still open.
     pub(crate) fn halt(&mut self) {
         self.stopped = true;
+        self.halted = true;
         self.ahead.clear();
     }
 
@@ -151,6 +155,13 @@ impl<'s> Stream<'s> {
     fn fetch(&mut self) -> PResult<Tok> {
         loop {
             if self.stopped {
+                if let Some(error) = self.lexer.unclosed().filter(|_| self.halted) {
+                    return Err(Box::new(ParseError::new(
+                        ErrorClass::Parse,
+                        error.to_string(),
+                        Some(self.lexer.line()),
+                    )));
+                }
                 return Ok(self.end_token());
             }
             let next = self.lexer.next();

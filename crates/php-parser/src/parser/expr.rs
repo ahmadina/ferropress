@@ -235,6 +235,26 @@ const fn starts_class_reference(kind: K) -> bool {
     is_name(kind) || matches!(kind, K::Static | K::Variable | K::Char(b'$' | b'('))
 }
 
+/// Whether keyword `kind`, starting an argument, cannot begin an expression when `next` follows.
+/// The keyword is then read as the name of a named argument, which needs a `:`.
+const fn keyword_cannot_continue(kind: K, next: K) -> bool {
+    match kind {
+        K::New => !(starts_class_reference(next) || matches!(next, K::Class | K::Attribute)),
+        K::Static => !matches!(next, K::DoubleColon | K::Fn | K::Function),
+        K::Match | K::List | K::Array | K::Isset | K::Empty | K::Eval => {
+            !matches!(next, K::Char(b'('))
+        }
+        K::Clone
+        | K::Print
+        | K::Include
+        | K::IncludeOnce
+        | K::Require
+        | K::RequireOnce
+        | K::Throw => !starts_expression(next),
+        _ => false,
+    }
+}
+
 const fn expr(kind: ExprKind, line: u32) -> Expr {
     Expr { kind, line }
 }
@@ -385,6 +405,10 @@ impl Parser<'_> {
     }
 
     fn unary(&mut self) -> PResult<Expr> {
+        self.nested(Self::unary_operand)
+    }
+
+    fn unary_operand(&mut self) -> PResult<Expr> {
         let kind = self.peek()?;
         match kind {
             K::Char(b'!') => self.prefix(prec::NOT, |operand| ExprKind::Unary {
@@ -1096,15 +1120,19 @@ impl Parser<'_> {
             self.bump()?;
             return Ok(ArrayItem::Spread(self.expr()?));
         }
-        if is_ampersand(kind) || kind == K::List {
+        let first = if is_ampersand(kind) || kind == K::List {
             let (value, by_ref) = self.array_value(close)?;
-            return Ok(ArrayItem::Value {
-                key: None,
-                value,
-                by_ref,
-            });
-        }
-        let first = self.expr()?;
+            if by_ref || !self.at(K::Char(b'='))? {
+                return Ok(ArrayItem::Value {
+                    key: None,
+                    value,
+                    by_ref,
+                });
+            }
+            self.list_assignment(value)?
+        } else {
+            self.expr()?
+        };
         if self.eat(K::DoubleArrow)?.is_none() {
             return Ok(ArrayItem::Value {
                 key: None,
@@ -1114,7 +1142,10 @@ impl Parser<'_> {
         }
         let next = self.peek()?;
         let (value, by_ref) = if is_ampersand(next) || next == K::List {
-            self.array_value(close)?
+            match self.array_value(close)? {
+                (list, false) if self.at(K::Char(b'='))? => (self.list_assignment(list)?, false),
+                value => value,
+            }
         } else {
             (self.expr()?, false)
         };
@@ -1123,6 +1154,12 @@ impl Parser<'_> {
             value,
             by_ref,
         })
+    }
+
+    /// The expression a `list(…)` array value starts when `=` follows it.
+    fn list_assignment(&mut self, list: Expr) -> PResult<Expr> {
+        let assignment = self.assignment_suffix(list, Shape::List)?;
+        self.binary_loop(assignment, 0)
     }
 
     /// An array value written `&variable` or `list(…)`.
@@ -1509,7 +1546,9 @@ impl Parser<'_> {
                 value: self.expr()?,
             });
         }
-        if !starts_expression(kind) && is_identifier(kind) {
+        if (!starts_expression(kind) && is_identifier(kind))
+            || keyword_cannot_continue(kind, self.peek_second()?)
+        {
             self.bump()?;
             return self.unexpected(&[K::Char(b':')]);
         }

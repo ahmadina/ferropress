@@ -171,7 +171,7 @@ pub(crate) fn strip_indentation(text: &[u8], layout: Indentation) -> Result<Vec<
         out.extend_from_slice(&text[..position]);
         lines_before = 1;
     }
-    while position < text.len() {
+    loop {
         let line_end = next_newline(text, position);
         let stop = match line_end {
             Some((at, _)) => Some(at),
@@ -370,6 +370,13 @@ mod tests {
         assert_eq!(strip(b"x", layout(4, false, false)), Ok(b"x".to_vec()));
         assert_eq!(
             strip(b"    a\r\n    b\r", layout(4, true, false)),
+            Err(StripFailure {
+                error: LexError::BodyIndentation(4),
+                lines_before: 2
+            })
+        );
+        assert_eq!(
+            strip(b"    a\r\n    b\r", layout(4, true, true)),
             Ok(b"a\r\nb\r".to_vec())
         );
         assert_eq!(strip(b"    a", layout(4, true, false)), Ok(b"a".to_vec()));

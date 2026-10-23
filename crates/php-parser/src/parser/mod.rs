@@ -23,14 +23,30 @@ use php_lexer::TokenKind;
 pub(crate) struct Parser<'s> {
     stream: Stream<'s>,
     halt_offset: Option<u32>,
+    depth: usize,
 }
+
+/// Deepest nesting of statements and operands accepted, the size of the reference parser's stack.
+pub const MAX_NESTING: usize = 10_000;
 
 impl<'s> Parser<'s> {
     pub(crate) const fn new(stream: Stream<'s>) -> Self {
         Self {
             stream,
             halt_offset: None,
+            depth: 0,
         }
+    }
+
+    /// Runs `parse` one nesting level deeper, failing as the reference does when its stack is full.
+    fn nested<T>(&mut self, parse: impl FnOnce(&mut Self) -> PResult<T>) -> PResult<T> {
+        if self.depth >= MAX_NESTING {
+            return self.parse_error("memory exhausted");
+        }
+        self.depth += 1;
+        let result = parse(self);
+        self.depth -= 1;
+        result
     }
 
     pub(crate) fn into_stream(self) -> Stream<'s> {

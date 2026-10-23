@@ -22,6 +22,10 @@ const CLOSE_PAREN: K = K::Char(b')');
 const OPEN_BRACE: K = K::Char(b'{');
 const CLOSE_BRACE: K = K::Char(b'}');
 const COLON: K = K::Char(b':');
+/// The names a `use` item may start with outside a group.
+const QUALIFIED: &[K] = &[K::Identifier, K::QualifiedName, K::FullyQualifiedName];
+/// The names a `use` item may start with inside a group.
+const UNQUALIFIED: &[K] = &[K::Identifier, K::QualifiedName];
 
 /// One statement, or several written as one (`echo a, b;`).
 fn one_or_block(mut list: Vec<Stmt>) -> StmtKind {
@@ -131,7 +135,7 @@ impl Parser<'_> {
         let line = self.bump()?.line;
         let declared = self.use_kind()?;
         let kind = declared.unwrap_or(UseKind::Class);
-        let first = self.use_name(true)?;
+        let first = self.use_name(true, if declared.is_some() { QUALIFIED } else { &[] })?;
         if self.eat(K::NsSeparator)?.is_some() {
             self.expect(OPEN_BRACE)?;
             let mut items = Vec::new();
@@ -141,7 +145,16 @@ impl Parser<'_> {
                 } else {
                     None
                 };
-                let name = self.use_name(false)?;
+                let expected: &[K] = if item_kind.is_some() {
+                    UNQUALIFIED
+                } else if !items.is_empty() {
+                    &[CLOSE_BRACE]
+                } else if declared.is_some() {
+                    UNQUALIFIED
+                } else {
+                    &[K::Identifier, K::QualifiedName, K::Function, K::Const]
+                };
+                let name = self.use_name(false, expected)?;
                 let alias = self.use_alias()?;
                 items.push(UseItem {
                     name,
@@ -168,7 +181,7 @@ impl Parser<'_> {
             kind: None,
         }];
         while self.eat(COMMA)?.is_some() {
-            let name = self.use_name(true)?;
+            let name = self.use_name(true, QUALIFIED)?;
             let alias = self.use_alias()?;
             items.push(UseItem {
                 name,
@@ -180,13 +193,14 @@ impl Parser<'_> {
         Ok(TopStatement::Use { kind, items, line })
     }
 
-    /// A name in a `use` statement; `qualified` allows a leading `\`.
-    fn use_name(&mut self, qualified: bool) -> PResult<Vec<u8>> {
+    /// A name in a `use` statement; `qualified` allows a leading `\`, and `expected` lists the tokens
+    /// the reference names when the name is missing.
+    fn use_name(&mut self, qualified: bool, expected: &[K]) -> PResult<Vec<u8>> {
         let kind = self.peek()?;
         let allowed = matches!(kind, K::Identifier | K::QualifiedName)
             || (qualified && kind == K::FullyQualifiedName);
         if !allowed {
-            return self.unexpected(&[]);
+            return self.unexpected(expected);
         }
         let tok = self.bump()?;
         Ok(literal::name(kind, self.text(&tok)).bytes)
@@ -302,6 +316,10 @@ impl Parser<'_> {
 
     /// The `statement` rule: what may be the body of `if`, a loop or `declare`.
     pub(super) fn statement(&mut self) -> PResult<Stmt> {
+        self.nested(Self::unnested_statement)
+    }
+
+    fn unnested_statement(&mut self) -> PResult<Stmt> {
         let kind = self.peek()?;
         let line = self.stream.peek()?.line;
         let kind = match kind {
@@ -485,7 +503,8 @@ impl Parser<'_> {
     }
 
     /// The comma-separated expressions of one `for` clause.
-    fn for_clause(&mut self) -> PResult<Vec<Expr>> {
+    /// The expressions of one `for` clause; in the `condition` a `(void)` cast cannot come last.
+    fn for_clause(&mut self, condition: bool) -> PResult<Vec<Expr>> {
         let mut list = Vec::new();
         let kind = self.peek()?;
         if !starts_expression(kind) && kind != K::VoidCast {
@@ -495,6 +514,9 @@ impl Parser<'_> {
             let item = if self.at(K::VoidCast)? {
                 let line = self.bump()?.line;
                 let operand = self.expr()?;
+                if condition && !self.at(COMMA)? {
+                    return self.unexpected(&[COMMA]);
+                }
                 Expr {
                     kind: ExprKind::VoidCast(Box::new(operand)),
                     line,
@@ -512,11 +534,11 @@ impl Parser<'_> {
     fn for_statement(&mut self) -> PResult<StmtKind> {
         self.bump()?;
         self.expect(OPEN_PAREN)?;
-        let init = self.for_clause()?;
+        let init = self.for_clause(false)?;
         self.expect(SEMICOLON)?;
-        let condition = self.for_clause()?;
+        let condition = self.for_clause(true)?;
         self.expect(SEMICOLON)?;
-        let step = self.for_clause()?;
+        let step = self.for_clause(false)?;
         self.expect(CLOSE_PAREN)?;
         let body = self.loop_body(K::Endfor)?;
         Ok(StmtKind::For(Box::new(For {

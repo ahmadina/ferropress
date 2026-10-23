@@ -7078,3 +7078,112 @@
 {"name":"mutation 2498","source":"$a < $b == $c > else $d ;","error":null,"warnings":[],"rendering":"assert(function () {\n    echo '$a < $b == $c > else $d ;';\n} && false)"}
 {"name":"mutation 2499","source":"$a && $b || $c ; $a || $b && $c ; $a and $b or $c ; $a = $b and $c ; $a = $b && $c ; $a ?? ?? $c ; ( $a ?? $b ) ?? $c ; $a | $b & $c ^ $d ;","error":null,"warnings":[],"rendering":"assert(function () {\n    echo '$a && $b || $c ; $a || $b && $c ; $a and $b or $c ; $a = $b and $c ; $a = $b && $c ; $a ?? ?? $c ; ( $a ?? $b ) ?? $c ; $a | $b & $c ^ $d ;';\n} && false)"}
 {"name":"mutation 2500","source":"echo 'a' ; echo , 'b' ;","error":null,"warnings":[],"rendering":"assert(function () {\n    echo 'echo \\'a\\' ; echo , \\'b\\' ;';\n} && false)"}
+{"name":"argument keyword 1","source":"<?php f(new namespace);","error":["ParseError","syntax error, unexpected token \"namespace\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 2","source":"<?php f(new );","error":["ParseError","syntax error, unexpected token \")\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 3","source":"<?php f(new 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 4","source":"<?php f(new);","error":["ParseError","syntax error, unexpected token \")\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 5","source":"<?php f(new A, new 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 6","source":"<?php f(1, new namespace);","error":["ParseError","syntax error, unexpected token \"namespace\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 7","source":"<?php #[A(new namespace)] function g(){}","error":["ParseError","syntax error, unexpected token \"namespace\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 8","source":"<?php new namespace;","error":["ParseError","syntax error, unexpected token \"namespace\", expecting \"class\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 9","source":"<?php f(a: new namespace);","error":["ParseError","syntax error, unexpected token \"namespace\", expecting \"class\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 10","source":"<?php f(new A);","error":null,"warnings":[],"rendering":"assert(function () {\n    f(new A());\n} && false)"}
+{"name":"argument keyword 11","source":"<?php f(new static);","error":null,"warnings":[],"rendering":"assert(function () {\n    f(new static());\n} && false)"}
+{"name":"argument keyword 12","source":"<?php f(new class {});","error":null,"warnings":[],"rendering":"assert(function () {\n    f(new class {\n    });\n} && false)"}
+{"name":"argument keyword 13","source":"<?php f(new #[X] class {});","error":null,"warnings":[],"rendering":"assert(function () {\n    f(new #[X] class {\n    });\n} && false)"}
+{"name":"argument keyword 14","source":"<?php f(new $a);","error":null,"warnings":[],"rendering":"assert(function () {\n    f(new $a());\n} && false)"}
+{"name":"argument keyword 15","source":"<?php f(new (A));","error":null,"warnings":[],"rendering":"assert(function () {\n    f(new A());\n} && false)"}
+{"name":"argument keyword 16","source":"<?php f(new \\A);","error":null,"warnings":[],"rendering":"assert(function () {\n    f(new \\A());\n} && false)"}
+{"name":"argument keyword 17","source":"<?php f(new namespace\\A);","error":null,"warnings":[],"rendering":"assert(function () {\n    f(new namespace\\A());\n} && false)"}
+{"name":"argument keyword 18","source":"<?php f(static 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 19","source":"<?php f(static);","error":["ParseError","syntax error, unexpected token \")\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 20","source":"<?php f(static $a);","error":["ParseError","syntax error, unexpected variable \"$a\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 21","source":"<?php f(1, static 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 22","source":"<?php f(...static 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \"::\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 23","source":"<?php f(static::A);","error":null,"warnings":[],"rendering":"assert(function () {\n    f(static::A);\n} && false)"}
+{"name":"argument keyword 24","source":"<?php f(static fn() => 1);","error":null,"warnings":[],"rendering":"assert(function () {\n    f(static fn() => 1);\n} && false)"}
+{"name":"argument keyword 25","source":"<?php f(static function() {});","error":null,"warnings":[],"rendering":"assert(function () {\n    f(static function () {\n    });\n} && false)"}
+{"name":"argument keyword 26","source":"<?php f(function 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \"(\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 27","source":"<?php f(fn 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \"(\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 28","source":"<?php f(exit 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \")\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 29","source":"<?php f(yield ;);","error":["ParseError","syntax error, unexpected token \";\", expecting \")\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 30","source":"<?php f(__LINE__ 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \")\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 31","source":"<?php f(match 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 32","source":"<?php f(list 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 33","source":"<?php f(array 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 34","source":"<?php f(isset 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 35","source":"<?php f(empty 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 36","source":"<?php f(empty);","error":["ParseError","syntax error, unexpected token \")\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 37","source":"<?php f(eval 1);","error":["ParseError","syntax error, unexpected integer \"1\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 38","source":"<?php f(array(1));","error":null,"warnings":[],"rendering":"assert(function () {\n    f([1]);\n} && false)"}
+{"name":"argument keyword 39","source":"<?php f(list($a) = $b);","error":null,"warnings":[],"rendering":"assert(function () {\n    f([$a] = $b);\n} && false)"}
+{"name":"argument keyword 40","source":"<?php f(match(1) {});","error":null,"warnings":[],"rendering":"assert(function () {\n    f(match (1) {\n    });\n} && false)"}
+{"name":"argument keyword 41","source":"<?php f(isset($a));","error":null,"warnings":[],"rendering":"assert(function () {\n    f(isset($a));\n} && false)"}
+{"name":"argument keyword 42","source":"<?php f(eval(\"1\"));","error":null,"warnings":[],"rendering":"assert(function () {\n    f(eval('1'));\n} && false)"}
+{"name":"argument keyword 43","source":"<?php f(clone ;);","error":["ParseError","syntax error, unexpected token \";\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 44","source":"<?php f(clone);","error":["ParseError","syntax error, unexpected token \")\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 45","source":"<?php f(print ;);","error":["ParseError","syntax error, unexpected token \";\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 46","source":"<?php f(include ;);","error":["ParseError","syntax error, unexpected token \";\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 47","source":"<?php f(include_once ;);","error":["ParseError","syntax error, unexpected token \";\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 48","source":"<?php f(require ;);","error":["ParseError","syntax error, unexpected token \";\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 49","source":"<?php f(require_once ;);","error":["ParseError","syntax error, unexpected token \";\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 50","source":"<?php f(throw ;);","error":["ParseError","syntax error, unexpected token \";\", expecting \":\"",1],"warnings":[],"rendering":null}
+{"name":"argument keyword 51","source":"<?php f(clone $a);","error":null,"warnings":[],"rendering":"assert(function () {\n    f(\\clone($a));\n} && false)"}
+{"name":"argument keyword 52","source":"<?php f(clone(...));","error":null,"warnings":[],"rendering":"assert(function () {\n    f(\\clone(...));\n} && false)"}
+{"name":"argument keyword 53","source":"<?php f(print 1);","error":null,"warnings":[],"rendering":"assert(function () {\n    f(print 1);\n} && false)"}
+{"name":"argument keyword 54","source":"<?php f(include \"a\");","error":null,"warnings":[],"rendering":"assert(function () {\n    f(include('a'));\n} && false)"}
+{"name":"argument keyword 55","source":"<?php f(throw $e);","error":null,"warnings":[],"rendering":"assert(function () {\n    f(throw $e);\n} && false)"}
+{"name":"use statement 1","source":"<?php use 1;","error":["ParseError","syntax error, unexpected integer \"1\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 2","source":"<?php use A 1;","error":["ParseError","syntax error, unexpected integer \"1\", expecting \",\" or \";\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 3","source":"<?php use A, 1;","error":["ParseError","syntax error, unexpected integer \"1\", expecting identifier or fully qualified name or namespaced name",1],"warnings":[],"rendering":null}
+{"name":"use statement 4","source":"<?php use A\\B, ;","error":["ParseError","syntax error, unexpected token \";\", expecting identifier or fully qualified name or namespaced name",1],"warnings":[],"rendering":null}
+{"name":"use statement 5","source":"<?php use A as 1;","error":["ParseError","syntax error, unexpected integer \"1\", expecting identifier",1],"warnings":[],"rendering":null}
+{"name":"use statement 6","source":"<?php use function 1;","error":["ParseError","syntax error, unexpected integer \"1\", expecting identifier or fully qualified name or namespaced name",1],"warnings":[],"rendering":null}
+{"name":"use statement 7","source":"<?php use const 1;","error":["ParseError","syntax error, unexpected integer \"1\", expecting identifier or fully qualified name or namespaced name",1],"warnings":[],"rendering":null}
+{"name":"use statement 8","source":"<?php use function A, 1;","error":["ParseError","syntax error, unexpected integer \"1\", expecting identifier or fully qualified name or namespaced name",1],"warnings":[],"rendering":null}
+{"name":"use statement 9","source":"<?php use \\A\\{B};","error":null,"warnings":[],"rendering":null}
+{"name":"use statement 10","source":"<?php use A\\{B} 1","error":["ParseError","syntax error, unexpected integer \"1\", expecting \";\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 11","source":"<?php use A\\{B}, C;","error":["ParseError","syntax error, unexpected token \",\", expecting \";\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 12","source":"<?php use Baz\\{};","error":["ParseError","syntax error, unexpected token \"}\", expecting identifier or namespaced name or \"function\" or \"const\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 13","source":"<?php use Baz\\{,};","error":["ParseError","syntax error, unexpected token \",\", expecting identifier or namespaced name or \"function\" or \"const\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 14","source":"<?php use Baz\\{Foo,,};","error":["ParseError","syntax error, unexpected token \",\", expecting \"}\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 15","source":"<?php use Foo\\Bar\\{\\Baz};","error":["ParseError","syntax error, unexpected fully qualified name \"\\Baz\", expecting identifier or namespaced name or \"function\" or \"const\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 16","source":"<?php use Foo\\{A,};","error":null,"warnings":[],"rendering":null}
+{"name":"use statement 17","source":"<?php use function Baz\\{,Foo};","error":["ParseError","syntax error, unexpected token \",\", expecting identifier or namespaced name",1],"warnings":[],"rendering":null}
+{"name":"use statement 18","source":"<?php use function Baz\\{Foo,,};","error":["ParseError","syntax error, unexpected token \",\", expecting \"}\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 19","source":"<?php use function A\\{B, function C};","error":["ParseError","syntax error, unexpected token \"function\", expecting \"}\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 20","source":"<?php use const Foo\\{A, const B};","error":["ParseError","syntax error, unexpected token \"const\", expecting \"}\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 21","source":"<?php use Foo\\{A, const B};","error":null,"warnings":[],"rendering":null}
+{"name":"use statement 22","source":"<?php use Foo\\{A, function};","error":["ParseError","syntax error, unexpected token \"}\", expecting identifier or namespaced name",1],"warnings":[],"rendering":null}
+{"name":"use statement 23","source":"<?php use Foo\\{const 1};","error":["ParseError","syntax error, unexpected integer \"1\", expecting identifier or namespaced name",1],"warnings":[],"rendering":null}
+{"name":"use statement 24","source":"<?php use Foo\\{A as};","error":["ParseError","syntax error, unexpected token \"}\", expecting identifier",1],"warnings":[],"rendering":null}
+{"name":"use statement 25","source":"<?php use Foo\\{A as 1};","error":["ParseError","syntax error, unexpected integer \"1\", expecting identifier",1],"warnings":[],"rendering":null}
+{"name":"use statement 26","source":"<?php use A\\{B as C 1};","error":["ParseError","syntax error, unexpected integer \"1\", expecting \"}\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 27","source":"<?php use A\\{function B as 1};","error":["ParseError","syntax error, unexpected integer \"1\", expecting identifier",1],"warnings":[],"rendering":null}
+{"name":"use statement 28","source":"<?php use Foo\\{A 1};","error":["ParseError","syntax error, unexpected integer \"1\", expecting \"}\"",1],"warnings":[],"rendering":null}
+{"name":"use statement 29","source":"<?php use function Foo\\{A 1};","error":["ParseError","syntax error, unexpected integer \"1\", expecting \"}\"",1],"warnings":[],"rendering":null}
+{"name":"for void cast 1","source":"<?php for (;(void)true;);","error":["ParseError","syntax error, unexpected token \";\", expecting \",\"",1],"warnings":[],"rendering":null}
+{"name":"for void cast 2","source":"<?php for (;1, (void)2;);","error":["ParseError","syntax error, unexpected token \";\", expecting \",\"",1],"warnings":[],"rendering":null}
+{"name":"for void cast 3","source":"<?php for (;(void)1, 2;);","error":null,"warnings":[],"rendering":"assert(function () {\n    for (; (void)1, 2;) {\n    }\n} && false)"}
+{"name":"for void cast 4","source":"<?php for ((void)1;;);","error":null,"warnings":[],"rendering":"assert(function () {\n    for ((void)1;;) {\n    }\n} && false)"}
+{"name":"for void cast 5","source":"<?php for ((void)1, 2;;);","error":null,"warnings":[],"rendering":"assert(function () {\n    for ((void)1, 2;;) {\n    }\n} && false)"}
+{"name":"for void cast 6","source":"<?php for (;;(void)1);","error":null,"warnings":[],"rendering":"assert(function () {\n    for (;; (void)1) {\n    }\n} && false)"}
+{"name":"for void cast 7","source":"<?php for (;;1, (void)2);","error":null,"warnings":[],"rendering":"assert(function () {\n    for (;; 1, (void)2) {\n    }\n} && false)"}
+{"name":"array list assignment 1","source":"<?php [list($x) = $g];","error":null,"warnings":[],"rendering":"assert(function () {\n    [[$x] = $g];\n} && false)"}
+{"name":"array list assignment 2","source":"<?php [[$x] = $g];","error":null,"warnings":[],"rendering":"assert(function () {\n    [[$x] = $g];\n} && false)"}
+{"name":"array list assignment 3","source":"<?php [$i => list($x) = $g];","error":null,"warnings":[],"rendering":"assert(function () {\n    [$i => [$x] = $g];\n} && false)"}
+{"name":"array list assignment 4","source":"<?php [$i => [$x] = $g];","error":null,"warnings":[],"rendering":"assert(function () {\n    [$i => [$x] = $g];\n} && false)"}
+{"name":"array list assignment 5","source":"<?php [&list($x) = $g];","error":["ParseError","syntax error, unexpected token \"list\"",1],"warnings":[],"rendering":null}
+{"name":"array list assignment 6","source":"<?php [...[$x] = $g];","error":null,"warnings":[],"rendering":"assert(function () {\n    [...[$x] = $g];\n} && false)"}
+{"name":"array list assignment 7","source":"<?php [1, [$x] = $g];","error":null,"warnings":[],"rendering":"assert(function () {\n    [1, [$x] = $g];\n} && false)"}
+{"name":"array list assignment 8","source":"<?php [$i => list($x)];","error":null,"warnings":[],"rendering":null}
+{"name":"array list assignment 9","source":"<?php f([$x] = $g);","error":null,"warnings":[],"rendering":"assert(function () {\n    f([$x] = $g);\n} && false)"}
+{"name":"halt in braces 1","source":"<?php namespace foo {\n    __halt_compiler();\n\n?>","error":["ParseError","Unclosed '{' on line 1",2],"warnings":[],"rendering":null}
+{"name":"halt in braces 2","source":"<?php namespace foo { __halt_compiler(); }","error":["ParseError","Unclosed '{'",1],"warnings":[],"rendering":null}
+{"name":"halt in braces 3","source":"<?php namespace foo {\n__halt_compiler() ?>\n","error":["ParseError","Unclosed '{' on line 1",3],"warnings":[],"rendering":null}
+{"name":"halt in braces 4","source":"<?php namespace a { (__halt_compiler());","error":["ParseError","syntax error, unexpected token \"__halt_compiler\"",1],"warnings":[],"rendering":null}
+{"name":"halt in braces 5","source":"<?php namespace a; __halt_compiler(); {","error":null,"warnings":[],"rendering":null}
+{"name":"heredoc segment indentation 1","source":"<?php echo <<<END\n a\n$a\n END;","error":["ParseError","Invalid body indentation level (expecting an indentation level of at least 1)",3],"warnings":[],"rendering":null}
+{"name":"heredoc segment indentation 2","source":"<?php echo <<<END\n a\n {$a}\n END;","error":null,"warnings":[],"rendering":"assert(function () {\n    echo \"a\\n$a\";\n} && false)"}
+{"name":"heredoc segment indentation 3","source":"<?php echo <<<END\n  a\n $a\n  END;","error":["ParseError","Invalid body indentation level (expecting an indentation level of at least 2)",3],"warnings":[],"rendering":null}
+{"name":"heredoc segment indentation 4","source":"<?php echo <<<END\n\t a\n\t $a\n\t END;","error":["ParseError","Invalid indentation - tabs and spaces cannot be mixed",2],"warnings":[],"rendering":null}

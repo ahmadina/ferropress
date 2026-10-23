@@ -455,7 +455,61 @@ function parser_cases(): array {
 	for ( $i = 1; $i <= PARSER_MUTATIONS; $i++ ) {
 		$add( 'mutation ' . $i, parser_mutation( $valid[ mt_rand( 0, count( $valid ) - 1 ) ] ) );
 	}
+	foreach ( parser_topic_cases() as $topic => $codes ) {
+		foreach ( $codes as $index => $code ) {
+			$add( $topic . ' ' . ( $index + 1 ), '<?php ' . $code );
+		}
+	}
 	return $cases;
+}
+
+/**
+ * Cases grouped by the grammar area they probe: topic => list of code following "<?php ".
+ * Listed after the mutations so that adding cases leaves the seeded cases unchanged.
+ */
+function parser_topic_cases(): array {
+	return array(
+		'argument keyword' => array(
+			'f(new namespace);', 'f(new );', 'f(new 1);', 'f(new);', 'f(new A, new 1);', 'f(1, new namespace);',
+			'#[A(new namespace)] function g(){}', 'new namespace;', 'f(a: new namespace);',
+			'f(new A);', 'f(new static);', 'f(new class {});', 'f(new #[X] class {});', 'f(new $a);', 'f(new (A));',
+			'f(new \\A);', 'f(new namespace\\A);',
+			'f(static 1);', 'f(static);', 'f(static $a);', 'f(1, static 1);', 'f(...static 1);',
+			'f(static::A);', 'f(static fn() => 1);', 'f(static function() {});',
+			'f(function 1);', 'f(fn 1);', 'f(exit 1);', 'f(yield ;);', 'f(__LINE__ 1);',
+			'f(match 1);', 'f(list 1);', 'f(array 1);', 'f(isset 1);', 'f(empty 1);', 'f(empty);', 'f(eval 1);',
+			'f(array(1));', 'f(list($a) = $b);', 'f(match(1) {});', 'f(isset($a));', 'f(eval("1"));',
+			'f(clone ;);', 'f(clone);', 'f(print ;);', 'f(include ;);', 'f(include_once ;);', 'f(require ;);',
+			'f(require_once ;);', 'f(throw ;);',
+			'f(clone $a);', 'f(clone(...));', 'f(print 1);', 'f(include "a");', 'f(throw $e);',
+		),
+		'use statement' => array(
+			'use 1;', 'use A 1;', 'use A, 1;', 'use A\\B, ;', 'use A as 1;', 'use function 1;', 'use const 1;',
+			'use function A, 1;', 'use \\A\\{B};', 'use A\\{B} 1', 'use A\\{B}, C;',
+			'use Baz\\{};', 'use Baz\\{,};', 'use Baz\\{Foo,,};', 'use Foo\\Bar\\{\\Baz};', 'use Foo\\{A,};',
+			'use function Baz\\{,Foo};', 'use function Baz\\{Foo,,};', 'use function A\\{B, function C};',
+			'use const Foo\\{A, const B};', 'use Foo\\{A, const B};', 'use Foo\\{A, function};', 'use Foo\\{const 1};',
+			'use Foo\\{A as};', 'use Foo\\{A as 1};', 'use A\\{B as C 1};', 'use A\\{function B as 1};',
+			'use Foo\\{A 1};', 'use function Foo\\{A 1};',
+		),
+		'for void cast' => array(
+			'for (;(void)true;);', 'for (;1, (void)2;);', 'for (;(void)1, 2;);', 'for ((void)1;;);',
+			'for ((void)1, 2;;);', 'for (;;(void)1);', 'for (;;1, (void)2);',
+		),
+		'array list assignment' => array(
+			'[list($x) = $g];', '[[$x] = $g];', '[$i => list($x) = $g];', '[$i => [$x] = $g];', '[&list($x) = $g];',
+			'[...[$x] = $g];', '[1, [$x] = $g];', '[$i => list($x)];', 'f([$x] = $g);',
+		),
+		'halt in braces' => array(
+			"namespace foo {\n    __halt_compiler();\n\n?>", 'namespace foo { __halt_compiler(); }',
+			"namespace foo {\n__halt_compiler() ?>\n", 'namespace a { (__halt_compiler());',
+			'namespace a; __halt_compiler(); {',
+		),
+		'heredoc segment indentation' => array(
+			"echo <<<END\n a\n\$a\n END;", "echo <<<END\n a\n {\$a}\n END;", "echo <<<END\n  a\n \$a\n  END;",
+			"echo <<<END\n\t a\n\t \$a\n\t END;",
+		),
+	);
 }
 
 /** The source wrapped as the body of a closure whose syntax tree assert() renders. */

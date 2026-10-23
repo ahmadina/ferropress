@@ -46,6 +46,9 @@ pub enum Aspect {
     /// The ordered hook trace.
     #[serde(rename = "hooks")]
     Hooks,
+    /// Source files in load order, each positioned in the hook trace.
+    #[serde(rename = "files")]
+    Files,
     /// SQL statements in execution order.
     #[serde(rename = "queries")]
     Queries,
@@ -68,6 +71,7 @@ impl Aspect {
             Self::ResponseHeaders => "response.headers",
             Self::ResponseBody => "response.body",
             Self::Hooks => "hooks",
+            Self::Files => "files",
             Self::Queries => "queries",
             Self::Mail => "mail",
             Self::Cron => "cron",
@@ -230,7 +234,7 @@ mod tests {
 schema = 1
 id = "front-page"
 description = "An anonymous visitor loads the front page"
-compare = ["response.status", "response.headers", "response.body", "hooks", "queries", "mail", "cron", "database"]
+compare = ["response.status", "response.headers", "response.body", "hooks", "files", "queries", "mail", "cron", "database"]
 
 [[steps]]
 operation = "http"
@@ -271,6 +275,7 @@ reviewed_by = "maintainer"
                 "response.headers",
                 "response.body",
                 "hooks",
+                "files",
                 "queries",
                 "mail",
                 "cron",

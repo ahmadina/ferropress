@@ -163,11 +163,12 @@ mod tests {
     use std::sync::mpsc;
 
     const TRACE: &str = r#"{
-        "schema": 1,
+        "schema": 2,
         "hooks": [
             {"kind": "action", "name": "init", "args": 0, "depth": 1},
             {"kind": "filter", "name": "the_title", "args": 2, "depth": 2}
         ],
+        "files": [{"path": "index.php", "before_hook": 0}],
         "queries": ["SELECT 1"],
         "mail": [{"to": ["a@example.test"], "subject": "Hi", "message": "Body", "headers": [], "attachments": []}],
         "cron": [{"hook": "daily_job", "schedule": "daily", "interval": 86400, "args": [1, "x"]}]
@@ -282,7 +283,7 @@ mod tests {
         assert_eq!(capture.database["options"].added, ["(1,'new')"]);
         assert_eq!(
             capture.summary(),
-            "status 200, 2 hooks, 1 queries, 1 mails, 1 cron events, 1 tables changed"
+            "status 200, 2 hooks, 1 files, 1 queries, 1 mails, 1 cron events, 1 tables changed"
         );
     }
 
@@ -298,7 +299,7 @@ mod tests {
         )
         .unwrap();
         let json: serde_json::Value = serde_json::to_value(&capture).unwrap();
-        assert_eq!(json["schema"], 1);
+        assert_eq!(json["schema"], 2);
         assert_eq!(json["request"]["method"], "GET");
         assert_eq!(json["response"]["headers"][0][0], "content-type");
         assert_eq!(json["trace"]["hooks"][0]["kind"], "action");
@@ -307,7 +308,7 @@ mod tests {
 
     #[test]
     fn capture_rejects_bad_traces() {
-        let wrong_schema = TRACE.replacen(r#""schema": 1"#, r#""schema": 2"#, 1);
+        let wrong_schema = TRACE.replacen(r#""schema": 2"#, r#""schema": 1"#, 1);
         let mut runner = FakeRunner::new(lab_responder(wrong_schema));
         let error = capture(
             &env(),
@@ -318,7 +319,7 @@ mod tests {
         )
         .unwrap_err()
         .to_string();
-        assert_eq!(error, "the capture plugin wrote trace schema 2, expected 1");
+        assert_eq!(error, "the capture plugin wrote trace schema 1, expected 2");
 
         let mut runner = FakeRunner::new(lab_responder("not json"));
         let error = capture(

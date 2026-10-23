@@ -23,8 +23,8 @@ ENV LD_PRELOAD=/usr/local/lib/libfaketime.so.1 \
 ADD --checksum=sha256:${LAB_PLATFORM_SHA256} ${LAB_PLATFORM_URL} /tmp/platform.tar.gz
 
 # Database settings are read from the container environment at runtime, so the image holds no credentials.
-# Every query is recorded for captures, cron never spawns background requests, and the secret keys are fixed
-# lab-only values (so no random salts are generated), keeping runs deterministic.
+# The secret keys are fixed lab-only values (so no random salts are generated), and the lab settings and
+# instrumentation in /opt/ferropress are required where the config accepts custom values.
 RUN tar -xzf /tmp/platform.tar.gz -C /var/www/html --strip-components=1 \
     && rm /tmp/platform.tar.gz \
     && cd /var/www/html \
@@ -32,14 +32,12 @@ RUN tar -xzf /tmp/platform.tar.gz -C /var/www/html --strip-components=1 \
            -e "s/'username_here'/getenv('LAB_DB_USER')/" \
            -e "s/'password_here'/getenv('LAB_DB_PASSWORD')/" \
            -e "s/'localhost'/getenv('LAB_DB_HOST')/" \
-           -e "1a define( 'SAVEQUERIES', true );\ndefine( 'DISABLE_WP_CRON', true );" \
+           -e "/Add any custom values between this line/a require '/opt/ferropress/config.php';" \
            -E -e "s/define\( '([A-Z_]+)',( +)'put your unique phrase here' \);/define( '\1',\2'ferropress-lab-only-\1' );/" \
            wp-config-sample.php > wp-config.php \
     && grep -q "getenv('LAB_DB_HOST')" wp-config.php \
     && ! grep -q "put your unique phrase here" wp-config.php \
-    && grep -q "define( 'SAVEQUERIES', true );" wp-config.php \
-    && mkdir -p wp-content/mu-plugins \
+    && grep -q "^require '/opt/ferropress/config.php';" wp-config.php \
     && chown -R www-data:www-data /var/www/html
 
-COPY --chown=www-data:www-data capture.php /var/www/html/wp-content/mu-plugins/ferropress-capture.php
-COPY install-site.php inventory.php /opt/ferropress/
+COPY config.php instrument.php install-site.php inventory.php /opt/ferropress/

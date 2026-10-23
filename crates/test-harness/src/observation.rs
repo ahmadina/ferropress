@@ -174,6 +174,23 @@ impl fmt::Display for HookEvent {
     }
 }
 
+/// A source file loaded during the request, positioned in the hook trace.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct FileLoad {
+    /// Path relative to the installation root.
+    pub path: String,
+    /// Index of the first hook event recorded after the file was loaded; equal to the number of hook
+    /// events for files loaded after the last one.
+    pub before_hook: u32,
+}
+
+impl fmt::Display for FileLoad {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} (before hook {})", self.path, self.before_hook)
+    }
+}
+
 /// A message handed to the mail API; it is recorded, never delivered.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -204,7 +221,8 @@ pub struct CronEvent {
     pub args: Vec<serde_json::Value>,
 }
 
-/// What is recorded inside the request: hooks, SQL, mail and the cron schedule after the request.
+/// What is recorded inside the request: hooks, loaded files, SQL, mail and the cron schedule after the
+/// request.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Trace {
@@ -212,6 +230,8 @@ pub struct Trace {
     pub schema: u32,
     /// Hook invocations in firing order.
     pub hooks: Vec<HookEvent>,
+    /// Source files in load order.
+    pub files: Vec<FileLoad>,
     /// SQL statements in execution order.
     pub queries: Vec<String>,
     /// Outgoing mail in sending order.
@@ -222,7 +242,7 @@ pub struct Trace {
 
 impl Trace {
     /// The trace format version this crate reads and writes.
-    pub const SCHEMA: u32 = 1;
+    pub const SCHEMA: u32 = 2;
 }
 
 /// The request that produced an observation.
@@ -274,7 +294,7 @@ pub struct Observation {
     pub request: Request,
     /// The response received.
     pub response: Response,
-    /// Hooks, SQL, mail and cron recorded during the request.
+    /// Hooks, files, SQL, mail and cron recorded during the request.
     pub trace: Trace,
     /// Database rows changed by the request.
     pub database: DatabaseDiff,
@@ -282,14 +302,15 @@ pub struct Observation {
 
 impl Observation {
     /// The observation format version this crate reads and writes.
-    pub const SCHEMA: u32 = 1;
+    pub const SCHEMA: u32 = 2;
 
     /// One-line summary, e.g. for command output.
     pub fn summary(&self) -> String {
         format!(
-            "status {}, {} hooks, {} queries, {} mails, {} cron events, {} tables changed",
+            "status {}, {} hooks, {} files, {} queries, {} mails, {} cron events, {} tables changed",
             self.response.status,
             self.trace.hooks.len(),
+            self.trace.files.len(),
             self.trace.queries.len(),
             self.trace.mail.len(),
             self.trace.cron.len(),
@@ -304,7 +325,7 @@ mod tests {
     use proptest::prelude::*;
 
     const OBSERVATION: &str = r#"{
-        "schema": 1,
+        "schema": 2,
         "name": "home",
         "request": {"method": "GET", "path": "/?p=1"},
         "response": {
@@ -314,11 +335,12 @@ mod tests {
             "body_sha256": "2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df"
         },
         "trace": {
-            "schema": 1,
+            "schema": 2,
             "hooks": [
                 {"kind": "action", "name": "init", "args": 0, "depth": 1},
                 {"kind": "filter", "name": "the_title", "args": 2, "depth": 2}
             ],
+            "files": [{"path": "index.php", "before_hook": 0}],
             "queries": ["SELECT 1"],
             "mail": [{"to": ["a@example.test"], "subject": "Hi", "message": "Body", "headers": [], "attachments": []}],
             "cron": [{"hook": "daily_job", "schedule": "daily", "interval": 86400, "args": [1, "x"]}]
@@ -386,7 +408,8 @@ mod tests {
             OBSERVATION.replacen(r#""/?p=1""#, r#""p=1""#, 1),
             OBSERVATION.replacen(r#""GET""#, r#""BREW""#, 1),
             OBSERVATION.replacen(r#""queries""#, r#""extra": 1, "queries""#, 1),
-            OBSERVATION.replacen(r#""schema": 1,"#, r#""schema": 1, "extra": 1,"#, 1),
+            OBSERVATION.replacen(r#""schema": 2,"#, r#""schema": 2, "extra": 1,"#, 1),
+            OBSERVATION.replacen(r#""before_hook": 0"#, r#""before_hook": -1"#, 1),
         ];
         for case in cases {
             assert!(
@@ -409,11 +432,15 @@ mod tests {
             "filter the_title (args 2, depth 2)"
         );
         assert_eq!(
-            parsed.summary(),
-            "status 200, 2 hooks, 1 queries, 1 mails, 1 cron events, 1 tables changed"
+            parsed.trace.files[0].to_string(),
+            "index.php (before hook 0)"
         );
-        assert_eq!(Observation::SCHEMA, 1);
-        assert_eq!(Trace::SCHEMA, 1);
+        assert_eq!(
+            parsed.summary(),
+            "status 200, 2 hooks, 1 files, 1 queries, 1 mails, 1 cron events, 1 tables changed"
+        );
+        assert_eq!(Observation::SCHEMA, 2);
+        assert_eq!(Trace::SCHEMA, 2);
     }
 
     proptest! {

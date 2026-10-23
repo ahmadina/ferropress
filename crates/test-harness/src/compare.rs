@@ -1,7 +1,7 @@
 //! Aspect comparators between a reference and a candidate observation.
 //!
-//! Order is significant wherever the platform makes it observable: hooks, SQL statements, mail and the
-//! values of one header name are compared as sequences, and each sequence reports only its first
+//! Order is significant wherever the platform makes it observable: hooks, loaded files, SQL statements,
+//! mail and the values of one header name are compared as sequences, and each sequence reports only its first
 //! divergence because later ones usually follow from it. Header fields with different names are
 //! compared without regard to their relative order, which carries no meaning in HTTP (RFC 9110 §5.3).
 //! Bodies are compared byte for byte through their SHA-256.
@@ -73,6 +73,13 @@ pub fn compare(
                 "hooks",
                 &reference.trace.hooks,
                 &candidate.trace.hooks,
+                ToString::to_string,
+                &mut found,
+            ),
+            Aspect::Files => compare_sequences(
+                "files",
+                &reference.trace.files,
+                &candidate.trace.files,
                 ToString::to_string,
                 &mut found,
             ),
@@ -249,14 +256,15 @@ fn compare_databases(reference: &Observation, candidate: &Observation, found: &m
 mod tests {
     use super::*;
     use crate::fakes;
-    use crate::observation::{CronEvent, HookEvent, HookKind, Mail};
+    use crate::observation::{CronEvent, FileLoad, HookEvent, HookKind, Mail};
     use proptest::prelude::*;
 
-    const ALL: [Aspect; 8] = [
+    const ALL: [Aspect; 9] = [
         Aspect::ResponseStatus,
         Aspect::ResponseHeaders,
         Aspect::ResponseBody,
         Aspect::Hooks,
+        Aspect::Files,
         Aspect::Queries,
         Aspect::Mail,
         Aspect::Cron,
@@ -452,6 +460,27 @@ mod tests {
                 "hooks[1]",
                 "action wp_loaded (args 0, depth 1)",
                 "<end after 1 entries>"
+            )]
+        );
+    }
+
+    #[test]
+    fn file_loads_compare_paths_and_positions_in_order() {
+        let load = |path: &str, before_hook| FileLoad {
+            path: path.to_owned(),
+            before_hook,
+        };
+        let mut reference = base();
+        reference.trace.files = vec![load("index.php", 0), load("a.php", 3)];
+        let mut candidate = reference.clone();
+        candidate.trace.files[1] = load("a.php", 4);
+        assert_eq!(
+            compare(&[Aspect::Files], &reference, &candidate),
+            [mismatch(
+                Aspect::Files,
+                "files[1]",
+                "a.php (before hook 3)",
+                "a.php (before hook 4)"
             )]
         );
     }

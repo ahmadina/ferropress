@@ -64,6 +64,7 @@ pub fn observation(name: Slug, path: RequestPath) -> Observation {
         trace: Trace {
             schema: Trace::SCHEMA,
             hooks: Vec::new(),
+            files: Vec::new(),
             queries: Vec::new(),
             mail: Vec::new(),
             cron: Vec::new(),
@@ -85,7 +86,7 @@ mod tests {
         assert_eq!(observation.request.path.as_str(), "/x");
         assert_eq!(
             observation.summary(),
-            "status 200, 0 hooks, 0 queries, 0 mails, 0 cron events, 0 tables changed"
+            "status 200, 0 hooks, 0 files, 0 queries, 0 mails, 0 cron events, 0 tables changed"
         );
         let hex = sha2::Sha256::digest(b"")
             .iter()

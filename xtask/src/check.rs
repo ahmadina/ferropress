@@ -137,7 +137,7 @@ path = "/?p=1"
         FakeRunner::new(|invocation: &Invocation| {
             let args = invocation.args.join(" ");
             Ok(Some(if args.contains(" cat ") {
-                r#"{"schema":1,"hooks":[],"queries":[],"mail":[],"cron":[]}"#.to_owned()
+                r#"{"schema":2,"hooks":[],"files":[],"queries":[],"mail":[],"cron":[]}"#.to_owned()
             } else {
                 String::new()
             }))

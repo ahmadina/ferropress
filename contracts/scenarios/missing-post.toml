@@ -6,6 +6,7 @@ compare = [
     "response.headers",
     "response.body",
     "hooks",
+    "files",
     "queries",
     "mail",
     "cron",

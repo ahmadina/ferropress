@@ -130,6 +130,7 @@ mod tests {
             trace: Trace {
                 schema: Trace::SCHEMA,
                 hooks: Vec::new(),
+                files: Vec::new(),
                 queries: Vec::new(),
                 mail: Vec::new(),
                 cron: Vec::new(),

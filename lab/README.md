@@ -29,7 +29,9 @@ The application is published on <http://127.0.0.1:8080/> only. Credentials in `c
 dumps the database again and writes `captures/<name>.json` containing:
 
 - the response status, headers, body and body SHA-256;
-- the ordered hook trace (action or filter, name, argument count, nesting depth);
+- the ordered hook trace (action or filter, name, argument count, nesting depth), from the first hook
+  of the boot through the shutdown hooks;
+- every source file loaded, in order, with its position in the hook trace;
 - every SQL query run during the request;
 - outgoing mail, intercepted and never delivered;
 - scheduled cron events, without timestamps;
@@ -41,9 +43,12 @@ fixed instant and advances one microsecond per clock read, never with real time 
 generated config are fixed lab-only values, and cron never runs on its own. Two captures of the same
 request from the same database state are therefore identical.
 
-The trace comes from our own must-use plugin (`app/capture.php`), which records only requests carrying the
-capture header. The site config enables query logging and disables request-triggered cron so captures are
-repeatable. Captures are git-ignored; reviewed fixtures derived from them belong in `contracts/`.
+The trace comes from our own instrumentation (`app/instrument.php`), required from the generated site
+config through `app/config.php`. It pre-registers its callbacks in the `$wp_filter` global, which the
+platform turns into hooks as soon as its plugin API loads, so the trace starts at the first hook and no
+plugin of ours appears in the recorded lifecycle. It records only requests carrying the capture header;
+the shutdown writer re-registers itself so the platform's own shutdown hooks are part of the trace. The
+lab config enables query logging and disables request-triggered cron so captures are repeatable. Captures are git-ignored; reviewed fixtures derived from them belong in `contracts/`.
 
 ## Checking scenarios
 

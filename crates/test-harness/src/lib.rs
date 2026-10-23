@@ -26,8 +26,8 @@ pub use compare::{Mismatch, compare};
 pub use error::{InvalidRequestPath, InvalidSlug, ScenarioError};
 pub use normalize::{Location, NORMALIZED, Normalization};
 pub use observation::{
-    CronEvent, DatabaseDiff, HookEvent, HookKind, Mail, Method, Observation, Request, RequestPath,
-    Response, Slug, TableDiff, Trace,
+    CronEvent, DatabaseDiff, FileLoad, HookEvent, HookKind, Mail, Method, Observation, Request,
+    RequestPath, Response, Slug, TableDiff, Trace,
 };
 pub use run::{Replay, ReplayExhausted, Report, RunError, Side, StepReport, Target, run};
 pub use scenario::{Aspect, Scenario, Step};

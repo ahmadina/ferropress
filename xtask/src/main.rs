@@ -627,7 +627,7 @@ digest = "{digest}"
         FakeRunner::new(|invocation: &process::Invocation| {
             let args = invocation.args.join(" ");
             Ok(Some(if args.contains(" cat ") {
-                r#"{"schema":1,"hooks":[],"queries":[],"mail":[],"cron":[]}"#.to_owned()
+                r#"{"schema":2,"hooks":[],"files":[],"queries":[],"mail":[],"cron":[]}"#.to_owned()
             } else {
                 String::new()
             }))
@@ -644,7 +644,7 @@ digest = "{digest}"
         assert!(report.success);
         assert_eq!(
             report.text,
-            "lab capture: wrote lab/captures/home.json (status 200, 0 hooks, 0 queries, 0 mails, \
+            "lab capture: wrote lab/captures/home.json (status 200, 0 hooks, 0 files, 0 queries, 0 mails, \
              0 cron events, 0 tables changed)"
         );
         let written: serde_json::Value =

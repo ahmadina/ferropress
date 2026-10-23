@@ -13,11 +13,11 @@ all library crates flat under `crates/` (M-CRATES-FLAT-FOLDER), thin binaries un
 
 | Layer | Prefix / examples | May depend on | Must not depend on |
 |---|---|---|---|
-| Foundation | `wp-types`, `php-value`, `php-serialize`, `wp-contracts` | std, small vetted crates | any workspace layer |
-| Domain | `wp-hooks`, `wp-db`, `wp-query`, `wp-content`, … | foundation | VM, DB drivers, HTTP, async runtime, `infra-*`, `platform-*` |
-| Orchestration | `wp-request`, `wp-bootstrap` | domain, foundation | VM, `infra-*` |
+| Foundation | `cms-types`, `php-value`, `php-serialize`, `cms-contracts` | std, small vetted crates | any workspace layer |
+| Domain | `cms-hooks`, `cms-db`, `cms-query`, `cms-content`, … | foundation | VM, DB drivers, HTTP, async runtime, `infra-*`, `platform-*` |
+| Orchestration | `cms-request`, `cms-bootstrap` | domain, foundation | VM, `infra-*` |
 | PHP runtime | `php-vm-adapter`, `php-abi-bridge` | foundation | domain, orchestration |
-| PHP bindings | `wp-php-bindings` | domain, runtime, foundation | `infra-*`, `platform-*` |
+| PHP bindings | `php-bindings` | domain, runtime, foundation | `infra-*`, `platform-*` |
 | Infrastructure | `infra-mysql`, `infra-http`, `infra-fs`, … | domain ports, foundation | orchestration, platform, other `infra-*` |
 | Platform | `platform-server`, `platform-telemetry`, … | orchestration, domain ports, foundation | concrete `infra-*` (injected instead) |
 | Binaries | `apps/*`, `xtask` | everything | — nothing depends on a binary |
@@ -25,7 +25,7 @@ all library crates flat under `crates/` (M-CRATES-FLAT-FOLDER), thin binaries un
 
 ## Core ↔ PHP without a cycle
 - Domain crates hold VM-neutral handles from `php-value` and call PHP through its invocation port.
-- `php-abi-bridge` implements that port; `wp-php-bindings` registers the PHP-visible WordPress API by
+- `php-abi-bridge` implements that port; `php-bindings` registers the PHP-visible WordPress API by
   delegating to the native owner. Domain crates never import the bridge or the VM.
 
 ## Hard boundaries

@@ -13,8 +13,8 @@ The project-specific essentials:
 - RFC 430 casing; conversions `as_` (cheap borrow), `to_` (expensive), `into_` (consuming) (C-CONV).
 - Getters have no `get_` prefix (C-GETTER). Short names without weasel words like `Manager`, `Helper`,
   `Util`, `Service` (M-WEASEL-WORDS, M-SHORT-NAMES).
-- PHP/WordPress symbol names appear as string data in registries, not as Rust identifiers:
-  `fn apply_filters` in Rust is fine; `fn wp_insert_post_rust_impl` is not.
+- PHP-visible symbol names that plugins call appear only as string data in contracts and registries,
+  never as Rust identifiers. Rust names describe our own concepts: `fn insert_post`, `struct FilterChain`.
 
 ## Strong types (C-NEWTYPE, M-STRONG-TYPES-GUARD)
 WordPress uses bare integers and strings everywhere; Rust must not.

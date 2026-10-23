@@ -17,7 +17,9 @@ and must never be committed, quoted at length, or linked from public files.
    behavior independently, the Rust way, proven by tests (`clean-room-copyright.mdc`).
 4. **Existing PHP plugins and themes must work unchanged with no PHP runtime at all.** That is the goal for
    every plugin; public claims are limited to what the certification suite has proven (master plan §1).
-5. **Respect WordPress copyright and trademarks** at every step (`clean-room-copyright.mdc`).
+5. **Respect WordPress copyright and trademarks** at every step (`clean-room-copyright.mdc`). Never use
+   "WP"/`wp` in crate, module, type, function or file names, or in roadmap/docs prose; native core crates
+   use the `cms-` prefix. Plugin-facing identifiers exist only as data in contracts and registries.
 6. **Step by step, committed and pushed.** Each verified step is its own commit, pushed to GitHub
    (`commit-conventions.mdc`). The repository is always GitHub-ready.
 7. **Own admin, full plugin admin support.** Do not clone the WordPress admin UI. Ferropress has its own

@@ -12,8 +12,8 @@ alwaysApply: false
   (M-FIRST-DOC-SENTENCE).
 - Canonical sections as applicable (M-CANONICAL-DOCS): `# Examples`, `# Errors`, `# Panics`, `# Safety`.
 - Examples compile, use `?` rather than `unwrap` (C-QUESTION-MARK).
-- When an item implements WordPress/PHP behavior, link the contract ID and upstream reference
-  (e.g. `Contract: wp-hooks/apply_filters`, `Upstream: wp-includes/class-wp-hook.php`).
+- When an item implements reference behavior, link its contract ID (e.g. `Contract: hooks/filter-dispatch`);
+  upstream file references belong in the contract entry, not in Rust docs.
 - Docs describe the end state, not the design journey (M-NO-META-DESIGN-DOCUMENTATION).
   Design reasoning belongs in `docs/adr/NNNN-title.md`.
 

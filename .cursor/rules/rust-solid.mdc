@@ -10,14 +10,14 @@ Apply SOLID through Rust's own tools. Do not port Java/C# interface-per-class de
 Abstract **side effects and genuine variability**, never pure logic for its own sake.
 
 ## S — Single Responsibility
-- One reason to change per module and per crate. A crate is a bounded context (`wp-hooks`, `wp-query`, `wp-auth`).
+- One reason to change per module and per crate. A crate is a bounded context (`cms-hooks`, `cms-query`, `cms-auth`).
 - Separate pure domain logic from I/O: parsing/deciding functions take values and return values; adapters do I/O.
 - A type owns its invariants; validation lives in its constructor, not scattered at call sites.
 - Split modules that mix concerns (e.g. SQL building + capability checks + HTML output).
 
 ```rust
 // ❌ one fn queries MySQL, checks caps, renders HTML
-// ✅ wp-query builds QueryPlan (pure) → wp-db executes it (I/O) → theme layer renders
+// ✅ cms-query builds QueryPlan (pure) → cms-db executes it (I/O) → theme layer renders
 pub fn plan_query(vars: &QueryVars) -> Result<QueryPlan, QueryVarsError> { /* pure */ }
 ```
 

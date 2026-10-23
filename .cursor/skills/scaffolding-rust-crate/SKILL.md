@@ -9,7 +9,7 @@ description: Creates the Rust workspace root or a new member crate with the proj
 1. Confirm the crate exists in master plan §3 or an approved ADR. New crates outside that list need an ADR first
    (`rust-architecture-boundaries.mdc`).
 2. Decide its layer (foundation / domain / orchestration / PHP runtime / PHP bindings / infrastructure /
-   platform / binary / test support) and its prefix (`wp-`, `php-`, `infra-`, `platform-`); list allowed
+   platform / binary / test support) and its prefix (`cms-`, `php-`, `infra-`, `platform-`); list allowed
    dependencies from master plan §2.6.
 3. Confirm every external dependency is already approved in `[workspace.dependencies]`; otherwise ask.
 

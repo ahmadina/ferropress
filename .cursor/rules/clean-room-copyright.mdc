@@ -44,5 +44,9 @@ LEGAL-001 tracks counsel review.)
 ## Naming and trademarks
 - Product name: **Ferropress**. Describe it as "compatible with WordPress" / "runs WordPress plugins and
   themes"; never imply affiliation with or endorsement by WordPress or the WordPress Foundation.
-- Never use "WordPress" in product, repository, binary, domain or crate names; the `wp-` crate prefix
-  only names the API surface being implemented.
+- Never use "WordPress", "WP" or `wp` in product, repository, binary, domain, crate, module, type,
+  function or file names, or in the roadmap and docs prose. Native core crates use the `cms-` prefix.
+- The only permitted occurrences are **interoperability identifiers as data** that unchanged plugins
+  require (e.g. a PHP function name a plugin calls, a REST path, a table prefix, an upstream file path in
+  a provenance reference). They live in `contracts/`, fixtures and PHP-visible registries — never as Rust
+  identifiers.

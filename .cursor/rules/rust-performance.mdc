@@ -29,7 +29,7 @@ Efficiency is designed in, then proven by measurement. Never trade WordPress-obs
   minimum, reduce only when parity tests prove identical observable results.
 
 ## Measurement
-- Every hot-path crate (`wp-hooks`, `wp-db`, `wp-query`, `php-serialize`, `wp-formatting`, bridge, VM
+- Every hot-path crate (`cms-hooks`, `cms-db`, `cms-query`, `php-serialize`, `cms-formatting`, bridge, VM
   adapter) has `benches/` benchmarks for its critical operations.
 - CI tracks deterministic benchmarks (instruction counts) and fails on unexplained regressions beyond the
   agreed budget; wall-clock suites run in the performance lab (master plan Phase 10).

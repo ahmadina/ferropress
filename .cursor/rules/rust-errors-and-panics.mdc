@@ -7,9 +7,10 @@ alwaysApply: false
 # Errors and Panics
 
 ## Two different kinds of "error" — never conflate them
-- **PHP/WordPress-observable outcomes** (`WP_Error`, PHP warnings/notices/deprecations, `Throwable`,
-  `wpdb->last_error`, `false` returns) are **domain values** that must be reproduced exactly.
-  Model them as data (e.g. `WpError`, `PhpDiagnostic`) and return them in `Ok(..)` where WordPress returns them.
+- **Plugin-observable outcomes** (the PHP-visible error object, PHP warnings/notices/deprecations,
+  `Throwable`, the database object's last-error state, `false` returns) are **domain values** that must be
+  reproduced exactly. Model them as data (e.g. `ErrorObject`, `PhpDiagnostic`) and return them in `Ok(..)`
+  where the reference returns them.
 - **Rust `Err`** means the platform itself could not perform the operation (I/O failure, corrupted state,
   protocol violation). It must never be used to approximate a PHP-visible result.
 

@@ -41,7 +41,7 @@ Single-line only. No body.
 
 ### Scope
 
-Use the crate name without the `wp-` prefix, or the area: `hooks`, `query`, `db`, `auth`, `php-bridge`,
+Use the crate name without its layer prefix (`cms-`, `infra-`, `platform-`), or the area: `hooks`, `query`, `db`, `auth`, `php-bridge`,
 `php-vm`, `server`, `oracle`, `contracts`, `lints`, `ci`, `adr`, etc.
 For a sub-area use `crate/module` e.g. `hooks/dispatch`, `db/prepare`.
 
@@ -50,7 +50,7 @@ For a sub-area use `crate/module` e.g. `hooks/dispatch`, `db/prepare`.
 ```
 feat(hooks): add priority-ordered filter dispatch
 feat(hooks/dispatch): support callback removal during iteration
-fix(db/prepare): match wpdb placeholder escaping for %i identifiers
+fix(db/prepare): match reference placeholder escaping for %i identifiers
 refactor(query): extract query var parsing into pure planner
 test(php-bridge): add by-reference callback identity contract tests
 chore(lints): deny unwrap_used across the workspace

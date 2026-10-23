@@ -18,7 +18,7 @@ repository = "https://github.com/ahmadina/ferropress"
 
 [workspace.dependencies]
 # Internal crates (path deps) and approved external crates are declared here only.
-# wp-hooks = { path = "crates/wp-hooks" }
+# cms-hooks = { path = "crates/cms-hooks" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

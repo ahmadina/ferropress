@@ -10,7 +10,11 @@ Ferropress or its production builds.
 cargo xtask lab up      # build and start the stack, wait until healthy
 cargo xtask lab down    # stop it, keeping the database
 cargo xtask lab reset   # stop it, delete the database, start from scratch
+cargo xtask lab fetch   # clone pinned upstream sources into upstream/, download archives into packages/
 ```
+
+`lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
+moving it into place, and refuses to overwrite a checkout that is at a different commit.
 
 The application is published on <http://127.0.0.1:8080/> only. Credentials in `compose.yaml` are lab-only.
 

@@ -1,11 +1,9 @@
 //! Lifecycle of the reference lab stack (`lab/compose.yaml`), driven by pinned manifest values.
 
 use std::fmt;
-use std::io;
-use std::path::Path;
-use std::process::Command;
 
 use crate::manifest::Manifest;
+use crate::process::Invocation;
 
 /// Compose file location, relative to the repository root.
 pub(crate) const COMPOSE_FILE: &str = "lab/compose.yaml";
@@ -33,24 +31,6 @@ impl LabAction {
             Self::Down => "down",
             Self::Reset => "reset",
         }
-    }
-}
-
-/// One external program invocation.
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Invocation {
-    pub(crate) program: &'static str,
-    pub(crate) args: Vec<&'static str>,
-    pub(crate) env: Vec<(&'static str, String)>,
-}
-
-impl fmt::Display for Invocation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.program)?;
-        for arg in &self.args {
-            write!(f, " {arg}")?;
-        }
-        Ok(())
     }
 }
 
@@ -100,14 +80,16 @@ pub(crate) fn plan(
     manifest: &Manifest,
 ) -> Result<Vec<Invocation>, MissingEntry> {
     let env = lab_env(manifest)?;
-    let compose = |subcommand: &[&'static str]| {
-        let mut args = vec!["compose", "--file", COMPOSE_FILE];
-        args.extend_from_slice(subcommand);
-        Invocation {
-            program: "docker",
-            args,
-            env: env.clone(),
-        }
+    let compose = |subcommand: &[&str]| {
+        let mut invocation = Invocation::new(
+            "docker",
+            ["compose", "--file", COMPOSE_FILE]
+                .iter()
+                .chain(subcommand)
+                .copied(),
+        );
+        invocation.env.clone_from(&env);
+        invocation
     };
     let up = || compose(&["up", "--build", "--detach", "--wait"]);
     Ok(match action {
@@ -115,41 +97,6 @@ pub(crate) fn plan(
         LabAction::Down => vec![compose(&["down"])],
         LabAction::Reset => vec![compose(&["down", "--volumes"]), up()],
     })
-}
-
-/// Executes invocations; abstracted so the sequencing can be tested without Docker.
-pub(crate) trait Runner {
-    /// Runs one invocation and reports whether it exited successfully.
-    fn run(&mut self, invocation: &Invocation) -> io::Result<bool>;
-}
-
-/// Runs invocations as child processes in the repository root, inheriting stdout and stderr.
-pub(crate) struct SystemRunner<'a> {
-    pub(crate) repo_root: &'a Path,
-}
-
-impl Runner for SystemRunner<'_> {
-    fn run(&mut self, invocation: &Invocation) -> io::Result<bool> {
-        Command::new(invocation.program)
-            .args(&invocation.args)
-            .envs(invocation.env.iter().map(|(key, value)| (key, value)))
-            .current_dir(self.repo_root)
-            .status()
-            .map(|status| status.success())
-    }
-}
-
-/// Runs the plan in order and stops at the first failure.
-pub(crate) fn execute(plan: &[Invocation], runner: &mut impl Runner) -> anyhow::Result<()> {
-    for invocation in plan {
-        let succeeded = runner.run(invocation).map_err(|error| {
-            anyhow::anyhow!(
-                "could not run `{invocation}` ({error}); is Docker installed and running?"
-            )
-        })?;
-        anyhow::ensure!(succeeded, "`{invocation}` failed");
-    }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -282,80 +229,5 @@ digest = "{DIGEST}"
         for action in [LabAction::Up, LabAction::Down, LabAction::Reset] {
             assert!(plan(action, &manifest).is_ok(), "{}", action.name());
         }
-    }
-
-    /// Records invocations and answers with scripted outcomes.
-    struct ScriptedRunner {
-        outcomes: Vec<io::Result<bool>>,
-        seen: Vec<String>,
-    }
-
-    impl Runner for ScriptedRunner {
-        fn run(&mut self, invocation: &Invocation) -> io::Result<bool> {
-            self.seen.push(invocation.to_string());
-            self.outcomes.remove(0)
-        }
-    }
-
-    fn scripted(outcomes: Vec<io::Result<bool>>) -> ScriptedRunner {
-        ScriptedRunner {
-            outcomes,
-            seen: Vec::new(),
-        }
-    }
-
-    #[test]
-    fn execute_runs_every_step_in_order() {
-        let plan = plan(LabAction::Reset, &manifest()).unwrap();
-        let mut runner = scripted(vec![Ok(true), Ok(true)]);
-        execute(&plan, &mut runner).unwrap();
-        assert_eq!(runner.seen, rendered(&plan));
-    }
-
-    #[test]
-    fn execute_stops_at_the_first_failed_step() {
-        let plan = plan(LabAction::Reset, &manifest()).unwrap();
-        let mut runner = scripted(vec![Ok(false)]);
-        let error = execute(&plan, &mut runner).unwrap_err();
-        assert_eq!(
-            error.to_string(),
-            "`docker compose --file lab/compose.yaml down --volumes` failed"
-        );
-        assert_eq!(runner.seen.len(), 1);
-    }
-
-    #[test]
-    fn execute_explains_spawn_failures() {
-        let plan = plan(LabAction::Up, &manifest()).unwrap();
-        let mut runner = scripted(vec![Err(io::ErrorKind::NotFound.into())]);
-        let error = execute(&plan, &mut runner).unwrap_err().to_string();
-        assert!(
-            error.starts_with("could not run `docker compose"),
-            "{error}"
-        );
-        assert!(
-            error.ends_with("is Docker installed and running?"),
-            "{error}"
-        );
-    }
-
-    #[test]
-    fn system_runner_reports_exit_status_and_spawn_errors() {
-        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let mut runner = SystemRunner { repo_root };
-        let invocation = |program, args| Invocation {
-            program,
-            args,
-            env: vec![("LAB_PROBE", "1".to_owned())],
-        };
-        let same = vec!["diff", "--quiet", "--no-index", "Cargo.toml", "Cargo.toml"];
-        let different = vec!["diff", "--quiet", "--no-index", "Cargo.toml", "src/main.rs"];
-        assert!(runner.run(&invocation("git", same)).unwrap());
-        assert!(!runner.run(&invocation("git", different)).unwrap());
-        assert!(
-            runner
-                .run(&invocation("ferropress-missing-program", vec![]))
-                .is_err()
-        );
     }
 }

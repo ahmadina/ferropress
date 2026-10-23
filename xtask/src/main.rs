@@ -1,8 +1,10 @@
 //! Repository automation for Ferropress, invoked as `cargo xtask <command>`.
 
+mod fetch;
 mod lab;
 mod layers;
 mod manifest;
+mod process;
 mod workspace;
 
 use std::fmt;
@@ -11,9 +13,10 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Context as _;
-use lab::{LabAction, Runner, SystemRunner};
+use lab::LabAction;
 use layers::Finding;
 use manifest::{ArchiveStatus, Manifest, Problem};
+use process::{Runner, SystemRunner};
 
 const USAGE: &str = "usage: cargo xtask <command>
 
@@ -23,6 +26,7 @@ commands:
   lab up           build and start the reference lab stack and wait until it is healthy
   lab down         stop the reference lab stack, keeping its database
   lab reset        stop the stack, delete its database and start it from scratch
+  lab fetch        download pinned upstream sources and archives into git-ignored lab directories
   help             show this message";
 
 /// Exit status for invalid command-line usage.
@@ -33,6 +37,7 @@ enum Command {
     CheckLayers,
     VerifyManifest,
     Lab(LabAction),
+    LabFetch,
     Help,
 }
 
@@ -68,6 +73,7 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Command, UsageError> 
             Some("up") => Command::Lab(LabAction::Up),
             Some("down") => Command::Lab(LabAction::Down),
             Some("reset") => Command::Lab(LabAction::Reset),
+            Some("fetch") => Command::LabFetch,
             Some(other) => return Err(UsageError::UnknownLabAction(other.to_owned())),
         },
         Some("help" | "-h" | "--help") => Command::Help,
@@ -154,6 +160,17 @@ fn load_manifest(repo_root: &Path) -> anyhow::Result<Manifest> {
     manifest::parse(&text).with_context(|| format!("parsing {}", path.display()))
 }
 
+/// Loads the manifest; a manifest with validation problems yields the failing report instead.
+fn load_valid_manifest(repo_root: &Path) -> anyhow::Result<Result<Manifest, Report>> {
+    let manifest = load_manifest(repo_root)?;
+    let problems = manifest::validate(&manifest);
+    if problems.is_empty() {
+        Ok(Ok(manifest))
+    } else {
+        Ok(Err(manifest_report(&manifest, &problems, &[])))
+    }
+}
+
 fn verify_manifest(repo_root: &Path) -> anyhow::Result<Report> {
     let manifest = load_manifest(repo_root)?;
     let problems = manifest::validate(&manifest);
@@ -173,13 +190,12 @@ fn run_lab(
     action: LabAction,
     runner: &mut impl Runner,
 ) -> anyhow::Result<Report> {
-    let manifest = load_manifest(repo_root)?;
-    let problems = manifest::validate(&manifest);
-    if !problems.is_empty() {
-        return Ok(manifest_report(&manifest, &problems, &[]));
-    }
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
     let plan = lab::plan(action, &manifest)?;
-    lab::execute(&plan, runner)?;
+    process::run_all(runner, &plan)?;
     let text = match action {
         LabAction::Up | LabAction::Reset => format!(
             "lab {}: stack is healthy at {}",
@@ -194,10 +210,33 @@ fn run_lab(
     })
 }
 
+fn run_lab_fetch(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let lines = fetch::fetch(repo_root, &manifest, runner)?;
+    let mut text = format!("lab fetch: {} entr(ies) at pinned versions", lines.len());
+    for line in &lines {
+        text.push_str("\n  - ");
+        text.push_str(line);
+    }
+    Ok(Report {
+        text,
+        success: true,
+    })
+}
+
 /// The repository root: the parent of this crate's directory.
 fn repo_root() -> &'static Path {
     let xtask_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     xtask_dir.parent().unwrap_or(xtask_dir)
+}
+
+fn system_runner() -> SystemRunner<'static> {
+    SystemRunner {
+        repo_root: repo_root(),
+    }
 }
 
 fn run(command: &Command) -> anyhow::Result<Report> {
@@ -208,13 +247,8 @@ fn run(command: &Command) -> anyhow::Result<Report> {
         }),
         Command::CheckLayers => check_layers(),
         Command::VerifyManifest => verify_manifest(repo_root()),
-        Command::Lab(action) => run_lab(
-            repo_root(),
-            *action,
-            &mut SystemRunner {
-                repo_root: repo_root(),
-            },
-        ),
+        Command::Lab(action) => run_lab(repo_root(), *action, &mut system_runner()),
+        Command::LabFetch => run_lab_fetch(repo_root(), &mut system_runner()),
     }
 }
 
@@ -261,6 +295,7 @@ fn print_err(text: &str) {
 mod tests {
     use super::*;
     use crate::layers::Layer;
+    use crate::process::testing::FakeRunner;
     use crate::workspace::DependencyKind;
 
     fn args(list: &[&str]) -> Vec<String> {
@@ -283,6 +318,7 @@ mod tests {
             parse(args(&["lab", "reset"])),
             Ok(Command::Lab(LabAction::Reset))
         );
+        assert_eq!(parse(args(&["lab", "fetch"])), Ok(Command::LabFetch));
         for help in ["help", "-h", "--help"] {
             assert_eq!(parse(args(&[help])), Ok(Command::Help), "{help}");
         }
@@ -480,18 +516,6 @@ file = "lab/packages/release.tar.gz"
         assert!(format!("{error:#}").starts_with("parsing "), "{error:#}");
     }
 
-    struct RecordingRunner {
-        succeed: bool,
-        calls: usize,
-    }
-
-    impl Runner for RecordingRunner {
-        fn run(&mut self, _invocation: &lab::Invocation) -> std::io::Result<bool> {
-            self.calls += 1;
-            Ok(self.succeed)
-        }
-    }
-
     fn lab_manifest_text() -> String {
         let digest = format!("sha256:{ABC_SHA256}");
         format!(
@@ -510,8 +534,10 @@ digest = "{digest}"
         )
     }
 
-    fn recording(succeed: bool) -> RecordingRunner {
-        RecordingRunner { succeed, calls: 0 }
+    fn recording(
+        succeed: bool,
+    ) -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        FakeRunner::new(move |_: &process::Invocation| Ok(succeed.then(String::new)))
     }
 
     #[test]
@@ -535,7 +561,7 @@ digest = "{digest}"
             let report = run_lab(&repo.0, action, &mut runner).unwrap();
             assert_eq!(report.text, text);
             assert!(report.success);
-            assert_eq!(runner.calls, calls);
+            assert_eq!(runner.seen.len(), calls);
         }
     }
 
@@ -546,7 +572,7 @@ digest = "{digest}"
         let report = run_lab(&repo.0, LabAction::Up, &mut runner).unwrap();
         assert!(!report.success);
         assert!(report.text.starts_with("manifest invalid:"));
-        assert_eq!(runner.calls, 0);
+        assert_eq!(runner.seen.len(), 0);
     }
 
     #[test]
@@ -564,6 +590,38 @@ digest = "{digest}"
 
         let missing = TempRepo::new("lab-missing", None);
         assert!(run_lab(&missing.0, LabAction::Up, &mut recording(true)).is_err());
+    }
+
+    #[test]
+    fn lab_fetch_reports_each_entry() {
+        let repo = TempRepo::new("fetch-ok", Some(&manifest_text(1)));
+        let root = repo.0.clone();
+        let mut runner = FakeRunner::new(move |invocation: &process::Invocation| {
+            let output = &invocation.args[invocation.args.len() - 2];
+            fs::write(root.join(output), b"abc").map(|()| Some(String::new()))
+        });
+        let report = run_lab_fetch(&repo.0, &mut runner).unwrap();
+        assert!(report.success);
+        assert_eq!(
+            report.text,
+            "lab fetch: 1 entr(ies) at pinned versions\n  - archive `release`: downloaded and verified"
+        );
+    }
+
+    #[test]
+    fn lab_fetch_refuses_invalid_manifest_and_propagates_failures() {
+        let invalid = TempRepo::new("fetch-invalid", Some(&manifest_text(4)));
+        let mut runner = recording(true);
+        let report = run_lab_fetch(&invalid.0, &mut runner).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let repo = TempRepo::new("fetch-fail", Some(&manifest_text(1)));
+        let error = run_lab_fetch(&repo.0, &mut recording(false)).unwrap_err();
+        assert!(error.to_string().starts_with("`curl --fail"), "{error}");
+
+        let missing = TempRepo::new("fetch-missing", None);
+        assert!(run_lab_fetch(&missing.0, &mut recording(true)).is_err());
     }
 
     #[test]

@@ -274,6 +274,11 @@ pub(crate) fn verify_archive(root: &Path, archive: &Archive) -> io::Result<Archi
     }
 }
 
+/// Lowercase hexadecimal SHA-256 of a file's contents, read in bounded chunks.
+pub(crate) fn file_sha256(path: &Path) -> io::Result<String> {
+    sha256_hex(File::open(path)?)
+}
+
 fn sha256_hex(mut reader: impl Read) -> io::Result<String> {
     let mut hasher = Sha256::new();
     let mut buffer = vec![0_u8; READ_BUFFER_LEN];

@@ -1,0 +1,46 @@
+# Rust build output
+/target/
+/fuzz/target/
+/fuzz/artifacts/
+/fuzz/coverage/
+
+# Coverage and profiling
+*.profraw
+*.profdata
+lcov.info
+/coverage/
+flamegraph.svg
+perf.data*
+dhat-heap.json
+
+# Upstream reference sources — studied locally, never committed (clean-room-copyright.mdc)
+/lab/wordpress-reference/src/
+/lab/php-reference/src/
+/lab/**/upstream/
+
+# Licensed or proprietary plugin/theme packages used only in the lab
+/lab/packages/
+*.zip
+
+# Large fixtures live in Git LFS or the artifact store
+/lab/fixtures/cache/
+
+# Node toolchains (web/, e2e/)
+node_modules/
+/e2e/test-results/
+/e2e/playwright-report/
+/web/**/dist/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp

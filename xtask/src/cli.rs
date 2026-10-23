@@ -43,6 +43,8 @@ pub(crate) enum LabCommand {
         #[arg(default_value = "/")]
         path: RequestPath,
     },
+    /// Reset the lab and record the reference platform's symbol inventory into contracts/inventory
+    Inventory,
     /// Run contracts/scenarios/SCENARIO.toml twice from fresh installs and require identical results
     Check {
         /// Scenario id
@@ -77,6 +79,7 @@ mod tests {
             ("reset", LabCommand::Reset),
             ("install", LabCommand::Install),
             ("fetch", LabCommand::Fetch),
+            ("inventory", LabCommand::Inventory),
         ];
         for (name, command) in lab {
             assert_eq!(parse(&["lab", name]), Ok(Command::Lab(command)), "{name}");

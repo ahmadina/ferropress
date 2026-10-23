@@ -5,6 +5,7 @@ mod check;
 mod cli;
 mod dbdiff;
 mod fetch;
+mod inventory;
 mod lab;
 mod layers;
 mod manifest;
@@ -193,6 +194,42 @@ fn run_lab_capture(
     })
 }
 
+fn run_lab_inventory(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let env = lab::lab_env(&manifest)?;
+    process::run_all(runner, &lab::plan(LabAction::Reset, &manifest)?)?;
+    let output = process::capture_checked(
+        runner,
+        &lab::compose(
+            &env,
+            [
+                "exec",
+                "-T",
+                "--user",
+                "www-data",
+                "app",
+                "php",
+                inventory::SCRIPT,
+            ],
+        ),
+    )
+    .context("running the inventory script")?;
+    let inventory = inventory::parse(&output)?;
+    inventory::write(&inventory, &repo_root.join(inventory::INVENTORY_DIR))?;
+    Ok(Report {
+        text: format!(
+            "lab inventory: wrote {} for platform {} ({})",
+            inventory::INVENTORY_DIR,
+            inventory.platform_version,
+            inventory.summary()
+        ),
+        success: true,
+    })
+}
+
 fn run_lab_check(
     repo_root: &Path,
     id: &Slug,
@@ -247,6 +284,9 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                 LabCommand::Reset => LabAction::Reset,
                 LabCommand::Install => LabAction::Install,
                 LabCommand::Fetch => return run_lab_fetch(repo_root(), &mut system_runner()),
+                LabCommand::Inventory => {
+                    return run_lab_inventory(repo_root(), &mut system_runner());
+                }
                 LabCommand::Check { scenario } => {
                     return run_lab_check(
                         repo_root(),
@@ -786,6 +826,94 @@ path = "/"
         fs::create_dir_all(blocked.0.join("lab")).unwrap();
         fs::write(blocked.0.join("lab/captures"), b"not a directory").unwrap();
         let error = run_lab_check(&blocked.0, &id, &mut capture_runner(), &mut http).unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    const EMPTY_INVENTORY: &str = r#"{"schema": 1, "platform_version": "7.1.3",
+        "functions": [], "classes": [], "hooks": [], "constants": [], "globals": [],
+        "rest_routes": [], "options": [], "tables": []}"#;
+
+    fn inventory_runner(
+        output: &'static str,
+    ) -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        FakeRunner::new(move |invocation: &process::Invocation| {
+            let script = invocation.args.last().map(String::as_str) == Some(inventory::SCRIPT);
+            Ok(Some(if script { output } else { "" }.to_owned()))
+        })
+    }
+
+    #[test]
+    fn lab_inventory_resets_the_lab_and_writes_every_section() {
+        let repo = TempRepo::new("inventory-ok", Some(&lab_manifest_text()));
+        let mut runner = inventory_runner(EMPTY_INVENTORY);
+        let report = run_lab_inventory(&repo.0, &mut runner).unwrap();
+        assert!(report.success);
+        assert!(
+            report.text.starts_with(
+                "lab inventory: wrote contracts/inventory for platform 7.1.3 (0 functions"
+            ),
+            "{}",
+            report.text
+        );
+        assert!(
+            runner.seen[0].ends_with("down --volumes"),
+            "{:?}",
+            runner.seen
+        );
+        assert!(
+            runner
+                .seen
+                .last()
+                .unwrap()
+                .ends_with("exec -T --user www-data app php /opt/ferropress/inventory.php"),
+            "{:?}",
+            runner.seen
+        );
+        let dir = repo.0.join(inventory::INVENTORY_DIR);
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 8);
+        assert_eq!(
+            inventory::Inventory::load(&dir).unwrap(),
+            inventory::parse(EMPTY_INVENTORY).unwrap()
+        );
+    }
+
+    #[test]
+    fn lab_inventory_refuses_invalid_input_and_propagates_failures() {
+        let invalid = TempRepo::new("inventory-invalid", Some(&manifest_text(5)));
+        let mut runner = inventory_runner(EMPTY_INVENTORY);
+        let report = run_lab_inventory(&invalid.0, &mut runner).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let incomplete = TempRepo::new("inventory-incomplete", Some(&manifest_text(1)));
+        let error =
+            run_lab_inventory(&incomplete.0, &mut inventory_runner(EMPTY_INVENTORY)).unwrap_err();
+        assert!(
+            error.to_string().starts_with("the manifest has no"),
+            "{error}"
+        );
+
+        let repo = TempRepo::new("inventory-fail", Some(&lab_manifest_text()));
+        let error = run_lab_inventory(&repo.0, &mut recording(false)).unwrap_err();
+        assert!(
+            error.to_string().ends_with("down --volumes` failed"),
+            "{error}"
+        );
+
+        let mut script_fails = FakeRunner::new(|invocation: &process::Invocation| {
+            let script = invocation.args.last().map(String::as_str) == Some(inventory::SCRIPT);
+            Ok((!script).then(String::new))
+        });
+        let error = run_lab_inventory(&repo.0, &mut script_fails).unwrap_err();
+        assert_eq!(error.to_string(), "running the inventory script");
+
+        let error = run_lab_inventory(&repo.0, &mut inventory_runner("not json")).unwrap_err();
+        assert_eq!(error.to_string(), "parsing the inventory script's output");
+
+        let blocked = TempRepo::new("inventory-blocked", Some(&lab_manifest_text()));
+        fs::write(blocked.0.join("contracts/inventory"), b"not a directory").unwrap();
+        let error =
+            run_lab_inventory(&blocked.0, &mut inventory_runner(EMPTY_INVENTORY)).unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

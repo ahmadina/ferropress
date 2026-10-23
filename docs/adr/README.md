@@ -21,3 +21,4 @@ Copy [`0000-template.md`](0000-template.md) to `NNNN-short-title.md` with the ne
 
 | ADR | Title | Status |
 |---|---|---|
+| [0001](0001-php-engine.md) | PHP engine: independent, clean-room Rust implementation | Accepted |

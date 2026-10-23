@@ -12,7 +12,7 @@ Status legend: `[x]` done · `[ ]` not started
       `clippy.toml`, `.cargo/config.toml`
 - [x] 2. `xtask check-layers`: fail when a crate dependency breaks the layer rules
 - [x] 3. `deny.toml`: GPL-compatible license allow-list, advisories, banned crates
-- [ ] 4. CI workflow: fmt, clippy, tests, docs, coverage gates, `cargo deny`, forbidden-PHP-binary scan
+- [x] 4. CI workflow: fmt, clippy, tests, docs, coverage gates, `cargo deny`, forbidden-PHP-binary scan
 - [ ] 5. Architecture decision records (one commit each):
   - [ ] ADR-0001 PHP engine: independent, clean-room Rust implementation
   - [ ] ADR-0002 License and dependency policy (GPL-2.0-or-later)

@@ -350,6 +350,15 @@
 {"name":"class name values 28","source":"<?php (A::class)::X;","diagnostics":[]}
 {"name":"class name values 29","source":"<?php ((int) 1)::{$a};","diagnostics":[["Fatal error","Illegal class name",1]]}
 {"name":"class name values 30","source":"<?php []::{$a}();","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"namespace resets 1","source":"<?php namespace A; function g(){} namespace B; namespace A; use function B\\g;","diagnostics":[]}
+{"name":"namespace resets 2","source":"<?php namespace A; function g(){} use function B\\g;","diagnostics":[["Fatal error","Cannot use function B\\g as g because the name is already in use",1]]}
+{"name":"namespace resets 3","source":"<?php namespace A { class C {} } namespace A { use B\\C; }","diagnostics":[]}
+{"name":"namespace resets 4","source":"<?php namespace A { const X = 1; } namespace A { use const B\\X; }","diagnostics":[]}
+{"name":"namespace resets 5","source":"<?php namespace A; const X = 1; namespace A; use const B\\X;","diagnostics":[]}
+{"name":"namespace resets 6","source":"<?php namespace A; class C {} namespace A; use B\\C;","diagnostics":[]}
+{"name":"namespace resets 7","source":"<?php { class C {} } use B\\C;","diagnostics":[["Fatal error","Cannot use B\\C as C because the name is already in use",1]]}
+{"name":"namespace resets 8","source":"<?php namespace { function g(){} } namespace { use function B\\g; }","diagnostics":[]}
+{"name":"namespace resets 9","source":"<?php namespace A { function g(){} } namespace { use function A\\g; } namespace A { use function g; }","diagnostics":[]}
 {"name":"misc rules 1","source":"<?php $this?->b(...);","diagnostics":[]}
 {"name":"misc rules 2","source":"<?php $this?->a->b(...);","diagnostics":[]}
 {"name":"misc rules 3","source":"<?php $this?->a?->b(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}

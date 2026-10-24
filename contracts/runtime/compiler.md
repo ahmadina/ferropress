@@ -286,7 +286,9 @@ parent ("Cannot use "parent" when current class scope has no parent").
   alias of the same kind in the namespace is a fatal error: "Cannot use A\B as B because the name is
   already in use", with ` function` or ` const` after `use` for those kinds. The same error arises
   when the file already declared a symbol of that kind named `NAMESPACE\ALIAS`, unless the imported
-  name is that symbol (compared case-insensitively).
+  name is that symbol (compared case-insensitively). Only symbols declared since the current
+  namespace started count: a namespace declaration, and the end of a braced one, forget the symbols
+  seen before along with the imports.
 
 ### Declarations
 

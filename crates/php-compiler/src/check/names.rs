@@ -52,6 +52,15 @@ pub(super) struct FileNames {
     in_namespace: bool,
 }
 
+impl FileNames {
+    /// Forgets the imports and the symbols seen, as happens when a namespace starts or a braced one
+    /// ends.
+    fn reset_namespace(&mut self) {
+        self.imports.clear();
+        self.seen.clear();
+    }
+}
+
 fn use_kind(kind: UseKind) -> (&'static str, u8) {
     match kind {
         UseKind::Class => ("", CLASS),
@@ -75,7 +84,7 @@ impl<'a> Checker<'a> {
                     if let Some(body) = body {
                         self.top_statements(body, false)?;
                         self.names.in_namespace = false;
-                        self.names.imports.clear();
+                        self.names.reset_namespace();
                         self.namespace = None;
                     }
                     continue;
@@ -194,7 +203,7 @@ impl<'a> Checker<'a> {
             return self.fatal(message);
         }
         self.namespace = name.map(<[u8]>::to_vec);
-        self.names.imports.clear();
+        self.names.reset_namespace();
         self.names.in_namespace = true;
         self.names.bracketed |= bracketed;
         Ok(())
@@ -596,6 +605,21 @@ mod tests {
                 ],
             ),
             ("use const A\\C, B\\c;", &[]),
+            (
+                "namespace A; function g() {} use function B\\g;",
+                &[
+                    "Fatal error: Cannot use function B\\g as g because the name is already in use @1",
+                ],
+            ),
+            (
+                "namespace A; function g() {} namespace A; use function B\\g;",
+                &[],
+            ),
+            ("namespace A { class C {} } namespace A { use B\\C; }", &[]),
+            (
+                "namespace A { const X = 1; } namespace A { use const B\\X; }",
+                &[],
+            ),
             (
                 "use const A\\C, B\\C;",
                 &["Fatal error: Cannot use const B\\C as C because the name is already in use @1"],

@@ -155,6 +155,17 @@ function compiler_topic_cases(): array {
 			'[(int) 1]::$a;', '(1 + 1)::X;', '((bool) 1)::X;',
 			'(A::class)::X;', '((int) 1)::{$a};', '[]::{$a}();',
 		),
+		'namespace resets'   => array(
+			'namespace A; function g(){} namespace B; namespace A; use function B\\g;',
+			'namespace A; function g(){} use function B\\g;',
+			'namespace A { class C {} } namespace A { use B\\C; }',
+			'namespace A { const X = 1; } namespace A { use const B\\X; }',
+			'namespace A; const X = 1; namespace A; use const B\\X;',
+			'namespace A; class C {} namespace A; use B\\C;',
+			'{ class C {} } use B\\C;',
+			'namespace { function g(){} } namespace { use function B\\g; }',
+			'namespace A { function g(){} } namespace { use function A\\g; } namespace A { use function g; }',
+		),
 		'misc rules'         => array(
 			'$this?->b(...);', '$this?->a->b(...);', '$this?->a?->b(...);',
 			'$a?->b::c(...);', 'f($a?->b)->c(...);', '$a?->b()->c(...);',

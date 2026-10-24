@@ -434,6 +434,7 @@ dependencies = [
  "php-parser",
  "php-value",
  "serde_json",
+ "thiserror",
 ]
 
 [[package]]

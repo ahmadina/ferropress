@@ -11,6 +11,7 @@ repository.workspace = true
 [dependencies]
 php-parser = { path = "../php-parser" }
 php-value = { path = "../php-value" }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }

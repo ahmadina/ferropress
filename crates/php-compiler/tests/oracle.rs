@@ -106,7 +106,7 @@ fn ours(source: &[u8]) -> Result<Vec<Diagnostic>, String> {
             diagnostics.push((severity.to_owned(), error.message, line));
         }
         Ok(program) => {
-            let checked = php_compiler::check(&program, b"");
+            let checked = php_compiler::check(&program, b"").map_err(|error| error.to_string())?;
             diagnostics.extend(checked.warnings.into_iter().chain(checked.fatal).map(
                 |diagnostic| {
                     (

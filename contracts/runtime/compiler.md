@@ -91,8 +91,8 @@ are not known stays, but its operands are still folded. Folding rules:
   - `__CLASS__` is the namespaced class name. It is empty outside a class and left unfolded inside a
     trait.
   - `__TRAIT__` is the trait name inside a trait, and empty elsewhere.
-  - `__FUNCTION__` is the namespaced function name, the method name, or empty at the top level. A
-    property hook is named `$property::get` or `$property::set`.
+  - `__FUNCTION__` is the namespaced function name, the method name, the closure name (see "Closure
+    names"), or empty at the top level. A property hook is named `$property::get` or `$property::set`.
   - `__METHOD__` is `Class::method` in a method. It is the function name in a function. It is empty at
     the top level and directly inside a class body, even when that class is declared inside a function.
   - `__PROPERTY__` is the property name while the property's default, attributes and hooks compile, and
@@ -179,7 +179,7 @@ The following stay unfolded, so their values do not take part in later checks:
 - Class constants.
 - `X::class` for a class name and for `parent`.
 - `__FILE__` and `__DIR__`.
-- Names that hold the file path: closures and anonymous classes.
+- Anonymous class names, and the names of closures declared inside their methods.
 - Folding in ordinary code other than array literals.
 
 ## Class names
@@ -195,6 +195,77 @@ A class name in a type or an `extends` clause is resolved like this:
 Only class imports count (`use X`, and the class items of a group `use`). Each namespace starts with no
 imports. `self`, `parent` and `static` stay as written, and qualifying them is a fatal error:
 "'\self' is an invalid class name" or "'namespace\self' is an invalid class name".
+
+## Namespaces, imports and declarations
+
+### Namespaces
+
+- Braced and unbraced namespace declarations cannot be mixed: "Cannot mix bracketed namespace
+  declarations with unbracketed namespace declarations". This is checked first, so an unbraced
+  declaration after a braced one, or a braced one after a named unbraced one, reports it.
+- A braced namespace inside another one is a fatal error: "Namespace declarations cannot be nested".
+- The first namespace declaration of the file may only be preceded by `declare` statements and empty
+  statements: "Namespace declaration statement has to be the very first statement or after any declare
+  call in the script". Later unbraced declarations may follow any code.
+- Once a braced namespace exists, every top-level statement other than a namespace or
+  `__halt_compiler()` must be inside one: "No code may exist outside of namespace {}". The check runs
+  after the statement compiles.
+- Each namespace start and end clears the imports.
+
+### Imports
+
+- The alias of `use A\B` is `B`, the last part of the name. In a group `use`, the name is the prefix
+  followed by the item; an item's own kind overrides the group's.
+- `use A;` outside any namespace warns: "The use statement with non-compound name 'A' has no effect".
+  The import is still recorded.
+- A class alias that is `self`, `parent` or `static` in any case is a fatal error: "Cannot use A\self as
+  self because 'self' is a special class name".
+- Class and function aliases compare case-insensitively, constant aliases case-sensitively. Reusing an
+  alias of the same kind in the namespace is a fatal error: "Cannot use A\B as B because the name is
+  already in use", with ` function` or ` const` after `use` for those kinds. The same error arises
+  when the file already declared a symbol of that kind named `NAMESPACE\ALIAS`, unless the imported
+  name is that symbol (compared case-insensitively).
+
+### Declarations
+
+A file records the classes, functions and constants it declares: classes and functions by lowercase
+namespaced name, constants by namespaced name as written.
+
+- **Functions.** Before its body compiles, a named function is checked in this order:
+  - a function import with the same alias that names a different function: "Cannot redeclare function
+    N\f() (previously declared as local import)";
+  - a lowercase namespaced name of `__autoload`: "__autoload() is no longer supported, use
+    spl_autoload_register() instead";
+  - a written name of `assert` in any case, in any namespace: "Defining a custom assert() function is
+    not allowed, as the function has special semantics".
+
+  A function declared directly at the top level of the file or of a namespace that was already declared
+  there is a fatal error after its body compiles: "Cannot redeclare function f() (previously declared in
+  FILE:LINE)", reported on the second declaration's first line. Functions declared inside blocks or
+  other functions are bound at run time and are not checked.
+- **Classes, interfaces, traits and enums.** A named one is checked before anything else of it compiles:
+  - declaring it while another class body is being compiled (in a method, for example) is a fatal error:
+    "Class declarations may not be nested";
+  - a reserved class name is a fatal error: "Cannot use "self" as a class name as it is reserved", with
+    "an interface name", "a trait name" or "an enum name" for the other kinds;
+  - the name `_` is deprecated: "Using "_" as a class name is deprecated since 8.4";
+  - a class import with the same alias that names a different class: "Cannot redeclare class N\B
+    (previously declared as local import)".
+- **Constants.** After its value and the `true`/`false`/`null` check, a top-level constant whose name has
+  a constant import naming a different constant is a fatal error: "Cannot declare const N\C because
+  the name is already in use".
+
+### Closure names
+
+A closure or arrow function is named `{closure:PARENT:LINE}`, where `LINE` is the line it starts on and
+`PARENT` is:
+
+- the file path, at the top level of the file or directly in a class body;
+- `f()` in a function, with its namespaced name, and `A::m()` in a method;
+- the enclosing closure's name, in a closure.
+
+An anonymous class's generated name holds a NUL byte, and messages stop at it. A closure inside a
+method of an anonymous class therefore shows as `{closure:class@anonymous` in messages.
 
 ## Declared types
 
@@ -328,6 +399,4 @@ Anonymous classes are named `class@anonymous` in these messages.
 
 ### Not yet implemented
 
-- Closures are named `{closure:FILE:LINE}` in the parameter deprecations. The checker does not know the
-  file path yet, so it does not report those deprecations for closures and arrow functions.
 - Promoted constructor parameters: their placement checks and the `callable` property type check.

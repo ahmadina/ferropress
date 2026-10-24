@@ -12,8 +12,9 @@ pub use diagnostic::{Diagnostic, Diagnostics, Severity};
 
 use php_parser::ast::Program;
 
-/// Runs the compile-time checks over `program`.
+/// Runs the compile-time checks over `program`, compiled from the file at path `file`, which
+/// messages and generated closure names include.
 #[must_use]
-pub fn check(program: &Program) -> Diagnostics {
-    check::Checker::run(program)
+pub fn check(program: &Program, file: &[u8]) -> Diagnostics {
+    check::Checker::run(program, file)
 }

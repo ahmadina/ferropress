@@ -26,49 +26,6 @@ declare 13
 declare 19
 declare 20
 declare 21
-namespaces 1
-namespaces 3
-namespaces 4
-namespaces 5
-namespaces 12
-namespaces 13
-namespaces 14
-namespaces 16
-namespaces 17
-namespaces 18
-namespaces 19
-namespaces 20
-namespaces 21
-namespaces 22
-namespaces 26
-namespaces 27
-namespaces 28
-namespaces 29
-namespaces 31
-namespaces 32
-namespaces 33
-namespaces 34
-namespaces 35
-namespaces 36
-class names 1
-class names 2
-class names 3
-class names 4
-class names 5
-class names 6
-class names 7
-class names 8
-class names 9
-class names 10
-class names 11
-class names 12
-class names 13
-class names 14
-class names 15
-class names 16
-class names 17
-class names 18
-class names 19
 class names 20
 class names 22
 class names 24
@@ -85,11 +42,6 @@ class names 59
 class names 64
 class names 65
 class names 70
-class names 72
-functions 1
-functions 2
-functions 3
-functions 6
 functions 96
 functions 97
 functions 98
@@ -177,8 +129,6 @@ class members 88
 class members 89
 class members 90
 class members 92
-class members 99
-class members 101
 class members 104
 class members 105
 class members 106
@@ -261,14 +211,11 @@ traits 2
 lines 3
 lines 4
 lines 8
-lines 12
 lines 14
 lines 18
 lines 19
 lines 21
-lines 22
 lines 23
-parser use imports
 parser error property hook list empty
 parser expression 14
 parser expression 1935

@@ -7,6 +7,7 @@
 
 mod constant;
 mod expr;
+mod names;
 mod types;
 
 use std::collections::HashMap;
@@ -14,7 +15,7 @@ use std::collections::HashMap;
 use php_parser::ast::{
     Case, Catch, ClassKind, ClassLike, ClassMember, ConstantGroup, Expr, ExprKind, Function,
     FunctionBody, HookBody, Modifiers, Param, Program, Property, PropertyGroup, Stmt, StmtKind,
-    TopStatement, Try, UseItem, UseKind,
+    Try,
 };
 use php_value::Value;
 
@@ -67,8 +68,19 @@ enum Code {
         class: Option<Vec<u8>>,
         name: Vec<u8>,
     },
-    /// A closure or arrow function, whose generated name holds the file path.
-    Closure,
+    /// A closure or arrow function, by its generated name.
+    Closure(ClosureName),
+}
+
+/// The generated name of a closure. Inside a method of an anonymous class the name embeds the
+/// class's generated name, which continues after a NUL byte with a per-process counter; only the
+/// text before that byte, which is all that messages show, is known then.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ClosureName {
+    /// The name, or its text up to the NUL byte when incomplete.
+    text: Vec<u8>,
+    /// Whether `text` is the whole name.
+    complete: bool,
 }
 
 /// The state of the function being compiled; the file's top level is a function too.
@@ -117,33 +129,35 @@ impl ClassScope {
 }
 
 pub(crate) struct Checker<'a> {
+    /// The path of the file being compiled.
+    file: &'a [u8],
     line: u32,
     warnings: Vec<Diagnostic>,
     frame: Frame,
     namespace: Option<Vec<u8>>,
-    /// The class imports of the current namespace, by lowercase alias.
-    imports: HashMap<Vec<u8>, Vec<u8>>,
+    names: names::FileNames,
     class: Option<ClassScope>,
     /// What constant folding made of the nodes it changed.
     folded: HashMap<*const Expr, Folded<'a>>,
 }
 
 impl<'a> Checker<'a> {
-    fn new() -> Self {
+    fn new(file: &'a [u8]) -> Self {
         Self {
+            file,
             line: 1,
             warnings: Vec::new(),
             frame: Frame::default(),
             namespace: None,
-            imports: HashMap::new(),
+            names: names::FileNames::default(),
             class: None,
             folded: HashMap::new(),
         }
     }
 
-    pub(crate) fn run(program: &'a Program) -> Diagnostics {
-        let mut checker = Self::new();
-        let fatal = checker.top_statements(&program.statements).err();
+    pub(crate) fn run(program: &'a Program, file: &'a [u8]) -> Diagnostics {
+        let mut checker = Self::new(file);
+        let fatal = checker.top_statements(&program.statements, true).err();
         Diagnostics {
             warnings: checker.warnings,
             fatal: fatal.map(|fatal| *fatal),
@@ -179,99 +193,6 @@ impl<'a> Checker<'a> {
             }
             None => name.to_vec(),
         }
-    }
-
-    fn top_statements(&mut self, statements: &'a [TopStatement]) -> Flow {
-        for statement in statements {
-            match statement {
-                TopStatement::Statement(stmt) => self.stmt(stmt)?,
-                TopStatement::Namespace {
-                    name,
-                    body: Some(body),
-                    line,
-                } => {
-                    self.line = *line;
-                    self.namespace.clone_from(name);
-                    self.imports.clear();
-                    self.top_statements(body)?;
-                    self.namespace = None;
-                    self.imports.clear();
-                }
-                TopStatement::Namespace {
-                    name,
-                    body: None,
-                    line,
-                } => {
-                    self.line = *line;
-                    self.namespace.clone_from(name);
-                    self.imports.clear();
-                }
-                TopStatement::Use { kind, items, line } => {
-                    self.line = *line;
-                    for item in items {
-                        self.import(*kind, &[], item);
-                    }
-                }
-                TopStatement::GroupUse {
-                    kind,
-                    prefix,
-                    items,
-                    line,
-                } => {
-                    self.line = *line;
-                    for item in items {
-                        self.import(*kind, prefix, item);
-                    }
-                }
-                TopStatement::Const {
-                    items,
-                    attributes,
-                    line,
-                } => {
-                    self.line = *line;
-                    for item in items {
-                        self.constant(&item.value, true)?;
-                        if [b"true".as_slice(), b"false", b"null"]
-                            .iter()
-                            .any(|special| item.name.eq_ignore_ascii_case(special))
-                        {
-                            let mut message = b"Cannot redeclare constant '".to_vec();
-                            message.extend_from_slice(&item.name);
-                            message.push(b'\'');
-                            return self.fatal(message);
-                        }
-                    }
-                    if !attributes.is_empty() {
-                        if items.len() > 1 {
-                            return self
-                                .fatal("Cannot apply attributes to multiple constants at once");
-                        }
-                        self.attributes(attributes)?;
-                    }
-                }
-                TopStatement::HaltCompiler { line } => self.line = *line,
-            }
-        }
-        Ok(())
-    }
-
-    /// Records the class import `item`, which a group `use` writes after `prefix`.
-    fn import(&mut self, kind: UseKind, prefix: &[u8], item: &UseItem) {
-        if item.kind.unwrap_or(kind) != UseKind::Class {
-            return;
-        }
-        let mut name = prefix.to_vec();
-        if !name.is_empty() {
-            name.push(b'\\');
-        }
-        name.extend_from_slice(&item.name);
-        let alias = item.alias.as_deref().unwrap_or_else(|| {
-            item.name
-                .iter()
-                .rposition(|&byte| byte == b'\\')
-                .map_or(item.name.as_slice(), |slash| &item.name[slash + 1..])
-        });
-        self.imports.insert(alias.to_ascii_lowercase(), name);
     }
 
     fn stmts(&mut self, stmts: &'a [Stmt]) -> Flow {
@@ -328,10 +249,7 @@ impl<'a> Checker<'a> {
                 }
                 body.as_ref().map_or(Ok(()), |body| self.stmt(body))
             }
-            StmtKind::Function(function) => {
-                let name = self.qualify(&function.name);
-                self.function(function, Code::Function(name))
-            }
+            StmtKind::Function(function) => self.function_declaration(function, false),
             StmtKind::Class(class) => self.class(class),
         }
     }
@@ -680,7 +598,8 @@ impl<'a> Checker<'a> {
                 text
             }
             Code::Method { class: None, .. } => ANONYMOUS_CLASS.to_vec(),
-            Code::Closure | Code::File => return,
+            Code::Closure(name) => name.text.clone(),
+            Code::File => return,
         };
         text.extend_from_slice(b"(): ");
         text.extend_from_slice(message);
@@ -729,6 +648,9 @@ impl<'a> Checker<'a> {
 
     fn class(&mut self, class: &'a ClassLike) -> Flow {
         self.line = class.line;
+        if let Some(name) = &class.name {
+            self.class_declaration(class.kind, name)?;
+        }
         let parent = match (&class.kind, &class.extends) {
             (ClassKind::Class, Some(parent)) => Some(self.resolve_class(parent)),
             _ => None,

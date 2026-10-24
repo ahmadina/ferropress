@@ -184,46 +184,89 @@
 {"name":"declare 21","source":"<?php function f() { declare(strict_types=1); }","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
 {"name":"declare 22","source":"<?php declare(ticks=1); declare(strict_types=1);","diagnostics":[]}
 {"name":"declare 23","source":"<?php declare(strict_types=0); declare(strict_types=1);","diagnostics":[]}
-{"name":"namespaces 1","source":"<?php echo 1; namespace A;","diagnostics":[["Fatal error","Namespace declaration statement has to be the very first statement or after any declare call in the script",1]]}
-{"name":"namespaces 2","source":"<?php namespace A; namespace B;","diagnostics":[]}
-{"name":"namespaces 3","source":"<?php namespace A {} namespace B;","diagnostics":[["Fatal error","Cannot mix bracketed namespace declarations with unbracketed namespace declarations",1]]}
-{"name":"namespaces 4","source":"<?php namespace A; namespace B {}","diagnostics":[["Fatal error","Cannot mix bracketed namespace declarations with unbracketed namespace declarations",1]]}
-{"name":"namespaces 5","source":"<?php namespace A {} echo 1;","diagnostics":[["Fatal error","No code may exist outside of namespace {}",1]]}
-{"name":"namespaces 6","source":"<?php namespace A {} namespace {}","diagnostics":[]}
-{"name":"namespaces 7","source":"<?php namespace self;","diagnostics":[]}
-{"name":"namespaces 8","source":"<?php namespace parent;","diagnostics":[]}
-{"name":"namespaces 9","source":"<?php namespace static;","diagnostics":[]}
-{"name":"namespaces 10","source":"<?php namespace A\\self;","diagnostics":[]}
-{"name":"namespaces 11","source":"<?php namespace Self\\A;","diagnostics":[]}
-{"name":"namespaces 12","source":"<?php namespace A;\nuse B\\C;\nuse D\\C;","diagnostics":[["Fatal error","Cannot use D\\C as C because the name is already in use",3]]}
-{"name":"namespaces 13","source":"<?php use A;","diagnostics":[["Warning","The use statement with non-compound name 'A' has no effect",1]]}
-{"name":"namespaces 14","source":"<?php use \\A;","diagnostics":[["Warning","The use statement with non-compound name 'A' has no effect",1]]}
-{"name":"namespaces 15","source":"<?php use A as B;","diagnostics":[]}
-{"name":"namespaces 16","source":"<?php use A\\B; class B {}","diagnostics":[["Fatal error","Cannot redeclare class B (previously declared as local import)",1]]}
-{"name":"namespaces 17","source":"<?php class B {} use A\\B;","diagnostics":[["Fatal error","Cannot use A\\B as B because the name is already in use",1]]}
-{"name":"namespaces 18","source":"<?php use function A\\f; function f() {}","diagnostics":[["Fatal error","Cannot redeclare function f() (previously declared as local import)",1]]}
-{"name":"namespaces 19","source":"<?php function f() {} use function A\\f;","diagnostics":[["Fatal error","Cannot use function A\\f as f because the name is already in use",1]]}
-{"name":"namespaces 20","source":"<?php use const A\\C; const C = 1;","diagnostics":[["Fatal error","Cannot declare const C because the name is already in use",1]]}
-{"name":"namespaces 21","source":"<?php use A\\self;","diagnostics":[["Fatal error","Cannot use A\\self as self because 'self' is a special class name",1]]}
-{"name":"namespaces 22","source":"<?php use A\\B as parent;","diagnostics":[["Fatal error","Cannot use A\\B as parent because 'parent' is a special class name",1]]}
-{"name":"namespaces 23","source":"<?php use A\\B as static;","diagnostics":[["Parse error","syntax error, unexpected token \"static\", expecting identifier",1]]}
-{"name":"namespaces 24","source":"<?php use function A\\B as self;","diagnostics":[]}
-{"name":"namespaces 25","source":"<?php namespace A; use B\\A;","diagnostics":[]}
-{"name":"namespaces 26","source":"<?php namespace A; class B {} use C\\B;","diagnostics":[["Fatal error","Cannot use C\\B as B because the name is already in use",1]]}
-{"name":"namespaces 27","source":"<?php use A\\B, C\\B;","diagnostics":[["Fatal error","Cannot use C\\B as B because the name is already in use",1]]}
-{"name":"namespaces 28","source":"<?php use function A\\f, B\\f;","diagnostics":[["Fatal error","Cannot use function B\\f as f because the name is already in use",1]]}
-{"name":"namespaces 29","source":"<?php use const A\\C, B\\C;","diagnostics":[["Fatal error","Cannot use const B\\C as C because the name is already in use",1]]}
-{"name":"namespaces 30","source":"<?php use A\\B; use function C\\B;","diagnostics":[]}
-{"name":"namespaces 31","source":"<?php use A\\{B, C\\B};","diagnostics":[["Fatal error","Cannot use A\\C\\B as B because the name is already in use",1]]}
-{"name":"namespaces 32","source":"<?php namespace A; use function B\\f; function f() {}","diagnostics":[["Fatal error","Cannot redeclare function A\\f() (previously declared as local import)",1]]}
-{"name":"namespaces 33","source":"<?php namespace A; function f() {} use function B\\f;","diagnostics":[["Fatal error","Cannot use function B\\f as f because the name is already in use",1]]}
-{"name":"namespaces 34","source":"<?php use A\\B as b; use C\\B;","diagnostics":[["Fatal error","Cannot use C\\B as B because the name is already in use",1]]}
-{"name":"namespaces 35","source":"<?php namespace A { namespace B {} }","diagnostics":[["Fatal error","Namespace declarations cannot be nested",1]]}
-{"name":"namespaces 36","source":"<?php namespace A;\n\nfunction f() {}\nuse function B\\f;","diagnostics":[["Fatal error","Cannot use function B\\f as f because the name is already in use",4]]}
-{"name":"namespaces 37","source":"<?php use A\\B as _;","diagnostics":[]}
-{"name":"namespaces 38","source":"<?php namespace _;","diagnostics":[]}
-{"name":"namespaces 39","source":"<?php namespace A\\_;","diagnostics":[]}
-{"name":"class names 1","source":"<?php class self {}","diagnostics":[["Fatal error","Cannot use \"self\" as a class name as it is reserved",1]]}
+{"name":"namespaces 1","source":"<?php namespace A; namespace B {}","diagnostics":[["Fatal error","Cannot mix bracketed namespace declarations with unbracketed namespace declarations",1]]}
+{"name":"namespaces 2","source":"<?php namespace A {} namespace B;","diagnostics":[["Fatal error","Cannot mix bracketed namespace declarations with unbracketed namespace declarations",1]]}
+{"name":"namespaces 3","source":"<?php namespace A { namespace B {} }","diagnostics":[["Fatal error","Namespace declarations cannot be nested",1]]}
+{"name":"namespaces 4","source":"<?php echo 1; namespace A;","diagnostics":[["Fatal error","Namespace declaration statement has to be the very first statement or after any declare call in the script",1]]}
+{"name":"namespaces 5","source":"<?php declare(ticks=1); namespace A;","diagnostics":[]}
+{"name":"namespaces 6","source":"<?php namespace A {} echo 1;","diagnostics":[["Fatal error","No code may exist outside of namespace {}",1]]}
+{"name":"namespaces 7","source":"<?php namespace A {} namespace {}","diagnostics":[]}
+{"name":"namespaces 8","source":"<?php namespace A; echo 1; namespace B;","diagnostics":[]}
+{"name":"namespaces 9","source":"<?php namespace A {} function f() {}","diagnostics":[["Fatal error","No code may exist outside of namespace {}",1]]}
+{"name":"namespaces 10","source":"<?php namespace A {} use B;","diagnostics":[["Warning","The use statement with non-compound name 'B' has no effect",1],["Fatal error","No code may exist outside of namespace {}",1]]}
+{"name":"namespaces 11","source":"<?php namespace A {} __halt_compiler();","diagnostics":[]}
+{"name":"namespaces 12","source":"<?php use A;","diagnostics":[["Warning","The use statement with non-compound name 'A' has no effect",1]]}
+{"name":"namespaces 13","source":"<?php namespace N; use A;","diagnostics":[]}
+{"name":"namespaces 14","source":"<?php use A\\B, C\\B;","diagnostics":[["Fatal error","Cannot use C\\B as B because the name is already in use",1]]}
+{"name":"namespaces 15","source":"<?php use A\\B; use C\\b;","diagnostics":[["Fatal error","Cannot use C\\b as b because the name is already in use",1]]}
+{"name":"namespaces 16","source":"<?php use function A\\f, B\\F;","diagnostics":[["Fatal error","Cannot use function B\\F as F because the name is already in use",1]]}
+{"name":"namespaces 17","source":"<?php use const A\\C, B\\C;","diagnostics":[["Fatal error","Cannot use const B\\C as C because the name is already in use",1]]}
+{"name":"namespaces 18","source":"<?php use const A\\C, B\\c;","diagnostics":[]}
+{"name":"namespaces 19","source":"<?php use A\\self;","diagnostics":[["Fatal error","Cannot use A\\self as self because 'self' is a special class name",1]]}
+{"name":"namespaces 20","source":"<?php use A\\B as parent;","diagnostics":[["Fatal error","Cannot use A\\B as parent because 'parent' is a special class name",1]]}
+{"name":"namespaces 21","source":"<?php use function A\\self;","diagnostics":[]}
+{"name":"namespaces 22","source":"<?php class B {} use A\\B;","diagnostics":[["Fatal error","Cannot use A\\B as B because the name is already in use",1]]}
+{"name":"namespaces 23","source":"<?php class B {} use B;","diagnostics":[["Warning","The use statement with non-compound name 'B' has no effect",1]]}
+{"name":"namespaces 24","source":"<?php namespace N; class B {} use A\\B;","diagnostics":[["Fatal error","Cannot use A\\B as B because the name is already in use",1]]}
+{"name":"namespaces 25","source":"<?php namespace N; class B {} use N\\B;","diagnostics":[]}
+{"name":"namespaces 26","source":"<?php function f() {} use function A\\f;","diagnostics":[["Fatal error","Cannot use function A\\f as f because the name is already in use",1]]}
+{"name":"namespaces 27","source":"<?php const C = 1; use const A\\C;","diagnostics":[["Fatal error","Cannot use const A\\C as C because the name is already in use",1]]}
+{"name":"namespaces 28","source":"<?php const C = 1; use const A\\c;","diagnostics":[]}
+{"name":"namespaces 29","source":"<?php namespace N { use A\\B; } namespace M { use C\\B; }","diagnostics":[]}
+{"name":"namespaces 30","source":"<?php use A\\{B, C\\B};","diagnostics":[["Fatal error","Cannot use A\\C\\B as B because the name is already in use",1]]}
+{"name":"namespaces 31","source":"<?php use A\\{B, function B};","diagnostics":[]}
+{"name":"namespaces 32","source":"<?php use function A\\{f, const F};","diagnostics":[["Parse error","syntax error, unexpected token \"const\", expecting \"}\"",1]]}
+{"name":"namespaces 33","source":"<?php use A\\B; class B {}","diagnostics":[["Fatal error","Cannot redeclare class B (previously declared as local import)",1]]}
+{"name":"namespaces 34","source":"<?php use A\\B; class b {}","diagnostics":[["Fatal error","Cannot redeclare class b (previously declared as local import)",1]]}
+{"name":"namespaces 35","source":"<?php use B; class B {}","diagnostics":[["Warning","The use statement with non-compound name 'B' has no effect",1]]}
+{"name":"namespaces 36","source":"<?php namespace N; use N\\B; class B {}","diagnostics":[]}
+{"name":"namespaces 37","source":"<?php use function A\\f; function f() {}","diagnostics":[["Fatal error","Cannot redeclare function f() (previously declared as local import)",1]]}
+{"name":"namespaces 38","source":"<?php use function f; function f() {}","diagnostics":[["Warning","The use statement with non-compound name 'f' has no effect",1]]}
+{"name":"namespaces 39","source":"<?php use const A\\C; const C = 1;","diagnostics":[["Fatal error","Cannot declare const C because the name is already in use",1]]}
+{"name":"namespaces 40","source":"<?php use const C; const C = 1;","diagnostics":[["Warning","The use statement with non-compound name 'C' has no effect",1]]}
+{"name":"namespaces 41","source":"<?php use const A\\c; const C = 1;","diagnostics":[]}
+{"name":"namespaces 42","source":"<?php function __autoload() {}","diagnostics":[["Fatal error","__autoload() is no longer supported, use spl_autoload_register() instead",1]]}
+{"name":"namespaces 43","source":"<?php function __AutoLoad($a) {}","diagnostics":[["Fatal error","__autoload() is no longer supported, use spl_autoload_register() instead",1]]}
+{"name":"namespaces 44","source":"<?php namespace N; function __autoload() {}","diagnostics":[]}
+{"name":"namespaces 45","source":"<?php function assert() {}","diagnostics":[["Fatal error","Defining a custom assert() function is not allowed, as the function has special semantics",1]]}
+{"name":"namespaces 46","source":"<?php namespace N; function ASSERT() {}","diagnostics":[["Fatal error","Defining a custom assert() function is not allowed, as the function has special semantics",1]]}
+{"name":"namespaces 47","source":"<?php function f() {} function f() {}","diagnostics":[["Fatal error","Cannot redeclare function f() (previously declared in %file%:1)",1]]}
+{"name":"namespaces 48","source":"<?php function f() {} function F() {}","diagnostics":[["Fatal error","Cannot redeclare function F() (previously declared in %file%:1)",1]]}
+{"name":"namespaces 49","source":"<?php namespace N; function f() {} function f() {}","diagnostics":[["Fatal error","Cannot redeclare function N\\f() (previously declared in %file%:1)",1]]}
+{"name":"namespaces 50","source":"<?php function f() { function g() {} function g() {} }","diagnostics":[]}
+{"name":"namespaces 51","source":"<?php if (1) { function f() {} } function f() {}","diagnostics":[]}
+{"name":"namespaces 52","source":"<?php function f() {}\n\nfunction f() {\n}","diagnostics":[["Fatal error","Cannot redeclare function f() (previously declared in %file%:1)",3]]}
+{"name":"namespaces 53","source":"<?php class A { function f() { class B {} } }","diagnostics":[["Fatal error","Class declarations may not be nested",1]]}
+{"name":"namespaces 54","source":"<?php class A { function f() { function g() { class B {} } } }","diagnostics":[]}
+{"name":"namespaces 55","source":"<?php class self {}","diagnostics":[["Fatal error","Cannot use \"self\" as a class name as it is reserved",1]]}
+{"name":"namespaces 56","source":"<?php interface iterable {}","diagnostics":[["Fatal error","Cannot use \"iterable\" as an interface name as it is reserved",1]]}
+{"name":"namespaces 57","source":"<?php trait mixed {}","diagnostics":[["Fatal error","Cannot use \"mixed\" as a trait name as it is reserved",1]]}
+{"name":"namespaces 58","source":"<?php enum never {}","diagnostics":[["Fatal error","Cannot use \"never\" as an enum name as it is reserved",1]]}
+{"name":"namespaces 59","source":"<?php class _ {}","diagnostics":[["Deprecated","Using \"_\" as a class name is deprecated since 8.4",1]]}
+{"name":"namespaces 60","source":"<?php interface _ {}","diagnostics":[["Deprecated","Using \"_\" as an interface name is deprecated since 8.4",1]]}
+{"name":"namespaces 61","source":"<?php enum _ {}","diagnostics":[["Deprecated","Using \"_\" as an enum name is deprecated since 8.4",1]]}
+{"name":"namespaces 62","source":"<?php trait _ {}","diagnostics":[["Deprecated","Using \"_\" as a trait name is deprecated since 8.4",1]]}
+{"name":"namespaces 63","source":"<?php $f = function (int $a = null) {};","diagnostics":[["Deprecated","{closure:%file%:1}(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",1]]}
+{"name":"namespaces 64","source":"<?php function f() { $g = function (int $a = null) {}; }","diagnostics":[["Deprecated","{closure:f():1}(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",1]]}
+{"name":"namespaces 65","source":"<?php class A { function m() { $g = function (int $a = null) {}; } }","diagnostics":[["Deprecated","{closure:A::m():1}(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",1]]}
+{"name":"namespaces 66","source":"<?php namespace N; function f() { $g = function (int $a = null) {}; }","diagnostics":[["Deprecated","{closure:N\\f():1}(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",1]]}
+{"name":"namespaces 67","source":"<?php $f = function () {\n\t$g = function (int $a = null) {};\n};","diagnostics":[["Deprecated","{closure:{closure:%file%:1}:2}(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",2]]}
+{"name":"namespaces 68","source":"<?php new class { function m() { $g = function (int $a = null) {}; } };","diagnostics":[["Deprecated","{closure:class@anonymous(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",1]]}
+{"name":"namespaces 69","source":"<?php class A { const B = __FUNCTION__; } function f() { return function () { static $a = __FUNCTION__; }; }","diagnostics":[]}
+{"name":"namespaces 70","source":"<?php declare(ticks=1); ; namespace A;","diagnostics":[]}
+{"name":"namespaces 71","source":"<?php namespace A {} namespace {} namespace B {}","diagnostics":[]}
+{"name":"namespaces 72","source":"<?php namespace A {} const C = 1;","diagnostics":[["Fatal error","No code may exist outside of namespace {}",1]]}
+{"name":"namespaces 73","source":"<?php namespace N; class B {} use N\\b;","diagnostics":[]}
+{"name":"namespaces 74","source":"<?php use A\\{function f, const F, function F as G, g};","diagnostics":[]}
+{"name":"namespaces 75","source":"<?php use A\\{B, function B, C\\B};","diagnostics":[["Fatal error","Cannot use A\\C\\B as B because the name is already in use",1]]}
+{"name":"namespaces 76","source":"<?php use function A\\f; function F() {}","diagnostics":[["Fatal error","Cannot redeclare function F() (previously declared as local import)",1]]}
+{"name":"namespaces 77","source":"<?php namespace N; use function N\\f; function f() {}","diagnostics":[]}
+{"name":"namespaces 78","source":"<?php namespace N; use const A\\C; const C = 1;","diagnostics":[["Fatal error","Cannot declare const N\\C because the name is already in use",1]]}
+{"name":"namespaces 79","source":"<?php namespace N; use const N\\C; const C = 1;","diagnostics":[]}
+{"name":"namespaces 80","source":"<?php class A { function f() { new class {}; } }","diagnostics":[]}
+{"name":"namespaces 81","source":"<?php new class { function m() { $g = function () { $h = function (int $a = null) {}; }; } };","diagnostics":[["Deprecated","{closure:{closure:class@anonymous(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",1]]}
+{"name":"namespaces 82","source":"<?php namespace N; function f() {\n$g = fn(int $a = null) => 1; }","diagnostics":[["Deprecated","{closure:N\\f():2}(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",2]]}
+{"name":"namespaces 83","source":"<?php function f() { return function () { static $a = __FUNCTION__ . __METHOD__; }; }","diagnostics":[]}
 {"name":"class names 2","source":"<?php class parent {}","diagnostics":[["Fatal error","Cannot use \"parent\" as a class name as it is reserved",1]]}
 {"name":"class names 3","source":"<?php class int {}","diagnostics":[["Fatal error","Cannot use \"int\" as a class name as it is reserved",1]]}
 {"name":"class names 4","source":"<?php class string {}","diagnostics":[["Fatal error","Cannot use \"string\" as a class name as it is reserved",1]]}
@@ -238,10 +281,6 @@
 {"name":"class names 13","source":"<?php interface int {}","diagnostics":[["Fatal error","Cannot use \"int\" as an interface name as it is reserved",1]]}
 {"name":"class names 14","source":"<?php trait void {}","diagnostics":[["Fatal error","Cannot use \"void\" as a trait name as it is reserved",1]]}
 {"name":"class names 15","source":"<?php enum bool {}","diagnostics":[["Fatal error","Cannot use \"bool\" as an enum name as it is reserved",1]]}
-{"name":"class names 16","source":"<?php class _ {}","diagnostics":[["Deprecated","Using \"_\" as a class name is deprecated since 8.4",1]]}
-{"name":"class names 17","source":"<?php interface _ {}","diagnostics":[["Deprecated","Using \"_\" as an interface name is deprecated since 8.4",1]]}
-{"name":"class names 18","source":"<?php trait _ {}","diagnostics":[["Deprecated","Using \"_\" as a trait name is deprecated since 8.4",1]]}
-{"name":"class names 19","source":"<?php enum _ {}","diagnostics":[["Deprecated","Using \"_\" as an enum name is deprecated since 8.4",1]]}
 {"name":"class names 20","source":"<?php class A extends self {}","diagnostics":[["Fatal error","Cannot use \"self\" as class name, as it is reserved",1]]}
 {"name":"class names 21","source":"<?php class A extends int {}","diagnostics":[]}
 {"name":"class names 22","source":"<?php class A implements self {}","diagnostics":[["Fatal error","Cannot use \"self\" as interface name, as it is reserved",1]]}
@@ -298,12 +337,9 @@
 {"name":"class names 73","source":"<?php class A extends \\int {}","diagnostics":[]}
 {"name":"class names 74","source":"<?php function f(): \\int {}","diagnostics":[["Fatal error","Type declaration 'int' must be unqualified",1]]}
 {"name":"class names 75","source":"<?php function f(\\self $a) {}","diagnostics":[["Fatal error","'\\self' is an invalid class name",1]]}
-{"name":"functions 1","source":"<?php function f() {} function f() {}","diagnostics":[["Fatal error","Cannot redeclare function f() (previously declared in %file%:1)",1]]}
 {"name":"functions 2","source":"<?php function F() {} function f() {}","diagnostics":[["Fatal error","Cannot redeclare function f() (previously declared in %file%:1)",1]]}
 {"name":"functions 3","source":"<?php function f() {}\n\nfunction f() {}","diagnostics":[["Fatal error","Cannot redeclare function f() (previously declared in %file%:1)",3]]}
-{"name":"functions 4","source":"<?php if (1) { function f() {} } function f() {}","diagnostics":[]}
 {"name":"functions 5","source":"<?php function f() {} if (1) { function f() {} }","diagnostics":[]}
-{"name":"functions 6","source":"<?php function __autoload() {}","diagnostics":[["Fatal error","__autoload() is no longer supported, use spl_autoload_register() instead",1]]}
 {"name":"functions 7","source":"<?php namespace A; function __autoload() {}","diagnostics":[]}
 {"name":"functions 8","source":"<?php function f(...$a, $b) {}","diagnostics":[["Fatal error","Only the last parameter can be variadic",1]]}
 {"name":"functions 9","source":"<?php function f(...$a = 1) {}","diagnostics":[["Fatal error","Variadic parameter cannot have a default value",1]]}
@@ -905,7 +941,6 @@
 {"name":"class members 96","source":"<?php class A { abstract final function f(); }","diagnostics":[["Fatal error","Cannot use the final modifier on an abstract method",1]]}
 {"name":"class members 97","source":"<?php class A { static static function f() {} }","diagnostics":[["Fatal error","Multiple static modifiers are not allowed",1]]}
 {"name":"class members 98","source":"<?php class A { final final function f() {} }","diagnostics":[["Fatal error","Multiple final modifiers are not allowed",1]]}
-{"name":"class members 99","source":"<?php class A { function f() { class B {} } }","diagnostics":[["Fatal error","Class declarations may not be nested",1]]}
 {"name":"class members 100","source":"<?php function f() { class A {} }","diagnostics":[]}
 {"name":"class members 101","source":"<?php class A { function f() { $a = function () { class B {} }; } }","diagnostics":[["Fatal error","Class declarations may not be nested",1]]}
 {"name":"class members 102","source":"<?php class A { function f() { $a = new class {}; } }","diagnostics":[]}

@@ -669,7 +669,7 @@ impl<'a> Checker<'a> {
     /// be rebound, nor in traits, nor at the top level of a file, which runs in its includer's scope.
     pub(super) fn is_scope_known(&self) -> bool {
         match (&self.frame.code, &self.class) {
-            (Code::Closure, _) => false,
+            (Code::Closure(_), _) => false,
             (code, None) => !matches!(code, Code::File),
             (_, Some(class)) => !class.is_trait,
         }
@@ -720,7 +720,8 @@ impl<'a> Checker<'a> {
             MagicConstant::Function => match &self.frame.code {
                 Code::File => b"",
                 Code::Function(name) | Code::Method { name, .. } => name,
-                Code::Closure => return None,
+                Code::Closure(name) if name.complete => &name.text,
+                Code::Closure(_) => return None,
             },
             MagicConstant::Method => match &self.frame.code {
                 Code::File => b"",
@@ -735,7 +736,8 @@ impl<'a> Checker<'a> {
                     full.extend_from_slice(name);
                     return Some(text(&full));
                 }
-                Code::Method { class: None, .. } | Code::Closure => return None,
+                Code::Closure(name) if name.complete => &name.text,
+                Code::Method { class: None, .. } | Code::Closure(_) => return None,
             },
             MagicConstant::Class => match class {
                 None => b"",
@@ -876,7 +878,7 @@ impl<'a> Checker<'a> {
                 if !function.uses.is_empty() {
                     return self.fatal("Cannot use(...) variables in constant expression");
                 }
-                self.function(function, Code::Closure)
+                self.function(function, Code::Closure(self.closure_name(function.line)))
             }
             ExprKind::Call { callee, args } => {
                 if *args != Args::CallableConvert {
@@ -957,6 +959,7 @@ mod tests {
     use php_parser::{ParseOptions, parse};
 
     use super::*;
+    use crate::check::ClosureName;
     use crate::check::{ClassScope, Frame};
 
     fn program(source: &str) -> Program {
@@ -1027,7 +1030,7 @@ mod tests {
         let TopStatement::Const { items, .. } = &program.statements[0] else {
             panic!("not a constant: {expr}");
         };
-        let mut checker = Checker::new();
+        let mut checker = Checker::new(b"");
         checker.namespace = context.namespace.map(|name| name.as_bytes().to_vec());
         checker.class.clone_from(&context.class);
         checker.frame = Frame::new(context.code.clone());
@@ -1052,7 +1055,7 @@ mod tests {
 
     /// Every diagnostic of checking `source`, as `label: message @line`.
     fn diagnostics(source: &str) -> Vec<String> {
-        let checked = Checker::run(&program(source));
+        let checked = Checker::run(&program(source), b"");
         checked
             .warnings
             .iter()
@@ -1069,7 +1072,7 @@ mod tests {
     }
 
     fn fatal(source: &str) -> String {
-        let checked = Checker::run(&program(source));
+        let checked = Checker::run(&program(source), b"");
         let fatal = checked
             .fatal
             .unwrap_or_else(|| panic!("no error: {source}"));
@@ -1343,11 +1346,23 @@ mod tests {
         assert_eq!(fold(anonymous(), "__CLASS__"), "-");
         assert_eq!(fold(anonymous(), "__METHOD__"), "-");
         let closure = || Context {
-            code: Code::Closure,
+            code: Code::Closure(ClosureName {
+                text: b"{closure:f():1}".to_vec(),
+                complete: true,
+            }),
             ..Context::default()
         };
-        assert_eq!(fold(closure(), "__FUNCTION__"), "-");
-        assert_eq!(fold(closure(), "__METHOD__"), "-");
+        assert_eq!(fold(closure(), "__FUNCTION__"), "\"{closure:f():1}\"");
+        assert_eq!(fold(closure(), "__METHOD__"), "\"{closure:f():1}\"");
+        let unnamed = || Context {
+            code: Code::Closure(ClosureName {
+                text: b"{closure:class@anonymous".to_vec(),
+                complete: false,
+            }),
+            ..Context::default()
+        };
+        assert_eq!(fold(unnamed(), "__FUNCTION__"), "-");
+        assert_eq!(fold(unnamed(), "__METHOD__"), "-");
         assert_eq!(fold(closure(), "__PROPERTY__"), "\"\"");
     }
 
@@ -1363,7 +1378,10 @@ mod tests {
         assert_eq!(fold(in_class(), "parent::class"), "-");
         assert_eq!(fold(in_class(), "static::class"), "-");
         let in_closure = Context {
-            code: Code::Closure,
+            code: Code::Closure(ClosureName {
+                text: b"{closure:class@anonymous".to_vec(),
+                complete: false,
+            }),
             ..in_class()
         };
         assert_eq!(fold(in_closure, "self::class"), "-");

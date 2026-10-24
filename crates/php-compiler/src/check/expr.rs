@@ -191,7 +191,7 @@ impl<'a> Checker<'a> {
                 self.expr(operand)
             }
             ExprKind::Closure(function) | ExprKind::ArrowFunction { function, .. } => {
-                self.function(function, Code::Closure)
+                self.function(function, Code::Closure(self.closure_name(function.line)))
             }
             ExprKind::Match { subject, arms } => self.match_expr(subject, arms),
             ExprKind::Reference(operand) => self.var(operand, Fetch::Write),

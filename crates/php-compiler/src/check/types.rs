@@ -356,7 +356,7 @@ impl Checker<'_> {
                 }
                 let slash = bytes.iter().position(|&byte| byte == b'\\');
                 let first = slash.map_or(bytes, |slash| &bytes[..slash]);
-                match self.imports.get(&first.to_ascii_lowercase()) {
+                match self.names.imports.classes.get(&first.to_ascii_lowercase()) {
                     Some(imported) => {
                         let mut full = imported.clone();
                         full.extend_from_slice(slash.map_or(&[], |slash| &bytes[slash..]));
@@ -488,7 +488,11 @@ impl Checker<'_> {
     /// Warns when an unqualified class name looks like a misspelled builtin type.
     fn warn_confusable(&mut self, name: &Name, class: &[u8]) {
         if name.kind != NameKind::Unqualified
-            || self.imports.contains_key(&name.bytes.to_ascii_lowercase())
+            || self
+                .names
+                .imports
+                .classes
+                .contains_key(&name.bytes.to_ascii_lowercase())
         {
             return;
         }
@@ -656,7 +660,7 @@ mod tests {
             .unwrap()
             .result
             .unwrap();
-        let checked = Checker::run(&program);
+        let checked = Checker::run(&program, b"");
         checked
             .warnings
             .iter()

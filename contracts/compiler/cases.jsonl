@@ -889,6 +889,52 @@
 {"name":"class references 46","source":"<?php namespace N; use X\\Y; class A extends Y\\Z implements Y { use Y; function f() { Y::class::class; } }","diagnostics":[["Fatal error","Cannot use \"::class\" on string",1]]}
 {"name":"class references 47","source":"<?php function f() { A::$a; B::C; new D; $a instanceof E; static::$b; }","diagnostics":[["Fatal error","Cannot use \"static\" when no class scope is active",1]]}
 {"name":"class references 48","source":"<?php function f() { $a::class; ($a . \"b\")::class; }","diagnostics":[]}
+{"name":"methods 1","source":"<?php class A { readonly function f() {} }","diagnostics":[["Fatal error","Cannot use the readonly modifier on a method",1]]}
+{"name":"methods 2","source":"<?php trait T { abstract private function f(); }","diagnostics":[]}
+{"name":"methods 3","source":"<?php trait T { abstract private function f() {} }","diagnostics":[["Fatal error","Abstract function T::f() cannot contain body",1]]}
+{"name":"methods 4","source":"<?php enum E { abstract function f(); }","diagnostics":[["Fatal error","Enum method E::f() must not be abstract",1]]}
+{"name":"methods 5","source":"<?php class A { final private function __construct() {} }","diagnostics":[]}
+{"name":"methods 6","source":"<?php class A { function __get($a, ...$b) {} }","diagnostics":[]}
+{"name":"methods 7","source":"<?php class A { function __get(&...$a) {} }","diagnostics":[["Fatal error","Method A::__get() must take exactly 1 argument",1]]}
+{"name":"methods 8","source":"<?php class A { function __set($a, &$b) {} }","diagnostics":[["Fatal error","Method A::__set() cannot take arguments by reference",1]]}
+{"name":"methods 9","source":"<?php class A { function __toString(): static {} }","diagnostics":[["Fatal error","A::__toString(): Return type must be string when declared",1]]}
+{"name":"methods 10","source":"<?php class A { static function __set_state(array $a): static {} }","diagnostics":[]}
+{"name":"methods 11","source":"<?php class A { static function __set_state(array $a): self {} }","diagnostics":[]}
+{"name":"methods 12","source":"<?php class A { static function __set_state(array $a): int {} }","diagnostics":[["Fatal error","A::__set_state(): Return type must be object when declared",1]]}
+{"name":"methods 13","source":"<?php class A { function __isset($a): true {} function __get($a): never {} }","diagnostics":[]}
+{"name":"methods 14","source":"<?php class A { function __debugInfo(): array|null {} }","diagnostics":[]}
+{"name":"methods 15","source":"<?php class A { function __debugInfo(): iterable {} }","diagnostics":[["Fatal error","A::__debugInfo(): Return type must be ?array when declared",1]]}
+{"name":"methods 16","source":"<?php class A { function __call(string $a, iterable $b) {} }","diagnostics":[]}
+{"name":"methods 17","source":"<?php class A { function __call(string $a, ?A $b) {} }","diagnostics":[["Fatal error","A::__call(): Parameter #2 ($b) must be of type array when declared",1]]}
+{"name":"methods 18","source":"<?php class A { function __get(mixed $a) {} }","diagnostics":[]}
+{"name":"methods 19","source":"<?php class A { function __get(?int $a) {} }","diagnostics":[["Fatal error","A::__get(): Parameter #1 ($a) must be of type string when declared",1]]}
+{"name":"methods 20","source":"<?php class A { private function __invoke() {} }","diagnostics":[["Warning","The magic method A::__invoke() must have public visibility",1]]}
+{"name":"methods 21","source":"<?php class A { static function __invoke() {} }","diagnostics":[["Fatal error","Method A::__invoke() cannot be static",1]]}
+{"name":"methods 22","source":"<?php class A { protected function __construct() {} }","diagnostics":[]}
+{"name":"methods 23","source":"<?php class A { function __CONSTRUCT(): void {} }","diagnostics":[["Fatal error","Method A::__CONSTRUCT() cannot declare a return type",1]]}
+{"name":"methods 24","source":"<?php class A { function __wakeup(): void {} function __sleep(): array {} }","diagnostics":[]}
+{"name":"methods 25","source":"<?php class A { private static function __callStatic($a, $b) {} }","diagnostics":[["Warning","The magic method A::__callStatic() must have public visibility",1]]}
+{"name":"methods 26","source":"<?php class A { function __unserialize(array $a): mixed {} }","diagnostics":[["Fatal error","A::__unserialize(): Return type must be void when declared",1]]}
+{"name":"methods 27","source":"<?php class A { private function __set(int $a, $b) {} }","diagnostics":[["Warning","The magic method A::__set() must have public visibility",1],["Fatal error","A::__set(): Parameter #1 ($a) must be of type string when declared",1]]}
+{"name":"methods 28","source":"<?php class A {\n  function __get(\n  ) {\n  }\n}","diagnostics":[["Fatal error","Method A::__get() must take exactly 1 argument",2]]}
+{"name":"methods 29","source":"<?php class A { function __get() { break; } }","diagnostics":[["Fatal error","'break' not in the 'loop' or 'switch' context",1]]}
+{"name":"methods 30","source":"<?php interface I { function f(); function F(); }","diagnostics":[["Fatal error","Cannot redeclare I::F()",1]]}
+{"name":"methods 31","source":"<?php class A { abstract function f(); function f() {} }","diagnostics":[["Fatal error","Class A declares abstract method f() and must therefore be declared abstract",1]]}
+{"name":"methods 32","source":"<?php abstract class A { private abstract function f(); }","diagnostics":[["Fatal error","Abstract function A::f() cannot be declared private",1]]}
+{"name":"methods 33","source":"<?php interface I { private function f() {} }","diagnostics":[["Fatal error","Access type for interface method I::f() must be public",1]]}
+{"name":"methods 34","source":"<?php new class { private final function f() {} };","diagnostics":[["Warning","Private methods cannot be final as they are never overridden by other classes",1]]}
+{"name":"methods 35","source":"<?php interface I { abstract function f() {} }","diagnostics":[["Fatal error","Interface method I::f() must not be abstract",1]]}
+{"name":"methods 36","source":"<?php interface I { static function f(); }","diagnostics":[]}
+{"name":"methods 37","source":"<?php interface I { public function f(): void; }","diagnostics":[]}
+{"name":"methods 38","source":"<?php trait T { function __get(int $a) {} }","diagnostics":[["Fatal error","T::__get(): Parameter #1 ($a) must be of type string when declared",1]]}
+{"name":"methods 39","source":"<?php enum E { function __toString(): string {} }","diagnostics":[]}
+{"name":"methods 40","source":"<?php class A { function __clone(): void {} function __destruct() {} }","diagnostics":[]}
+{"name":"methods 41","source":"<?php class A { function __invoke(&$a, ...$b): int {} }","diagnostics":[]}
+{"name":"methods 42","source":"<?php class A { function __get(A|string $a) {} function __isset(int|bool $a): bool {} }","diagnostics":[["Fatal error","A::__isset(): Parameter #1 ($a) must be of type string when declared",1]]}
+{"name":"methods 43","source":"<?php class A { function __call($a, $b): int {} function __callstatic($a, $b) {} }","diagnostics":[["Fatal error","Method A::__callstatic() must be static",1]]}
+{"name":"methods 44","source":"<?php class A { function __serialize(): ?array {} }","diagnostics":[["Fatal error","A::__serialize(): Return type must be array when declared",1]]}
+{"name":"methods 45","source":"<?php class A { function f() {} } class B { function f() {} }","diagnostics":[]}
+{"name":"methods 46","source":"<?php class A { function __set($a, $b): ?int {} }","diagnostics":[["Fatal error","A::__set(): Return type must be void when declared",1]]}
 {"name":"class members 1","source":"<?php class A { function f() {} function f() {} }","diagnostics":[["Fatal error","Cannot redeclare A::f()",1]]}
 {"name":"class members 2","source":"<?php class A { function F() {} function f() {} }","diagnostics":[["Fatal error","Cannot redeclare A::f()",1]]}
 {"name":"class members 3","source":"<?php class A { public $a; public $a; }","diagnostics":[["Fatal error","Cannot redeclare A::$a",1]]}
@@ -905,7 +951,6 @@
 {"name":"class members 14","source":"<?php interface I { protected function f(); }","diagnostics":[["Fatal error","Access type for interface method I::f() must be public",1]]}
 {"name":"class members 15","source":"<?php interface I { final function f(); }","diagnostics":[["Fatal error","Interface method I::f() must not be final",1]]}
 {"name":"class members 16","source":"<?php interface I { abstract function f(); }","diagnostics":[["Fatal error","Interface method I::f() must not be abstract",1]]}
-{"name":"class members 17","source":"<?php interface I { static function f(); }","diagnostics":[]}
 {"name":"class members 18","source":"<?php interface I { public $a; }","diagnostics":[["Fatal error","Interfaces may only include hooked properties",1]]}
 {"name":"class members 19","source":"<?php interface I { public $a { get; } }","diagnostics":[]}
 {"name":"class members 20","source":"<?php interface I { abstract public $a { get; } }","diagnostics":[["Fatal error","Property in interface cannot be explicitly abstract. All interface members are implicitly abstract",1]]}
@@ -979,7 +1024,6 @@
 {"name":"class members 90","source":"<?php class A { final private function f() {} }","diagnostics":[["Warning","Private methods cannot be final as they are never overridden by other classes",1]]}
 {"name":"class members 91","source":"<?php class A { private final function __construct() {} }","diagnostics":[]}
 {"name":"class members 92","source":"<?php class A { final private static function f() {} }","diagnostics":[["Warning","Private methods cannot be final as they are never overridden by other classes",1]]}
-{"name":"class members 93","source":"<?php class A { readonly function f() {} }","diagnostics":[["Fatal error","Cannot use the readonly modifier on a method",1]]}
 {"name":"class members 94","source":"<?php class A { public public $a; }","diagnostics":[["Fatal error","Multiple access type modifiers are not allowed",1]]}
 {"name":"class members 95","source":"<?php class A { public protected function f() {} }","diagnostics":[["Fatal error","Multiple access type modifiers are not allowed",1]]}
 {"name":"class members 96","source":"<?php class A { abstract final function f(); }","diagnostics":[["Fatal error","Cannot use the final modifier on an abstract method",1]]}
@@ -1012,7 +1056,6 @@
 {"name":"class members 124","source":"<?php class A { #[\\Override] public $a; }","diagnostics":[["Fatal error","A::$a has #[\\Override] attribute, but no matching parent property exists",1]]}
 {"name":"class members 126","source":"<?php class A { public function f() {} } class B extends A { private function f() {} }","diagnostics":[["Fatal error","Access level to B::f() must be public (as in class A)",1]]}
 {"name":"class members 127","source":"<?php class A { var $a; var $a; }","diagnostics":[["Fatal error","Cannot redeclare A::$a",1]]}
-{"name":"class members 128","source":"<?php trait T { abstract private function f(); }","diagnostics":[]}
 {"name":"class members 129","source":"<?php trait T { public $a; public $a; }","diagnostics":[["Fatal error","Cannot redeclare T::$a",1]]}
 {"name":"class members 130","source":"<?php new class { abstract function f(); };","diagnostics":[["Fatal error","Anonymous class method f() must not be abstract",1]]}
 {"name":"class members 131","source":"<?php class A { function A() {} }","diagnostics":[]}

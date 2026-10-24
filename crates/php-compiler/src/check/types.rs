@@ -26,8 +26,8 @@ impl Mask {
     pub(super) const VOID: Self = Self(1 << 10);
     pub(super) const NEVER: Self = Self(1 << 11);
     pub(super) const STATIC: Self = Self(1 << 12);
-    const NONE: Self = Self(0);
-    const BOOL: Self = Self(Self::FALSE.0 | Self::TRUE.0);
+    pub(super) const NONE: Self = Self(0);
+    pub(super) const BOOL: Self = Self(Self::FALSE.0 | Self::TRUE.0);
     /// What `mixed` admits: every kind of value.
     pub(super) const ANY: Self = Self(
         Self::NULL.0
@@ -46,6 +46,11 @@ impl Mask {
 
     pub(super) const fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
+    }
+
+    /// The kinds of `self` that are not in `other`.
+    pub(super) const fn without(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
     }
 
     const fn common(self, other: Self) -> Self {
@@ -186,7 +191,7 @@ impl DeclaredType {
         }
     }
 
-    const fn has_classes(&self) -> bool {
+    pub(super) const fn has_classes(&self) -> bool {
         !self.members.is_empty()
     }
 

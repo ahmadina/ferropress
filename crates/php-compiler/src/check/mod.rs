@@ -8,10 +8,11 @@
 mod classes;
 mod constant;
 mod expr;
+mod methods;
 mod names;
 mod types;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use php_parser::ast::{
     Case, ClassKind, ClassLike, ClassMember, ConstantGroup, Expr, ExprKind, Function, FunctionBody,
@@ -100,6 +101,8 @@ struct Frame {
     is_generator: bool,
     /// Whether the function returns, or for a generator yields, by reference.
     by_ref: bool,
+    /// The compiled types of the parameters so far, `None` for untyped ones.
+    params: Vec<Option<DeclaredType>>,
 }
 
 impl Frame {
@@ -400,6 +403,11 @@ impl<'a> Checker<'a> {
 
     /// Compiles `function`, which is `code`, in a frame of its own.
     fn function(&mut self, function: &'a Function, code: Code) -> Flow {
+        self.function_frame(function, code).map(drop)
+    }
+
+    /// Compiles `function` like [`Self::function`] and returns its finished frame.
+    fn function_frame(&mut self, function: &'a Function, code: Code) -> Flow<Frame> {
         self.line = function.line;
         for use_var in &function.uses {
             if use_var.name == b"this" {
@@ -429,9 +437,9 @@ impl<'a> Checker<'a> {
             }
             self.function_inner(function)
         });
-        self.frame = outer;
+        let frame = std::mem::replace(&mut self.frame, outer);
         self.class = outer_class;
-        result
+        result.map(|()| frame)
     }
 
     fn function_inner(&mut self, function: &'a Function) -> Flow {
@@ -540,6 +548,7 @@ impl<'a> Checker<'a> {
         };
         self.attributes(&param.attributes)?;
         let mut forced = false;
+        let mut compiled = None;
         if let Some(declared) = &param.declared_type {
             let promoted = param.hooks.is_some() || param.modifiers.intersects(PROMOTION);
             let force_null = !promoted && matches!(default, Some(Some(Value::Null)));
@@ -573,7 +582,9 @@ impl<'a> Checker<'a> {
                 message.extend(declared.display());
                 return self.fatal(message);
             }
+            compiled = Some(declared);
         }
+        self.frame.params.push(compiled);
         if let (Some(required), Some(_), false) = (required, &default, forced) {
             let mut message = b"Optional parameter $".to_vec();
             message.extend_from_slice(&param.name);
@@ -673,15 +684,10 @@ impl<'a> Checker<'a> {
         for interface in &class.implements {
             self.declared_class(interface, "interface name")?;
         }
+        let mut methods = HashSet::new();
         for member in &class.members {
             match member {
-                ClassMember::Method(method) => {
-                    let code = Code::Method {
-                        class: self.class.as_ref().and_then(|scope| scope.name.clone()),
-                        name: method.name.clone(),
-                    };
-                    self.function(method, code)?;
-                }
+                ClassMember::Method(method) => self.method(class, method, &mut methods)?,
                 ClassMember::Property(group) => {
                     self.line = group.line;
                     for property in &group.properties {

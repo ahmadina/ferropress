@@ -180,6 +180,8 @@ The following stay unfolded, so their values do not take part in later checks:
 - `X::class` for a class name and for `parent`.
 - `__FILE__` and `__DIR__`.
 - Anonymous class names, and the names of closures declared inside their methods.
+- `#[\NoDiscard]` on `__construct`, `__destruct` and the magic methods returning `void`, which the
+  reference rejects.
 - Class constants in ordinary code, which the reference evaluates while compiling when the class is
   known: `(self::B)::f()` with `const B = 1` is "Illegal class name" there.
 - Folding in ordinary code other than array literals.
@@ -416,6 +418,73 @@ that name the function use `name()` for functions, `Class::name()` for methods, 
   - Any other type needs a value: "A function with return type must return a value". When the type
     allows `null`, `(did you mean "return null;" instead of "return;"?)` is appended.
   - An arrow function's body counts as a returned value, unless its return type is `never`.
+
+## Methods
+
+Messages name a method `Class::name` with the class's namespaced name (`class@anonymous` for an
+anonymous class) and the method name as written. All checks report on the line of `function`.
+
+### Declaration
+
+Before a method's attributes and signature compile, these checks run in order:
+
+- A private final method other than the constructor (compared case-insensitively) warns: "Private
+  methods cannot be final as they are never overridden by other classes".
+- An abstract method in a class that is neither declared abstract nor a trait is a fatal error:
+  "Anonymous class method f() must not be abstract" in an anonymous class, "Enum method E::f() must
+  not be abstract" or "Interface method I::f() must not be abstract" in those, and otherwise "Class A
+  declares abstract method f() and must therefore be declared abstract".
+- In an interface, a protected or private method is a fatal error ("Access type for interface method
+  I::f() must be public"), and so is a final one ("Interface method I::f() must not be final").
+- Interface methods are abstract. An abstract method may not be private outside a trait ("Abstract
+  function A::f() cannot be declared private") and may not have a body ("Abstract function A::f()
+  cannot contain body", with "Interface function" in an interface). Any other method needs a body:
+  "Non-abstract method A::f() must contain body".
+- A method whose lowercase name was already declared in the class is a fatal error: "Cannot redeclare
+  A::f()".
+
+### Magic methods
+
+After the body compiles, a method whose lowercase name is one of the following is checked. For each,
+the table gives the number of parameters it must declare (variadic ones are not counted), whether it
+must be static, the types its first parameters must admit when typed, and the return type it must fit
+when one is declared.
+
+| Method | Parameters | Static | Parameter types | Return type |
+|---|---|---|---|---|
+| `__construct` | any | no | | none allowed |
+| `__destruct` | 0 | no | | none allowed |
+| `__clone` | 0 | no | | `void` |
+| `__get` | 1 | no | `string` | |
+| `__set` | 2 | no | `string` | `void` |
+| `__unset` | 1 | no | `string` | `void` |
+| `__isset` | 1 | no | `string` | `bool` |
+| `__call` | 2 | no | `string`, `array` | |
+| `__callStatic` | 2 | yes | `string`, `array` | |
+| `__toString` | 0 | no | | `string` |
+| `__debugInfo` | 0 | no | | `?array` |
+| `__serialize` | 0 | no | | `array` |
+| `__unserialize` | 1 | no | `array` | `void` |
+| `__set_state` | 1 | yes | `array` | `object` |
+| `__invoke` | any | no | | |
+| `__sleep` | 0 | no | | `array` |
+| `__wakeup` | 0 | no | | `void` |
+
+The checks run in this order; each failure is fatal unless noted:
+
+1. The parameter count: "Method A::__get() must take exactly 1 argument" ("cannot take arguments"
+   for none, "must take exactly 2 arguments" for two). Then none of the counted parameters may be by
+   reference: "Method A::__set() cannot take arguments by reference".
+2. "Method A::__call() cannot be static" or "Method A::__callStatic() must be static".
+3. For `__construct` and `__destruct`, any return type: "Method A::__construct() cannot declare a
+   return type".
+4. A protected or private method other than `__construct`, `__destruct` and `__clone` warns: "The
+   magic method A::__get() must have public visibility". Compilation continues.
+5. A typed parameter whose type admits none of the required kinds: "A::__get(): Parameter #1 ($a)
+   must be of type string when declared". Class types admit no builtin kind.
+6. A declared return type with kinds outside the allowed ones, or with classes or `static` unless
+   `object` is allowed: "A::__isset(): Return type must be bool when declared". A type including
+   `never` always fits.
 
 ## Properties and class constants
 

@@ -194,6 +194,13 @@ impl Fetch {
             Self::Static => "static",
         }
     }
+
+    /// The special class `name` is, compared case-insensitively.
+    pub(super) fn named(name: &[u8]) -> Option<Self> {
+        [Self::SelfClass, Self::Parent, Self::Static]
+            .into_iter()
+            .find(|fetch| name.eq_ignore_ascii_case(fetch.keyword().as_bytes()))
+    }
 }
 
 /// The special class `class` names, when it is written as a name or string.
@@ -206,9 +213,7 @@ fn fetch_of(class: &Expr) -> Option<Fetch> {
     else {
         return None;
     };
-    [Fetch::SelfClass, Fetch::Parent, Fetch::Static]
-        .into_iter()
-        .find(|fetch| bytes.eq_ignore_ascii_case(fetch.keyword().as_bytes()))
+    Fetch::named(bytes)
 }
 
 /// Whether `expr` is a literal number, which no class or function can be named by.

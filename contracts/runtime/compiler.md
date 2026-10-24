@@ -180,6 +180,8 @@ The following stay unfolded, so their values do not take part in later checks:
 - `X::class` for a class name and for `parent`.
 - `__FILE__` and `__DIR__`.
 - Anonymous class names, and the names of closures declared inside their methods.
+- Class constants in ordinary code, which the reference evaluates while compiling when the class is
+  known: `(self::B)::f()` with `const B = 1` is "Illegal class name" there.
 - Folding in ordinary code other than array literals.
 
 ## Class names
@@ -195,6 +197,41 @@ A class name in a type or an `extends` clause is resolved like this:
 Only class imports count (`use X`, and the class items of a group `use`). Each namespace starts with no
 imports. `self`, `parent` and `static` stay as written, and qualifying them is a fatal error:
 "'\self' is an invalid class name" or "'namespace\self' is an invalid class name".
+
+## Class references
+
+Here "special" means `self`, `parent` or `static` in any case, and "the scope check" is the check
+described under "Constant expressions": where the scope is known, a special class needs an active
+class ("Cannot use "self" when no class scope is active") and `parent` needs that class to have a
+parent ("Cannot use "parent" when current class scope has no parent").
+
+- **Class operands.** The class of `X::m()`, `X::$p`, `X::C`, `new X` and `instanceof X`:
+  - A special name that is not fully qualified (`self`, `namespace\self`) gets the scope check.
+  - Any other name is resolved as a class name, so `\self` is a fatal error.
+  - A literal number is a fatal error: "Illegal class name".
+  - A literal string is a fully qualified name, with or without its leading `\`; a special one is a
+    fatal error: "'\self' is an invalid class name". The parser joins `'a' . 'b'` into one literal.
+  - Any other operand is compiled first. If it compiles to a constant (literals, `true`, `false`,
+    `null`, `X::class` with a known result, and operators and casts over those), a string is checked
+    like a written name without a prefix (special ones get the scope check, others resolve as a fully
+    qualified string) and any other value is "Illegal class name".
+  - `instanceof` does not compile its class at all when the tested value compiles to a constant.
+- **`X::class`** in ordinary code:
+  - A literal number is "Illegal class name".
+  - A special name or string, prefixed or not, gets the scope check; `\self::class` is accepted inside
+    a class.
+  - Other names and strings resolve as above.
+  - Any other operand is compiled; if it compiles to a constant, that is a fatal error: "Cannot use
+    "::class" on string" (or `int`, `true`, `null`, …). `self::class` and `parent::class` compile to
+    constants where the scope is known, so `self::class::class` fails there.
+- **Declarations.** The parent of a class is resolved first (after the name checks), then the class's
+  attributes compile, then its interfaces (or an interface's parents). Trait names resolve when their
+  `use` compiles. A special name that is not fully qualified is a fatal error there: "Cannot use
+  "self" as class name, as it is reserved", with "interface name" or "trait name". A `use` inside an
+  interface is a fatal error first: "Cannot use traits inside of interfaces. T is used in I".
+- **`catch`.** Each class is checked in order. A special name that is not fully qualified is a fatal
+  error: "Bad class name in the catch statement". The others resolve as class names. Errors are
+  reported on the line of the catch's first class.
 
 ## Namespaces, imports and declarations
 

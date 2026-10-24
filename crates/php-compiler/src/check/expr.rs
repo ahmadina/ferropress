@@ -135,7 +135,7 @@ impl<'a> Checker<'a> {
                 self.class_ref(class)?;
                 self.member(name)
             }
-            ExprKind::ClassName(class) => self.class_ref(class),
+            ExprKind::ClassName(class) => self.class_name_fetch(class),
             ExprKind::Cast {
                 kind: CastKind::Unset,
                 ..
@@ -151,10 +151,7 @@ impl<'a> Checker<'a> {
                 self.var(operand, Fetch::ReadWrite)
             }
             ExprKind::Binary { op, left, right } => self.binary(*op, left, right),
-            ExprKind::Instanceof { expr, class } => {
-                self.expr(expr)?;
-                self.class_ref(class)
-            }
+            ExprKind::Instanceof { expr, class } => self.instanceof(expr, class),
             ExprKind::Assign { target, value } => self.assign(target, value),
             ExprKind::AssignRef { target, value } => self.assign_ref(target, value),
             ExprKind::CompoundAssign { target, value, .. } => {
@@ -351,14 +348,6 @@ impl<'a> Checker<'a> {
         match member {
             Member::Name(_) => Ok(()),
             Member::Expr(name) => self.expr(name),
-        }
-    }
-
-    fn class_ref(&mut self, class: &'a Expr) -> Flow {
-        if matches!(class.kind, ExprKind::Name(_)) {
-            Ok(())
-        } else {
-            self.expr(class)
         }
     }
 

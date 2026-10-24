@@ -844,6 +844,51 @@
 {"name":"types 101","source":"<?php function &f() { yield; }","diagnostics":[]}
 {"name":"types 102","source":"<?php function f(\n\tint $a = null,\n\t$b = 1,\n\t$c\n) {}","diagnostics":[["Deprecated","f(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",2],["Deprecated","f(): Optional parameter $b declared before required parameter $c is implicitly treated as a required parameter",3]]}
 {"name":"types 103","source":"<?php function f(): void {\n\treturn\n\t\tnull;\n}","diagnostics":[["Fatal error","A void function must not return a value (did you mean \"return;\" instead of \"return null;\"?)",3]]}
+{"name":"class references 2","source":"<?php class A { function f() { namespace\\parent::f(); } }","diagnostics":[["Fatal error","Cannot use \"parent\" when current class scope has no parent",1]]}
+{"name":"class references 3","source":"<?php class A { function f() { \\self::class; } }","diagnostics":[]}
+{"name":"class references 4","source":"<?php function f() { \\self::class; }","diagnostics":[["Fatal error","Cannot use \"self\" when no class scope is active",1]]}
+{"name":"class references 5","source":"<?php function f() { \"self\"::f(); }","diagnostics":[["Fatal error","'\\self' is an invalid class name",1]]}
+{"name":"class references 6","source":"<?php function f() { \"\\\\self\"::f(); }","diagnostics":[["Fatal error","'\\self' is an invalid class name",1]]}
+{"name":"class references 7","source":"<?php function f() { \"\\\\A\"::f(); }","diagnostics":[]}
+{"name":"class references 8","source":"<?php class A extends namespace\\self {}","diagnostics":[["Fatal error","Cannot use \"self\" as class name, as it is reserved",1]]}
+{"name":"class references 9","source":"<?php class A extends \\self {}","diagnostics":[["Fatal error","'\\self' is an invalid class name",1]]}
+{"name":"class references 10","source":"<?php try {} catch (\\self $e) {}","diagnostics":[["Fatal error","'\\self' is an invalid class name",1]]}
+{"name":"class references 11","source":"<?php try {} catch (namespace\\self $e) {}","diagnostics":[["Fatal error","Bad class name in the catch statement",1]]}
+{"name":"class references 12","source":"<?php try {} catch (A|Static $e) {}","diagnostics":[["Fatal error","Bad class name in the catch statement",1]]}
+{"name":"class references 13","source":"<?php try {\n} catch (\nA\n|\nself $e\n) {\n}","diagnostics":[["Fatal error","Bad class name in the catch statement",3]]}
+{"name":"class references 14","source":"<?php (1+1)::class;","diagnostics":[["Fatal error","Cannot use \"::class\" on int",1]]}
+{"name":"class references 16","source":"<?php (true)::class;","diagnostics":[["Fatal error","Cannot use \"::class\" on true",1]]}
+{"name":"class references 17","source":"<?php (-1)::class;","diagnostics":[["Fatal error","Cannot use \"::class\" on int",1]]}
+{"name":"class references 18","source":"<?php (\"a\" . \"b\")::class;","diagnostics":[]}
+{"name":"class references 19","source":"<?php function f() { \"self\"::class; }","diagnostics":[["Fatal error","Cannot use \"self\" when no class scope is active",1]]}
+{"name":"class references 20","source":"<?php class A { function f() { \"parent\"::class; } }","diagnostics":[["Fatal error","Cannot use \"parent\" when current class scope has no parent",1]]}
+{"name":"class references 21","source":"<?php (1)::f();","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class references 22","source":"<?php (1)::$a;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class references 24","source":"<?php new (\"self\");","diagnostics":[["Fatal error","'\\self' is an invalid class name",1]]}
+{"name":"class references 25","source":"<?php function f() { new (\"se\" . \"lf\"); }","diagnostics":[["Fatal error","'\\self' is an invalid class name",1]]}
+{"name":"class references 26","source":"<?php $a instanceof (2);","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class references 27","source":"<?php 1 instanceof self;","diagnostics":[]}
+{"name":"class references 28","source":"<?php (1.5)::C;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class references 29","source":"<?php function f() { \"parent\"::C; }","diagnostics":[["Fatal error","'\\parent' is an invalid class name",1]]}
+{"name":"class references 30","source":"<?php function f() { return static::class; }","diagnostics":[["Fatal error","Cannot use \"static\" when no class scope is active",1]]}
+{"name":"class references 31","source":"<?php function f() { new static; }","diagnostics":[["Fatal error","Cannot use \"static\" when no class scope is active",1]]}
+{"name":"class references 32","source":"<?php function f() { $a instanceof self; }","diagnostics":[["Fatal error","Cannot use \"self\" when no class scope is active",1]]}
+{"name":"class references 33","source":"<?php $f = function () { self::f(); };","diagnostics":[]}
+{"name":"class references 34","source":"<?php class A { function f() { self::class::class; } }","diagnostics":[["Fatal error","Cannot use \"::class\" on string",1]]}
+{"name":"class references 35","source":"<?php class A extends B { function f() { parent::class::class; } }","diagnostics":[["Fatal error","Cannot use \"::class\" on string",1]]}
+{"name":"class references 36","source":"<?php trait T { function f() { self::class::class; } }","diagnostics":[]}
+{"name":"class references 37","source":"<?php interface I { use self; }","diagnostics":[["Fatal error","Cannot use traits inside of interfaces. self is used in I",1]]}
+{"name":"class references 38","source":"<?php interface I { use T; }","diagnostics":[["Fatal error","Cannot use traits inside of interfaces. T is used in I",1]]}
+{"name":"class references 39","source":"<?php class A extends B implements self {}","diagnostics":[["Fatal error","Cannot use \"self\" as interface name, as it is reserved",1]]}
+{"name":"class references 40","source":"<?php #[Attr(self::class)] class A extends self {}","diagnostics":[["Fatal error","Cannot use \"self\" as class name, as it is reserved",1]]}
+{"name":"class references 41","source":"<?php enum E: int implements self {}","diagnostics":[["Fatal error","Cannot use \"self\" as interface name, as it is reserved",1]]}
+{"name":"class references 42","source":"<?php interface I extends A, Parent {}","diagnostics":[["Fatal error","Cannot use \"Parent\" as interface name, as it is reserved",1]]}
+{"name":"class references 43","source":"<?php class A { use T, static; }","diagnostics":[["Fatal error","Cannot use \"static\" as trait name, as it is reserved",1]]}
+{"name":"class references 44","source":"<?php class A { use \\self; }","diagnostics":[["Fatal error","'\\self' is an invalid class name",1]]}
+{"name":"class references 45","source":"<?php class A implements namespace\\static {}","diagnostics":[["Fatal error","Cannot use \"static\" as interface name, as it is reserved",1]]}
+{"name":"class references 46","source":"<?php namespace N; use X\\Y; class A extends Y\\Z implements Y { use Y; function f() { Y::class::class; } }","diagnostics":[["Fatal error","Cannot use \"::class\" on string",1]]}
+{"name":"class references 47","source":"<?php function f() { A::$a; B::C; new D; $a instanceof E; static::$b; }","diagnostics":[["Fatal error","Cannot use \"static\" when no class scope is active",1]]}
+{"name":"class references 48","source":"<?php function f() { $a::class; ($a . \"b\")::class; }","diagnostics":[]}
 {"name":"class members 1","source":"<?php class A { function f() {} function f() {} }","diagnostics":[["Fatal error","Cannot redeclare A::f()",1]]}
 {"name":"class members 2","source":"<?php class A { function F() {} function f() {} }","diagnostics":[["Fatal error","Cannot redeclare A::f()",1]]}
 {"name":"class members 3","source":"<?php class A { public $a; public $a; }","diagnostics":[["Fatal error","Cannot redeclare A::$a",1]]}
@@ -868,7 +913,6 @@
 {"name":"class members 22","source":"<?php interface I { protected $a { get; } }","diagnostics":[["Fatal error","Property in interface cannot be protected or private",1]]}
 {"name":"class members 23","source":"<?php interface I { private $a { get; } }","diagnostics":[["Fatal error","Property in interface cannot be protected or private",1]]}
 {"name":"class members 24","source":"<?php interface I { public static $a { get; } }","diagnostics":[["Fatal error","Cannot declare hooks for static property",1]]}
-{"name":"class members 25","source":"<?php interface I { use T; }","diagnostics":[["Fatal error","Cannot use traits inside of interfaces. T is used in I",1]]}
 {"name":"class members 26","source":"<?php interface I { public $a { get {} } }","diagnostics":[["Fatal error","Abstract property hook cannot have body",1]]}
 {"name":"class members 27","source":"<?php enum E { public $a; }","diagnostics":[["Fatal error","Enum E cannot include properties",1]]}
 {"name":"class members 28","source":"<?php enum E { public static $a; }","diagnostics":[["Fatal error","Enum E cannot include properties",1]]}

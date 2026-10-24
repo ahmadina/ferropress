@@ -26,30 +26,12 @@ declare 13
 declare 19
 declare 20
 declare 21
-class names 20
-class names 22
-class names 24
-class names 25
-class names 26
-class names 33
-class names 41
-class names 42
-class names 52
-class names 54
-class names 55
-class names 57
-class names 59
-class names 64
-class names 65
-class names 70
 functions 96
 functions 97
 functions 98
 arguments 10
 arguments 12
 arguments 13
-operators 29
-operators 32
 constants 129
 constants 131
 constants 132
@@ -77,7 +59,6 @@ class members 21
 class members 22
 class members 23
 class members 24
-class members 25
 class members 26
 class members 27
 class members 28
@@ -172,7 +153,6 @@ property hooks 37
 property hooks 38
 property hooks 39
 property hooks 40
-property hooks 41
 property hooks 42
 property hooks 44
 property hooks 49

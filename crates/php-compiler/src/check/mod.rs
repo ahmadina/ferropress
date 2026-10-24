@@ -5,6 +5,7 @@
 //! follows the same rule, so a diagnostic raised between two children reports the line of the
 //! last node visited.
 
+mod classes;
 mod constant;
 mod expr;
 mod names;
@@ -13,9 +14,8 @@ mod types;
 use std::collections::HashMap;
 
 use php_parser::ast::{
-    Case, Catch, ClassKind, ClassLike, ClassMember, ConstantGroup, Expr, ExprKind, Function,
-    FunctionBody, HookBody, Modifiers, Param, Program, Property, PropertyGroup, Stmt, StmtKind,
-    Try,
+    Case, ClassKind, ClassLike, ClassMember, ConstantGroup, Expr, ExprKind, Function, FunctionBody,
+    HookBody, Modifiers, Param, Program, Property, PropertyGroup, Stmt, StmtKind, Try,
 };
 use php_value::Value;
 
@@ -387,8 +387,10 @@ impl<'a> Checker<'a> {
             return self.fatal("Cannot use try without catch or finally");
         }
         self.stmts(&try_stmt.body)?;
-        for Catch { body, .. } in &try_stmt.catches {
-            self.stmts(body)?;
+        for catch in &try_stmt.catches {
+            self.line = catch.line;
+            self.caught_classes(&catch.types)?;
+            self.stmts(&catch.body)?;
         }
         try_stmt
             .finally
@@ -651,9 +653,9 @@ impl<'a> Checker<'a> {
         if let Some(name) = &class.name {
             self.class_declaration(class.kind, name)?;
         }
-        let parent = match (&class.kind, &class.extends) {
-            (ClassKind::Class, Some(parent)) => Some(self.resolve_class(parent)),
-            _ => None,
+        let parent = match &class.extends {
+            Some(parent) => Some(self.declared_class(parent, "class name")?),
+            None => None,
         };
         let scope = ClassScope {
             name: class.name.as_deref().map(|name| self.qualify(name)),
@@ -668,6 +670,9 @@ impl<'a> Checker<'a> {
 
     fn class_body(&mut self, class: &'a ClassLike) -> Flow {
         self.attributes(&class.attributes)?;
+        for interface in &class.implements {
+            self.declared_class(interface, "interface name")?;
+        }
         for member in &class.members {
             match member {
                 ClassMember::Method(method) => {
@@ -697,7 +702,10 @@ impl<'a> Checker<'a> {
                     }
                     self.attributes(&case.attributes)?;
                 }
-                ClassMember::TraitUse(_) => {}
+                ClassMember::TraitUse(trait_use) => {
+                    self.line = trait_use.line;
+                    self.trait_use(class.kind, trait_use)?;
+                }
             }
         }
         Ok(())

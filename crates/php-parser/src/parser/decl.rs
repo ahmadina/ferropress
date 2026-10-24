@@ -627,10 +627,10 @@ impl Parser<'_> {
         let attributes = self.attributes()?;
         let line = self.stream.peek()?.line;
         match self.peek()? {
-            K::Case => return self.enum_case(attributes, line),
+            K::Case => return self.enum_case(attributes),
             K::Var => {
                 self.bump()?;
-                return self.property_group(attributes, Modifiers::PUBLIC, line);
+                return self.property_group(attributes, Modifiers::PUBLIC);
             }
             K::Const | K::Function => {}
             kind if is_member_modifier(kind) => {}
@@ -640,7 +640,7 @@ impl Parser<'_> {
         match self.peek()? {
             K::Const => {
                 let flags = self.modifiers(Target::Constant, &tokens)?;
-                self.constant_group(attributes, with_default_visibility(flags), line)
+                self.constant_group(attributes, with_default_visibility(flags))
             }
             K::Function => {
                 let flags = self.modifiers(Target::Method, &tokens)?;
@@ -648,17 +648,18 @@ impl Parser<'_> {
             }
             _ => {
                 let flags = self.modifiers(Target::Property, &tokens)?;
-                self.property_group(attributes, flags, line)
+                self.property_group(attributes, flags)
             }
         }
     }
 
+    /// The group's line is that of its type, or of its first property when untyped.
     fn property_group(
         &mut self,
         attributes: Vec<AttributeGroup>,
         modifiers: Modifiers,
-        line: u32,
     ) -> PResult<ClassMember> {
+        let group_line = self.stream.peek()?.line;
         let property_type = self.optional_type(false)?;
         let mut properties = Vec::new();
         loop {
@@ -683,7 +684,7 @@ impl Parser<'_> {
                     property_type,
                     properties,
                     attributes,
-                    line,
+                    line: group_line,
                 }));
             }
             properties.push(Property {
@@ -702,7 +703,7 @@ impl Parser<'_> {
             property_type,
             properties,
             attributes,
-            line,
+            line: group_line,
         }))
     }
 
@@ -798,11 +799,11 @@ impl Parser<'_> {
         })))
     }
 
+    /// The group's line is that of its first constant's name.
     fn constant_group(
         &mut self,
         attributes: Vec<AttributeGroup>,
         modifiers: Modifiers,
-        line: u32,
     ) -> PResult<ClassMember> {
         self.bump()?;
         let kind = self.peek()?;
@@ -812,11 +813,15 @@ impl Parser<'_> {
             self.optional_type(true)?
         };
         let mut items = Vec::new();
+        let mut line = 0;
         loop {
             if !is_identifier(self.peek()?) {
                 return self.unexpected(&[]);
             }
             let name = self.bump()?;
+            if items.is_empty() {
+                line = name.line;
+            }
             let name = self.identifier_bytes(&name)?;
             self.expect(K::Char(b'='))?;
             let value = self.expr()?;
@@ -835,12 +840,13 @@ impl Parser<'_> {
         }))
     }
 
-    fn enum_case(&mut self, attributes: Vec<AttributeGroup>, line: u32) -> PResult<ClassMember> {
+    fn enum_case(&mut self, attributes: Vec<AttributeGroup>) -> PResult<ClassMember> {
         self.bump()?;
         if !is_identifier(self.peek()?) {
             return self.unexpected(&[]);
         }
         let name = self.bump()?;
+        let line = name.line;
         let name = self.identifier_bytes(&name)?;
         let value = if self.eat(K::Char(b'='))?.is_some() {
             Some(self.expr()?)
@@ -1081,5 +1087,34 @@ mod tests {
             with_default_visibility(Modifiers::PRIVATE),
             Modifiers::PRIVATE
         );
+    }
+
+    #[test]
+    fn member_groups_record_the_reference_lines() {
+        let source = b"<?php enum E {\n public\n int\n $a,\n $b;\n var\n $c { get; }\n const\n int\n A = 1,\n B = 2;\n case\n C;\n function\n f() {}\n}";
+        let Ok(parsed) = crate::parse(source, crate::ParseOptions::default()) else {
+            panic!("source fits");
+        };
+        let Ok(program) = parsed.result else {
+            panic!("enum parses");
+        };
+        let TopStatement::Statement(stmt) = &program.statements[0] else {
+            panic!("statement");
+        };
+        let StmtKind::Class(class) = &stmt.kind else {
+            panic!("class");
+        };
+        let lines: Vec<u32> = class
+            .members
+            .iter()
+            .map(|member| match member {
+                ClassMember::Property(group) => group.line,
+                ClassMember::Constant(group) => group.line,
+                ClassMember::EnumCase(case) => case.line,
+                ClassMember::Method(method) => method.line,
+                ClassMember::TraitUse(trait_use) => trait_use.line,
+            })
+            .collect();
+        assert_eq!(lines, [3, 7, 10, 13, 14]);
     }
 }

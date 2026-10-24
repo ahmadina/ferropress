@@ -676,7 +676,7 @@ impl<'a> Checker<'a> {
         match (&self.frame.code, &self.class) {
             (Code::Closure(_), _) => false,
             (code, None) => !matches!(code, Code::File),
-            (_, Some(class)) => !class.is_trait,
+            (_, Some(class)) => !class.is_trait(),
         }
     }
 
@@ -746,11 +746,11 @@ impl<'a> Checker<'a> {
             },
             MagicConstant::Class => match class {
                 None => b"",
-                Some(class) if class.is_trait => return None,
+                Some(class) if class.is_trait() => return None,
                 Some(class) => class.name.as_deref()?,
             },
             MagicConstant::Trait => match class {
-                Some(class) if class.is_trait => class.name.as_deref()?,
+                Some(class) if class.is_trait() => class.name.as_deref()?,
                 _ => b"",
             },
             MagicConstant::Namespace => self.namespace.as_deref().unwrap_or_default(),
@@ -960,12 +960,13 @@ impl<'a> Checker<'a> {
 
 #[cfg(test)]
 mod tests {
-    use php_parser::ast::{Program, TopStatement};
+    use std::collections::HashSet;
+
+    use php_parser::ast::{ClassKind, Modifiers, Program, TopStatement};
     use php_parser::{ParseOptions, parse};
 
     use super::*;
-    use crate::check::ClosureName;
-    use crate::check::{ClassScope, Frame};
+    use crate::check::{ClassScope, ClosureName, Frame};
 
     fn program(source: &str) -> Program {
         parse(source.as_bytes(), ParseOptions::default())
@@ -1016,8 +1017,16 @@ mod tests {
     fn class(name: Option<&str>, is_trait: bool, has_parent: bool) -> ClassScope {
         ClassScope {
             name: name.map(|name| name.as_bytes().to_vec()),
-            is_trait,
+            kind: if is_trait {
+                ClassKind::Trait
+            } else {
+                ClassKind::Class
+            },
+            modifiers: Modifiers::NONE,
             parent: has_parent.then(|| b"P".to_vec()),
+            is_backed: false,
+            properties: HashSet::new(),
+            constants: HashSet::new(),
         }
     }
 

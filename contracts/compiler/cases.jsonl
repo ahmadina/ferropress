@@ -935,6 +935,73 @@
 {"name":"methods 44","source":"<?php class A { function __serialize(): ?array {} }","diagnostics":[["Fatal error","A::__serialize(): Return type must be array when declared",1]]}
 {"name":"methods 45","source":"<?php class A { function f() {} } class B { function f() {} }","diagnostics":[]}
 {"name":"methods 46","source":"<?php class A { function __set($a, $b): ?int {} }","diagnostics":[["Fatal error","A::__set(): Return type must be void when declared",1]]}
+{"name":"members 1","source":"<?php class A { public $a, $a; }","diagnostics":[["Fatal error","Cannot redeclare A::$a",1]]}
+{"name":"members 2","source":"<?php class A { public $a; public $A; }","diagnostics":[]}
+{"name":"members 3","source":"<?php class A { public int $a = \"x\"; public $a; }","diagnostics":[["Fatal error","Cannot use string as default value for property A::$a of type int",1]]}
+{"name":"members 4","source":"<?php class A { public $a = new B; public $a; }","diagnostics":[["Fatal error","New expressions are not supported in this context",1]]}
+{"name":"members 5","source":"<?php enum E { const A = 1; }","diagnostics":[]}
+{"name":"members 6","source":"<?php enum E: int { case A = 1; public $a; }","diagnostics":[["Fatal error","Enum E cannot include properties",1]]}
+{"name":"members 7","source":"<?php final class A { final private int $a; }","diagnostics":[["Fatal error","Property cannot be both final and private",1]]}
+{"name":"members 8","source":"<?php interface I { final protected $a { get; } }","diagnostics":[["Fatal error","Property in interface cannot be final",1]]}
+{"name":"members 9","source":"<?php interface I { public $a { get; } public $a { get; } }","diagnostics":[["Fatal error","Cannot redeclare I::$a",1]]}
+{"name":"members 10","source":"<?php class A { abstract public $a { get; } }","diagnostics":[["Fatal error","Class A contains 1 abstract method and must therefore be declared abstract or implement the remaining method (A::$a::get)",1]]}
+{"name":"members 11","source":"<?php abstract class A { abstract public int $a { get; } }","diagnostics":[]}
+{"name":"members 12","source":"<?php class A { readonly public int $a; readonly public $b; }","diagnostics":[["Fatal error","Readonly property A::$b must have type",1]]}
+{"name":"members 13","source":"<?php readonly class A { public int $a = 1; }","diagnostics":[["Fatal error","Readonly property A::$a cannot have default value",1]]}
+{"name":"members 14","source":"<?php readonly class A { public static $a; }","diagnostics":[["Fatal error","Readonly property A::$a must have type",1]]}
+{"name":"members 15","source":"<?php class A { public readonly static int $a; }","diagnostics":[["Fatal error","Static property A::$a cannot be readonly",1]]}
+{"name":"members 16","source":"<?php class A { public private(set) $a; }","diagnostics":[["Fatal error","Property with asymmetric visibility A::$a must have type",1]]}
+{"name":"members 17","source":"<?php class A { private public(set) int $a; }","diagnostics":[["Fatal error","Visibility of property A::$a must not be weaker than set visibility",1]]}
+{"name":"members 18","source":"<?php class A { protected private(set) int $a; public protected(set) int $b; }","diagnostics":[]}
+{"name":"members 19","source":"<?php class A { private(set) int $a; }","diagnostics":[]}
+{"name":"members 20","source":"<?php class A { public readonly int $a; protected readonly int $b; }","diagnostics":[]}
+{"name":"members 21","source":"<?php class A { public public(set) $a; }","diagnostics":[["Fatal error","Property with asymmetric visibility A::$a must have type",1]]}
+{"name":"members 22","source":"<?php class A { public readonly public(set) int $a; }","diagnostics":[]}
+{"name":"members 23","source":"<?php class A { public void $a; public int $a; }","diagnostics":[["Fatal error","Property A::$a cannot have type void",1]]}
+{"name":"members 24","source":"<?php class A { var callable $a; }","diagnostics":[["Fatal error","Property A::$a cannot have type callable",1]]}
+{"name":"members 25","source":"<?php class A { function __construct(public $a, public $a) {} }","diagnostics":[["Fatal error","Redefinition of parameter $a",1]]}
+{"name":"members 26","source":"<?php class A { function __construct(public $a, $a) {} }","diagnostics":[["Fatal error","Redefinition of parameter $a",1]]}
+{"name":"members 27","source":"<?php class A { function __Construct(public int $a, private ?callable $b = null) {} }","diagnostics":[["Fatal error","Property A::$b cannot have type ?callable",1]]}
+{"name":"members 28","source":"<?php class A { function __construct(public $a) {} function f() { $g = function (public $b) {}; } }","diagnostics":[["Fatal error","Cannot declare promoted property outside a constructor",1]]}
+{"name":"members 29","source":"<?php trait T { function __construct(public $a) {} }","diagnostics":[]}
+{"name":"members 30","source":"<?php enum E { function __construct(public $a) {} }","diagnostics":[]}
+{"name":"members 31","source":"<?php new class { function __construct(public readonly int $a) {} };","diagnostics":[]}
+{"name":"members 32","source":"<?php readonly class A { function __construct(public $a) {} }","diagnostics":[["Fatal error","Readonly property A::$a must have type",1]]}
+{"name":"members 33","source":"<?php readonly class A { function __construct(public int $a) {} public int $b; }","diagnostics":[]}
+{"name":"members 34","source":"<?php class A { function __construct(private(set) $a) {} }","diagnostics":[["Fatal error","Property with asymmetric visibility A::$a must have type",1]]}
+{"name":"members 35","source":"<?php class A { function __construct(public protected(set) int $a, protected public(set) int $b) {} }","diagnostics":[["Fatal error","Visibility of property A::$b must not be weaker than set visibility",1]]}
+{"name":"members 36","source":"<?php class A { function __construct(final $a) {} }","diagnostics":[]}
+{"name":"members 37","source":"<?php class A { function __construct(final private int $a) {} }","diagnostics":[]}
+{"name":"members 38","source":"<?php abstract class A { function __construct(public ...$a); }","diagnostics":[["Fatal error","Non-abstract method A::__construct() must contain body",1]]}
+{"name":"members 39","source":"<?php class A { function __construct(int $a, public ...$b) {} }","diagnostics":[["Fatal error","Cannot declare variadic promoted property",1]]}
+{"name":"members 40","source":"<?php class A { const B = 1, B = 2; }","diagnostics":[["Fatal error","Cannot redefine class constant A::B",1]]}
+{"name":"members 42","source":"<?php class A { const CLASS = 1; }","diagnostics":[["Fatal error","A class constant must not be called 'class'; it is reserved for class name fetching",1]]}
+{"name":"members 43","source":"<?php interface I { const class = 1; }","diagnostics":[["Fatal error","A class constant must not be called 'class'; it is reserved for class name fetching",1]]}
+{"name":"members 44","source":"<?php interface I { private const class = 1; }","diagnostics":[["Fatal error","Access type for interface constant I::class must be public",1]]}
+{"name":"members 45","source":"<?php class A { private final const CLASS = 1; }","diagnostics":[["Fatal error","Private constant A::CLASS cannot be final as it is not visible to other classes",1]]}
+{"name":"members 46","source":"<?php class A { final protected const B = 1; public const B = 2; }","diagnostics":[["Fatal error","Cannot redefine class constant A::B",1]]}
+{"name":"members 47","source":"<?php enum E: string { case A = \"a\"; case B; }","diagnostics":[["Fatal error","Case B of backed enum E must have a value",1]]}
+{"name":"members 48","source":"<?php enum E { case A; case B = 1; }","diagnostics":[["Fatal error","Case B of non-backed enum E must not have a value",1]]}
+{"name":"members 49","source":"<?php enum E: int { case A = 1; const A = 2; }","diagnostics":[["Fatal error","Cannot redefine class constant E::A",1]]}
+{"name":"members 50","source":"<?php enum E { const A = 1; case A; }","diagnostics":[["Fatal error","Cannot redefine class constant E::A",1]]}
+{"name":"members 51","source":"<?php enum E { case class; }","diagnostics":[["Fatal error","A class constant must not be called 'class'; it is reserved for class name fetching",1]]}
+{"name":"members 52","source":"<?php enum E: int { case A = 1; case A = 2; }","diagnostics":[["Fatal error","Cannot redefine class constant E::A",1]]}
+{"name":"members 53","source":"<?php enum E: string|int {}","diagnostics":[["Fatal error","Enum backing type must be int or string, string|int given",1]]}
+{"name":"members 54","source":"<?php enum E: mixed {}","diagnostics":[["Fatal error","Enum backing type must be int or string, mixed given",1]]}
+{"name":"members 55","source":"<?php enum E: bool {}","diagnostics":[["Fatal error","Enum backing type must be int or string, bool given",1]]}
+{"name":"members 56","source":"<?php enum E: static {}","diagnostics":[["Fatal error","Enum backing type must be int or string, static given",1]]}
+{"name":"members 57","source":"<?php enum E: \\Foo {}","diagnostics":[["Fatal error","Enum backing type must be int or string, Foo given",1]]}
+{"name":"members 58","source":"<?php enum E: INT { case A = 1; }","diagnostics":[]}
+{"name":"members 59","source":"<?php enum E: ?string { case A; }","diagnostics":[["Fatal error","Enum backing type must be int or string, ?string given",1]]}
+{"name":"members 61","source":"<?php class A { case B = 1; }","diagnostics":[["Fatal error","Case can only be used in enums",1]]}
+{"name":"members 62","source":"<?php interface I { const A = 1; const A = 2; }","diagnostics":[["Fatal error","Cannot redefine class constant I::A",1]]}
+{"name":"members 63","source":"<?php trait T { const A = 1; const A = 2; }","diagnostics":[["Fatal error","Cannot redefine class constant T::A",1]]}
+{"name":"members 64","source":"<?php new class { const A = 1; const A = 2; };","diagnostics":[["Fatal error","Cannot redefine class constant class@anonymous::A",1]]}
+{"name":"members 65","source":"<?php class A { const A = 1; } class B { const A = 1; }","diagnostics":[]}
+{"name":"members 66","source":"<?php class A { public $a; } class B { public $a; }","diagnostics":[]}
+{"name":"members 67","source":"<?php class A { public $a; function f() { new class { public $a; }; } }","diagnostics":[]}
+{"name":"members 68","source":"<?php class A {\n  public $a;\n  public\n  $a;\n}","diagnostics":[["Fatal error","Cannot redeclare A::$a",4]]}
+{"name":"members 69","source":"<?php enum E {\n  case A;\n  case\n  A;\n}","diagnostics":[["Fatal error","Cannot redefine class constant E::A",4]]}
 {"name":"class members 1","source":"<?php class A { function f() {} function f() {} }","diagnostics":[["Fatal error","Cannot redeclare A::f()",1]]}
 {"name":"class members 2","source":"<?php class A { function F() {} function f() {} }","diagnostics":[["Fatal error","Cannot redeclare A::f()",1]]}
 {"name":"class members 3","source":"<?php class A { public $a; public $a; }","diagnostics":[["Fatal error","Cannot redeclare A::$a",1]]}
@@ -1032,7 +1099,6 @@
 {"name":"class members 100","source":"<?php function f() { class A {} }","diagnostics":[]}
 {"name":"class members 101","source":"<?php class A { function f() { $a = function () { class B {} }; } }","diagnostics":[["Fatal error","Class declarations may not be nested",1]]}
 {"name":"class members 102","source":"<?php class A { function f() { $a = new class {}; } }","diagnostics":[]}
-{"name":"class members 103","source":"<?php class A { function __construct(public $a, public $a) {} }","diagnostics":[["Fatal error","Redefinition of parameter $a",1]]}
 {"name":"class members 104","source":"<?php class A { function f(public $a) {} }","diagnostics":[["Fatal error","Cannot declare promoted property outside a constructor",1]]}
 {"name":"class members 105","source":"<?php abstract class A { abstract function __construct(public $a); }","diagnostics":[["Fatal error","Cannot declare promoted property in an abstract constructor",1]]}
 {"name":"class members 106","source":"<?php class A { function __construct(public ...$a) {} }","diagnostics":[["Fatal error","Cannot declare variadic promoted property",1]]}
@@ -1044,8 +1110,6 @@
 {"name":"class members 112","source":"<?php class A { function __construct(public readonly $a) {} }","diagnostics":[["Fatal error","Readonly property A::$a must have type",1]]}
 {"name":"class members 113","source":"<?php class A { function __construct(readonly int $a) {} }","diagnostics":[]}
 {"name":"class members 114","source":"<?php class A { function __construct(static $a) {} }","diagnostics":[["Fatal error","Cannot use the static modifier on a parameter",1]]}
-{"name":"class members 115","source":"<?php trait T { function __construct(public $a) {} }","diagnostics":[]}
-{"name":"class members 116","source":"<?php enum E { function __construct(public $a) {} }","diagnostics":[]}
 {"name":"class members 117","source":"<?php class A { function __construct(public $a = new B) {} }","diagnostics":[]}
 {"name":"class members 118","source":"<?php new class(1) { function __construct(public $a) {} };","diagnostics":[]}
 {"name":"class members 119","source":"<?php class A { function __construct(private(set) int $a) {} }","diagnostics":[]}
@@ -1094,7 +1158,6 @@
 {"name":"property hooks 31","source":"<?php class A { public $a = 1 { set => 1; } }","diagnostics":[]}
 {"name":"property hooks 32","source":"<?php class A { private(set) $a; }","diagnostics":[["Fatal error","Property with asymmetric visibility A::$a must have type",1]]}
 {"name":"property hooks 33","source":"<?php class A { protected public(set) int $a; }","diagnostics":[["Fatal error","Visibility of property A::$a must not be weaker than set visibility",1]]}
-{"name":"property hooks 34","source":"<?php class A { private public(set) int $a; }","diagnostics":[["Fatal error","Visibility of property A::$a must not be weaker than set visibility",1]]}
 {"name":"property hooks 35","source":"<?php class A { public private(set) int $a; }","diagnostics":[]}
 {"name":"property hooks 36","source":"<?php class A { public $a { get => parent::$b::get(); } }","diagnostics":[["Fatal error","Must not use parent::$b::get() in a different property ($a)",1]]}
 {"name":"property hooks 37","source":"<?php class A { public $a { get => parent::$a::set(); } }","diagnostics":[["Fatal error","Must not use parent::$a::set() in a different property hook (get)",1]]}

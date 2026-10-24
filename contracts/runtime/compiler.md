@@ -486,23 +486,110 @@ The checks run in this order; each failure is fatal unless noted:
    `object` is allowed: "A::__isset(): Return type must be bool when declared". A type including
    `never` always fits.
 
-## Properties and class constants
+## Properties, class constants and enum cases
 
-The type is compiled for each property or constant in a group.
+Messages name a member `Class::$a` or `Class::A`. The class is named by its namespaced name, or
+`class@anonymous` for an anonymous class. Member names are compared case-sensitively.
 
-- **Property types.** `void`, `never` and `callable` (also within a union) are rejected: "Property
-  A::$a cannot have type ?callable".
-- **Property defaults.** A folded default must fit.
-  - `null` on a type that is not an intersection gives: "Default value for property of type int may
-    not be null. Use the nullable type ?int to allow null default value".
-  - Anything else gives: "Cannot use true as default value for property A::$a of type int".
-- **Class constant types.** Other than `mixed`, a type with `callable`, `void` or `never` is rejected:
-  "Class constant A::B cannot have type callable".
-- **Class constant values.** A folded value must fit: "Cannot use bool as value for class constant
-  A::B of type int".
+### Lines
 
-Anonymous classes are named `class@anonymous` in these messages.
+- A property group reports on the line of its type, or on the line of its first property if it is
+  untyped. The modifiers' line does not count.
+- A constant group reports on the line of its first constant's name.
+- An enum case reports on the line of its name.
+- Promoted properties report on the constructor's line.
+
+### Enum backing types
+
+An enum's backing type is checked before any member. Only `int` or `string` are accepted
+(case-insensitively). Anything else is fatal: "Enum backing type must be int or string, ?string
+given". The type is printed as for declared types, so a class written `\Foo` prints as `Foo`.
+
+### Property groups
+
+These checks run once per group, before its properties:
+
+1. In an enum: "Enum E cannot include properties".
+2. Final together with private: "Property cannot be both final and private".
+3. In an interface:
+   - final is rejected: "Property in interface cannot be final";
+   - protected or private gives "Property in interface cannot be protected or private";
+   - abstract gives "Property in interface cannot be explicitly abstract. All interface members are
+     implicitly abstract".
+
+### Properties
+
+A property without hooks is checked first:
+
+- in an interface: "Interfaces may only include hooked properties";
+- when abstract: "Only hooked properties may be declared abstract".
+
+The remaining checks run in this order:
+
+1. **Type.** `void`, `never` and `callable` (also within a union) are rejected: "Property A::$a
+   cannot have type ?callable".
+2. **Redeclaration.** A name already declared in the class gives "Cannot redeclare A::$a". Promoted
+   properties count too.
+3. **Default.** A folded default must fit the type.
+   - `null` on a type that is not an intersection gives: "Default value for property of type int may
+     not be null. Use the nullable type ?int to allow null default value".
+   - Anything else gives: "Cannot use true as default value for property A::$a of type int".
+4. **Readonly.** Every property of a readonly class is readonly. A readonly property:
+   - must be typed ("Readonly property A::$a must have type");
+   - may not have a default ("Readonly property A::$a cannot have default value");
+   - may not be static ("Static property A::$a cannot be readonly").
+5. **Asymmetric visibility.** With a set visibility, the property must be typed: "Property with
+   asymmetric visibility A::$a must have type". Its get visibility must not be weaker than its set
+   visibility: "Visibility of property A::$a must not be weaker than set visibility". Public is
+   weakest and private is strongest.
+
+The hooks and attributes compile after these checks.
+
+### Promoted properties
+
+A parameter with a visibility, set visibility, readonly or final modifier, or with hooks, promotes a
+property. Its checks run in this order:
+
+1. Outside a constructor: "Cannot declare promoted property outside a constructor".
+2. In an abstract constructor, or any interface constructor: "Cannot declare promoted property in an
+   abstract constructor".
+3. A variadic parameter: "Cannot declare variadic promoted property".
+4. "Cannot redeclare A::$a".
+5. A `callable` type: "Property A::$a cannot have type callable".
+6. Readonly without a type and without hooks: "Readonly property A::$a must have type".
+7. The asymmetric visibility checks for properties.
+
+### Class constants
+
+For each constant in a group, the constant is declared first. Declaring checks, in order:
+
+1. In an interface, a protected or private constant: "Access type for interface constant I::A must be
+   public".
+2. A constant named `class` (case-insensitively): "A class constant must not be called 'class'; it is
+   reserved for class name fetching".
+3. A name already declared as a constant or a case: "Cannot redefine class constant A::B".
+
+The type and value checks follow:
+
+- **Type.** Other than `mixed`, a type with `callable`, `void` or `never` is rejected: "Class constant
+  A::B cannot have type callable".
+- **Private final.** "Private constant A::B cannot be final as it is not visible to other classes".
+- **Value.** A folded value must fit: "Cannot use bool as value for class constant A::B of type int".
+
+### Enum cases
+
+Checks run in this order:
+
+1. Outside an enum: "Case can only be used in enums".
+2. A backed enum's case without a value: "Case B of backed enum E must have a value". A non-backed
+   enum's case with one: "Case B of non-backed enum E must not have a value".
+3. The value compiles.
+4. The case is declared like a constant.
+5. The attributes compile.
 
 ### Not yet implemented
 
-- Promoted constructor parameters: their placement checks and the `callable` property type check.
+- Property hook checks.
+- The class-level checks that run when a class is linked. One example is the abstract-member count:
+  "Class A contains 1 abstract method and must therefore be declared abstract or implement the
+  remaining method (A::$a::get)".

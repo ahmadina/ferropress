@@ -32,58 +32,12 @@ functions 98
 arguments 10
 arguments 12
 arguments 13
-constants 129
-constants 131
-constants 132
-constants 133
-constants 149
-class members 3
-class members 4
-class members 5
-class members 18
-class members 20
-class members 21
-class members 22
-class members 23
+members 10
 class members 24
 class members 26
-class members 27
-class members 28
-class members 34
-class members 35
-class members 36
-class members 37
-class members 38
-class members 39
-class members 40
-class members 41
-class members 42
-class members 43
-class members 44
-class members 47
-class members 48
-class members 49
-class members 51
-class members 52
-class members 53
-class members 54
-class members 55
-class members 104
-class members 105
-class members 106
-class members 107
-class members 108
-class members 109
-class members 110
-class members 111
-class members 112
-class members 120
 class members 123
 class members 124
 class members 126
-class members 127
-class members 129
-class members 132
 property hooks 1
 property hooks 2
 property hooks 3
@@ -102,9 +56,6 @@ property hooks 19
 property hooks 20
 property hooks 21
 property hooks 29
-property hooks 32
-property hooks 33
-property hooks 34
 property hooks 36
 property hooks 37
 property hooks 38
@@ -115,8 +66,6 @@ property hooks 44
 property hooks 49
 property hooks 50
 property hooks 51
-property hooks 52
-property hooks 53
 property hooks 56
 property hooks 57
 property hooks 59
@@ -147,7 +96,6 @@ traits 1
 traits 2
 lines 4
 lines 8
-lines 19
 lines 21
 lines 23
 parser error property hook list empty

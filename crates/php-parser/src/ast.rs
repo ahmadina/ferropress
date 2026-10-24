@@ -999,7 +999,7 @@ pub struct PropertyGroup {
     pub properties: Vec<Property>,
     /// The attributes.
     pub attributes: Vec<AttributeGroup>,
-    /// Line of the declaration.
+    /// Line of the type, or of the first property when untyped.
     pub line: u32,
 }
 
@@ -1059,7 +1059,7 @@ pub struct ConstantGroup {
     pub items: Vec<ConstItem>,
     /// The attributes.
     pub attributes: Vec<AttributeGroup>,
-    /// Line of the declaration.
+    /// Line of the first constant's name.
     pub line: u32,
 }
 
@@ -1072,7 +1072,7 @@ pub struct EnumCase {
     pub value: Option<Expr>,
     /// The attributes.
     pub attributes: Vec<AttributeGroup>,
-    /// Line of the case.
+    /// Line of the name.
     pub line: u32,
 }
 

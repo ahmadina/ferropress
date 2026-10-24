@@ -13,10 +13,11 @@ mod methods;
 mod names;
 mod types;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use php_parser::ast::{
-    Case, Expr, ExprKind, Function, FunctionBody, Modifiers, Param, Program, Stmt, StmtKind, Try,
+    Case, ClassKind, Expr, ExprKind, Function, FunctionBody, Modifiers, Param, Program, Stmt,
+    StmtKind, Try,
 };
 use php_value::Value;
 
@@ -119,12 +120,24 @@ impl Frame {
 struct ClassScope {
     /// The namespaced name; `None` for an anonymous class, whose name holds the file path.
     name: Option<Vec<u8>>,
-    is_trait: bool,
+    kind: ClassKind,
+    /// `abstract`, `final` and `readonly` as declared.
+    modifiers: Modifiers,
     /// The resolved name of the class a class extends.
     parent: Option<Vec<u8>>,
+    /// Whether the class is an enum with a valid backing type.
+    is_backed: bool,
+    /// The properties declared so far, including promoted ones.
+    properties: HashSet<Vec<u8>>,
+    /// The constants and enum cases declared so far.
+    constants: HashSet<Vec<u8>>,
 }
 
 impl ClassScope {
+    fn is_trait(&self) -> bool {
+        self.kind == ClassKind::Trait
+    }
+
     /// The name the reference prints in messages about the class.
     fn label(&self) -> &[u8] {
         self.name.as_deref().unwrap_or(ANONYMOUS_CLASS)
@@ -430,15 +443,16 @@ impl<'a> Checker<'a> {
         }
         let is_free = matches!(code, Code::Function(_));
         let outer = std::mem::replace(&mut self.frame, Frame::new(code));
-        let outer_class = self.class.clone();
         let result = self.attributes(&function.attributes).and_then(|()| {
-            if is_free {
-                self.class = None;
+            if !is_free {
+                return self.function_inner(function);
             }
-            self.function_inner(function)
+            let outer_class = self.class.take();
+            let result = self.function_inner(function);
+            self.class = outer_class;
+            result
         });
         let frame = std::mem::replace(&mut self.frame, outer);
-        self.class = outer_class;
         result.map(|()| frame)
     }
 
@@ -504,6 +518,9 @@ impl<'a> Checker<'a> {
                 .filter(|&last| index < last)
                 .map(|last| function.params[last].name.as_slice());
             self.param(&function.params[..index], param, required)?;
+            if param.hooks.is_some() || param.modifiers.intersects(PROMOTION) {
+                self.promoted_property(function, param)?;
+            }
         }
         if let (true, Some(returns)) = (function.is_generator, &returns)
             && !returns.admits_generators()

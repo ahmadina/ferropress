@@ -883,8 +883,9 @@ sides compile. Reads, `isset()` and function arguments are not writes.
 
 ### Coalescing assignment
 
-`target ??= value` first checks that the target is writable, as other assignments do. Then it
-compiles the target for an `isset()`-style read, so `[]` without an index fails as "Cannot use [] for
+`target ??= value` first checks that the target is writable, as other assignments do. A target that
+is `$this` is then a fatal error: "Cannot re-assign $this" (other compound assignments and `++` on
+`$this` are accepted when compiling). Then it compiles the target for an `isset()`-style read, so `[]` without an index fails as "Cannot use [] for
 reading". Then it compiles the value. Finally it checks the write: a container that is a temporary
 expression fails as "Cannot use temporary expression in write context", and a created closure fails
 as above.
@@ -907,6 +908,9 @@ take reference of a nullsafe chain".
   compile for reading. A generator's `&` applies to its yields, so its `return` statements read. An
   arrow function's body is such a `return`, unless its return type is `never`, in which case the body
   is only read.
+- **`yield`** in a function that returns by reference: its key compiles first, for reading, then a
+  yielded variable compiles for writing as above, so `yield $a[];` is accepted and `yield $a?->b;`
+  fails. Without `&`, both compile for reading, key first.
 - **`list()` with a by-reference item**, at any depth: the assigned value must be a variable or a call
   (a pipe counts as a call): "Cannot assign reference to non referenceable value". Then a skippable
   chain fails as above. The value then compiles for writing.

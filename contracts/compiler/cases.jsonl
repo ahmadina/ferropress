@@ -359,6 +359,29 @@
 {"name":"namespace resets 7","source":"<?php { class C {} } use B\\C;","diagnostics":[["Fatal error","Cannot use B\\C as C because the name is already in use",1]]}
 {"name":"namespace resets 8","source":"<?php namespace { function g(){} } namespace { use function B\\g; }","diagnostics":[]}
 {"name":"namespace resets 9","source":"<?php namespace A { function g(){} } namespace { use function A\\g; } namespace A { use function g; }","diagnostics":[]}
+{"name":"yielded references 1","source":"<?php function a() { $this ??= 1; }","diagnostics":[["Fatal error","Cannot re-assign $this",1]]}
+{"name":"yielded references 2","source":"<?php function a() { $this += 1; }","diagnostics":[]}
+{"name":"yielded references 3","source":"<?php function a() { $this++; }","diagnostics":[]}
+{"name":"yielded references 4","source":"<?php $this ??= f();","diagnostics":[["Fatal error","Cannot re-assign $this",1]]}
+{"name":"yielded references 5","source":"<?php function &g($o) { yield $o?->y; }","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
+{"name":"yielded references 6","source":"<?php function &g($o) { yield $o?->y => 1; }","diagnostics":[]}
+{"name":"yielded references 7","source":"<?php function &g($o) { yield 1 => $o?->y; }","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
+{"name":"yielded references 8","source":"<?php function g($o) { yield $o?->y; }","diagnostics":[]}
+{"name":"yielded references 9","source":"<?php function &g() { yield f(); }","diagnostics":[]}
+{"name":"yielded references 10","source":"<?php function &g() { yield $GLOBALS; }","diagnostics":[]}
+{"name":"yielded references 11","source":"<?php function &g() { yield $this; }","diagnostics":[]}
+{"name":"yielded references 12","source":"<?php function &g() { yield \"a\"::$b; }","diagnostics":[]}
+{"name":"yielded references 13","source":"<?php function &g() { yield $a[]; }","diagnostics":[]}
+{"name":"yielded references 14","source":"<?php function g() { yield $a[]; }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"yielded references 15","source":"<?php function &g() { yield $a->b?->c->d; }","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
+{"name":"yielded references 16","source":"<?php function &g() { yield ($a?->b)->c; }","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
+{"name":"yielded references 17","source":"<?php $f = fn&() => yield $a?->b;","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
+{"name":"yielded references 18","source":"<?php function g() { yield\n $a[] =>\n $b[]; }","diagnostics":[["Fatal error","Cannot use [] for reading",2]]}
+{"name":"yielded references 19","source":"<?php function &g() { yield\n $a[] =>\n $o?->b; }","diagnostics":[["Fatal error","Cannot use [] for reading",2]]}
+{"name":"yielded references 20","source":"<?php function &g() { yield\n $a?->b =>\n $o[]; }","diagnostics":[]}
+{"name":"yielded references 21","source":"<?php function &g() { yield $a::$b; yield $a->b; yield ${\"a\"}; yield $a[1][2]; }","diagnostics":[]}
+{"name":"yielded references 22","source":"<?php function &g() { yield; }","diagnostics":[]}
+{"name":"yielded references 23","source":"<?php function &g() { yield $a => $b; }","diagnostics":[]}
 {"name":"misc rules 1","source":"<?php $this?->b(...);","diagnostics":[]}
 {"name":"misc rules 2","source":"<?php $this?->a->b(...);","diagnostics":[]}
 {"name":"misc rules 3","source":"<?php $this?->a?->b(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}

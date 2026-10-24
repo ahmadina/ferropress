@@ -219,13 +219,7 @@ impl<'a> Checker<'a> {
                     self.expr(operand)
                 }
             }
-            ExprKind::Yield { key, value } => {
-                self.mark_generator()?;
-                if let Some(value) = value {
-                    self.expr(value)?;
-                }
-                key.as_ref().map_or(Ok(()), |key| self.expr(key))
-            }
+            ExprKind::Yield { key, value } => self.yield_expr(key.as_deref(), value.as_deref()),
             ExprKind::YieldFrom(operand) => {
                 self.mark_generator()?;
                 if self.frame.by_ref {
@@ -241,11 +235,26 @@ impl<'a> Checker<'a> {
         }
     }
 
+    fn yield_expr(&mut self, key: Option<&'a Expr>, value: Option<&'a Expr>) -> Flow {
+        self.mark_generator()?;
+        if let Some(key) = key {
+            self.expr(key)?;
+        }
+        match value {
+            Some(value) if self.frame.by_ref => self.reference_value(value),
+            Some(value) => self.expr(value),
+            None => Ok(()),
+        }
+    }
+
     fn compound_assign(&mut self, op: AssignOp, target: &'a Expr, value: &'a Expr) -> Flow {
         self.ensure_writable(target)?;
         if op != AssignOp::Coalesce {
             self.var(target, Fetch::ReadWrite)?;
             return self.expr(value);
+        }
+        if is_this(target) {
+            return self.fatal("Cannot re-assign $this");
         }
         self.var(target, Fetch::Isset)?;
         self.expr(value)?;
@@ -571,7 +580,16 @@ impl<'a> Checker<'a> {
     /// Compiles the value of a `return`. A function returning by reference, other than a
     /// generator, fetches a returned variable for writing.
     pub(super) fn return_value(&mut self, value: &'a Expr) -> Flow {
-        if !self.frame.by_ref || self.frame.is_generator || !is_variable(value) {
+        if !self.frame.by_ref || self.frame.is_generator {
+            return self.expr(value);
+        }
+        self.reference_value(value)
+    }
+
+    /// Compiles a value handed out by reference: a variable is fetched for writing, anything else
+    /// is compiled as a value.
+    fn reference_value(&mut self, value: &'a Expr) -> Flow {
+        if !is_variable(value) {
             return self.expr(value);
         }
         if is_short_circuited(value) {
@@ -815,6 +833,26 @@ mod tests {
             ("fn&() => $a?->b;", &[chain]),
             ("fn&() => $a[];", &[]),
             ("fn&(): never => $a?->b;", &[]),
+            ("function &g($o) { yield $o?->y; }", &[chain]),
+            ("function &g($o) { yield 1 => $o?->y; }", &[chain]),
+            (
+                "function &g($o) { yield $o?->y => 1; yield $a[]; yield f(); }",
+                &[],
+            ),
+            ("function g($o) { yield $o?->y; }", &[]),
+            (
+                "function g() { yield $a[]; }",
+                &["Cannot use [] for reading @1"],
+            ),
+            (
+                "function &g() { yield\n$a[] => $o?->b; }",
+                &["Cannot use [] for reading @2"],
+            ),
+            (
+                "function a() { $this ??= 1; }",
+                &["Cannot re-assign $this @1"],
+            ),
+            ("function a() { $this += 1; $this++; }", &[]),
             ("list(&$a) = [1];", &[unreferenceable]),
             ("[&$y] = $y->y?->y;", &[chain]),
             ("[&$y] = f();", &[]),

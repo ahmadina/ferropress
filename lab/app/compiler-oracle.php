@@ -166,6 +166,18 @@ function compiler_topic_cases(): array {
 			'namespace { function g(){} } namespace { use function B\\g; }',
 			'namespace A { function g(){} } namespace { use function A\\g; } namespace A { use function g; }',
 		),
+		'yielded references' => array(
+			'function a() { $this ??= 1; }', 'function a() { $this += 1; }', 'function a() { $this++; }',
+			'$this ??= f();', 'function &g($o) { yield $o?->y; }', 'function &g($o) { yield $o?->y => 1; }',
+			'function &g($o) { yield 1 => $o?->y; }', 'function g($o) { yield $o?->y; }',
+			'function &g() { yield f(); }', 'function &g() { yield $GLOBALS; }', 'function &g() { yield $this; }',
+			'function &g() { yield "a"::$b; }', 'function &g() { yield $a[]; }', 'function g() { yield $a[]; }',
+			'function &g() { yield $a->b?->c->d; }', 'function &g() { yield ($a?->b)->c; }',
+			'$f = fn&() => yield $a?->b;', "function g() { yield\n \$a[] =>\n \$b[]; }",
+			"function &g() { yield\n \$a[] =>\n \$o?->b; }", "function &g() { yield\n \$a?->b =>\n \$o[]; }",
+			'function &g() { yield $a::$b; yield $a->b; yield ${"a"}; yield $a[1][2]; }',
+			'function &g() { yield; }', 'function &g() { yield $a => $b; }',
+		),
 		'misc rules'         => array(
 			'$this?->b(...);', '$this?->a->b(...);', '$this?->a?->b(...);',
 			'$a?->b::c(...);', 'f($a?->b)->c(...);', '$a?->b()->c(...);',

@@ -247,6 +247,8 @@ pub struct Catch {
 pub struct ConstItem {
     /// The name.
     pub name: Vec<u8>,
+    /// The line of the name.
+    pub line: u32,
     /// The value.
     pub value: Expr,
 }

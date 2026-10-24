@@ -825,10 +825,15 @@ impl Parser<'_> {
             if items.is_empty() {
                 line = name.line;
             }
+            let name_line = name.line;
             let name = self.identifier_bytes(&name)?;
             self.expect(K::Char(b'='))?;
             let value = self.expr()?;
-            items.push(ConstItem { name, value });
+            items.push(ConstItem {
+                name,
+                line: name_line,
+                value,
+            });
             if self.eat(COMMA)?.is_none() {
                 break;
             }

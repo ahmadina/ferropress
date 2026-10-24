@@ -222,7 +222,11 @@ impl Parser<'_> {
             let name = self.text(&tok).to_vec();
             self.expect(K::Char(b'='))?;
             let value = self.expr()?;
-            items.push(ConstItem { name, value });
+            items.push(ConstItem {
+                name,
+                line: tok.line,
+                value,
+            });
             if self.eat(COMMA)?.is_none() {
                 break;
             }
@@ -741,7 +745,11 @@ impl Parser<'_> {
             let name = self.text(&tok).to_vec();
             self.expect(K::Char(b'='))?;
             let value = self.expr()?;
-            directives.push(ConstItem { name, value });
+            directives.push(ConstItem {
+                name,
+                line: tok.line,
+                value,
+            });
             if self.eat(COMMA)?.is_none() {
                 break;
             }
@@ -849,5 +857,30 @@ mod tests {
         };
         let lines: Vec<u32> = parts.catches.iter().map(|catch| catch.line).collect();
         assert_eq!(lines, [3, 5]);
+    }
+
+    #[test]
+    fn constants_and_directives_record_the_line_of_their_name() {
+        let source = b"<?php const\nA = 1,\nB = 2;\ndeclare(\nticks\n=\n1, foo=2);";
+        let program = parse(source, ParseOptions::default())
+            .unwrap()
+            .result
+            .unwrap();
+        let [
+            TopStatement::Const { items, .. },
+            TopStatement::Statement(stmt),
+        ] = program.statements.as_slice()
+        else {
+            panic!("a constant and a declare statement expected");
+        };
+        let StmtKind::Declare { directives, .. } = &stmt.kind else {
+            panic!("a declare statement expected");
+        };
+        let lines: Vec<u32> = items
+            .iter()
+            .chain(directives)
+            .map(|item| item.line)
+            .collect();
+        assert_eq!(lines, [2, 3, 5, 7]);
     }
 }

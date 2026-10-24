@@ -312,6 +312,14 @@
 {"name":"reference values 25","source":"<?php function () use ($b) { static $a; };","diagnostics":[]}
 {"name":"reference values 26","source":"<?php class A { function &f() { return $this->a?->b; } }","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
 {"name":"reference values 27","source":"<?php [&$a] = $b?->c();","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
+{"name":"namespace names 1","source":"<?php namespace NAMEspace;","diagnostics":[["Fatal error","Cannot use 'NAMEspace' as namespace name",1]]}
+{"name":"namespace names 2","source":"<?php namespace namespace;","diagnostics":[["Fatal error","Cannot use 'namespace' as namespace name",1]]}
+{"name":"namespace names 3","source":"<?php namespace Namespace\\A;","diagnostics":[["Parse error","syntax error, unexpected namespace-relative name \"Namespace\\A\", expecting \"{\"",1]]}
+{"name":"namespace names 4","source":"<?php namespace A\\Namespace;","diagnostics":[]}
+{"name":"namespace names 5","source":"<?php namespace namespace {}","diagnostics":[["Fatal error","Cannot use 'namespace' as namespace name",1]]}
+{"name":"namespace names 6","source":"<?php echo 1; namespace namespace;","diagnostics":[["Fatal error","Namespace declaration statement has to be the very first statement or after any declare call in the script",1]]}
+{"name":"namespace names 7","source":"<?php namespace A; namespace namespace;","diagnostics":[["Fatal error","Cannot use 'namespace' as namespace name",1]]}
+{"name":"namespace names 8","source":"<?php namespace NameSpace { echo 1; }","diagnostics":[["Fatal error","Cannot use 'NameSpace' as namespace name",1]]}
 {"name":"misc rules 1","source":"<?php $this?->b(...);","diagnostics":[]}
 {"name":"misc rules 2","source":"<?php $this?->a->b(...);","diagnostics":[]}
 {"name":"misc rules 3","source":"<?php $this?->a?->b(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}

@@ -260,6 +260,9 @@ parent ("Cannot use "parent" when current class scope has no parent").
   after the statement compiles. Empty statements (`;` and a `?>` that ends the file) compile to nothing
   and are not checked, and a braced block at the top level is not checked itself: each statement in it
   counts as a top-level statement, so `{ }` and `{ ; }` pass while `{ echo 1; }` fails.
+- A namespace named `namespace` in any case, as a whole name, is a fatal error reported after the
+  checks above: "Cannot use 'NAMEspace' as namespace name", with the name as written. A longer name
+  such as `A\Namespace` is accepted.
 - Each namespace start and end clears the imports.
 
 ### Imports

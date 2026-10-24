@@ -185,6 +185,14 @@ impl<'a> Checker<'a> {
                 "Namespace declaration statement has to be the very first statement or after any declare call in the script",
             );
         }
+        if let Some(name) = name
+            && name.eq_ignore_ascii_case(b"namespace")
+        {
+            let mut message = b"Cannot use '".to_vec();
+            message.extend_from_slice(name);
+            message.extend_from_slice(b"' as namespace name");
+            return self.fatal(message);
+        }
         self.namespace = name.map(<[u8]>::to_vec);
         self.names.imports.clear();
         self.names.in_namespace = true;
@@ -561,6 +569,11 @@ mod tests {
             ("namespace A {} ; { { ; } }", &[]),
             ("namespace A {} { echo 1; }", &[outside]),
             ("namespace A {} ?> x", &[outside]),
+            (
+                "namespace NAMEspace;",
+                &["Fatal error: Cannot use 'NAMEspace' as namespace name @1"],
+            ),
+            ("namespace A\\Namespace;", &[]),
         ]);
     }
 

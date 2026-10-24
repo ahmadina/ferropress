@@ -138,6 +138,11 @@ function compiler_topic_cases(): array {
 			'[$a->b?->c->d] = [1];', 'function () use ($a) { static $a; };', 'function () use (&$a) { static $a; };',
 			'function () use ($b) { static $a; };', 'class A { function &f() { return $this->a?->b; } }', '[&$a] = $b?->c();',
 		),
+		'namespace names'    => array(
+			'namespace NAMEspace;', 'namespace namespace;', 'namespace Namespace\\A;',
+			'namespace A\\Namespace;', 'namespace namespace {}', 'echo 1; namespace namespace;',
+			'namespace A; namespace namespace;', 'namespace NameSpace { echo 1; }',
+		),
 		'misc rules'         => array(
 			'$this?->b(...);', '$this?->a->b(...);', '$this?->a?->b(...);',
 			'$a?->b::c(...);', 'f($a?->b)->c(...);', '$a?->b()->c(...);',

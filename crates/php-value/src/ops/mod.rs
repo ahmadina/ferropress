@@ -21,6 +21,7 @@
 
 mod arith;
 mod bitwise;
+mod compare;
 mod convert;
 mod numeric;
 
@@ -30,6 +31,7 @@ use crate::{Precision, Value};
 
 pub use arith::{add, div, modulo, mul, pow, sub};
 pub use bitwise::{bit_and, bit_not, bit_or, bit_xor, shift_left, shift_right};
+pub use compare::{compare, identical, less, less_or_equal, loose_equals};
 pub use convert::concat;
 pub use numeric::{Number, NumericPrefix, Overflow, numeric_prefix, parse_float, whole_numeric};
 

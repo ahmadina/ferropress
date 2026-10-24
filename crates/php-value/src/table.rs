@@ -140,6 +140,20 @@ impl<K: Eq + Hash + Clone> Table<K> {
             .map(|entry| (&entry.key, &entry.slot))
     }
 
+    /// The first entry at or after `position`, with its own position, for walking a table that is
+    /// not modified meanwhile.
+    pub(crate) fn entry_from(&self, position: usize) -> Option<(usize, &K, &Slot)> {
+        self.entries
+            .get(position..)?
+            .iter()
+            .enumerate()
+            .find_map(|(offset, entry)| {
+                entry
+                    .as_ref()
+                    .map(|entry| (position + offset, &entry.key, &entry.slot))
+            })
+    }
+
     fn build_index(&self) -> HashMap<K, usize> {
         let mut index = HashMap::with_capacity(self.live);
         for (position, entry) in self.entries.iter().enumerate() {

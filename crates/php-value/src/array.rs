@@ -155,6 +155,18 @@ impl PhpArray {
         self.0.iter().flat_map(|data| data.table.iter())
     }
 
+    /// The first element at or after `position`, with its own position, for walking an array that is
+    /// not modified meanwhile.
+    pub(crate) fn entry_from(&self, position: usize) -> Option<(usize, &ArrayKey, &Slot)> {
+        self.0.as_ref()?.table.entry_from(position)
+    }
+
+    /// The address of the storage, 0 for an array that never had any; equal for arrays that
+    /// [share storage](Self::ptr_eq).
+    pub(crate) fn storage_address(&self) -> usize {
+        self.0.as_ref().map_or(0, |data| Rc::as_ptr(data).addr())
+    }
+
     /// Whether both arrays currently share storage.
     pub fn ptr_eq(&self, other: &Self) -> bool {
         match (&self.0, &other.0) {

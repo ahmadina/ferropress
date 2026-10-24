@@ -11,7 +11,8 @@ strings), `Zend/zend_strtod.c` (decimal to float, float to decimal), `Zend/zend_
 `Zend/zend_compile.c` (unary minus and plus) and `Zend/zend_vm_def.h` (casts) in the pinned PHP source.
 
 Objects are out of scope: they convert, combine and compare through their class's handlers, which the
-engine supplies. Every operation below rejects an object operand before raising anything.
+engine supplies. Every operation below rejects an object operand before raising anything, except the
+comparison of an object with `null`, and identity.
 
 ## Numeric strings
 
@@ -124,3 +125,75 @@ The operators behave as follows:
 
 Both operands are converted as `(string)` converts them, left first (so each array warns "Array to
 string conversion" and each `NAN` warns), and joined.
+
+## Comparison: `== != < <= > >= <=>`
+
+Every loose comparison is one three-way comparison giving -1, 0 or 1:
+
+- `<=>` is that result;
+- `==` tests for 0;
+- `<` tests for -1;
+- `<=` tests for -1 or 0;
+- `>` and `>=` are `<` and `<=` with the operands swapped.
+
+When two values cannot be ordered (any comparison with `NAN`), the result is 1. So `NAN == NAN` is
+false, and `NAN < 1` and `1 < NAN` are both false. Comparisons raise no warnings.
+
+The result depends on the pair of types, checked in this order:
+
+1. **Numbers**: two integers, or an integer and a float, or two floats, compare numerically. An integer
+   meeting a float is converted to a float first.
+2. **Two arrays**: see below.
+3. **`null` and booleans**: `null` equals `false`. `true` is greater than both.
+4. **Two strings**: they compare as numbers when both are numeric, leading-numeric strings not
+   included. Otherwise they compare byte by byte, a prefix being smaller. Overflowing numeric strings
+   (see Numeric strings) have extra rules:
+   - two strings that overflow to the same side and convert to equal floats compare as text
+     (`"19223372036854775808" < "19223372036854775808.0"`);
+   - an overflowing string meeting an integer string is ordered by its overflow side;
+   - two strings that are the same infinity compare as text.
+5. **`null` and a string**: `null` equals `""` and is smaller than any other string.
+6. **An integer and a string**: numerically when the string is numeric. Otherwise the integer's
+   decimal text is compared with the string byte by byte (`10 < "abc"`).
+7. **A float and a string**: `NAN` gives 1. Otherwise they compare numerically when the string is
+   numeric. If not, the float's text under `precision` is compared with the string byte by byte.
+8. **An object and `null`**: the object is greater. Any other comparison involving an object belongs
+   to its class.
+9. **Every other pair**:
+   - If either side is `NAN`: a `null` or `false` on the left is smaller, a `true` on either side is
+     equal, a `null` or `false` on the right is smaller. Otherwise the side that is not `NAN` is
+     converted to a number as described below, and the comparison repeats.
+   - Otherwise, a `null` or boolean on either side compares truth values, `false` being smaller
+     (`[] == false`, `"0" < true`, `null < [1]`).
+   - Otherwise both sides are converted to numbers, silently, and the comparison repeats. Strings
+     become their leading number, or 0 if they have none. An array stays an array and is greater than
+     the number it meets (`[1] > 5`).
+
+**Arrays** compare in these steps:
+
+1. Arrays sharing storage are equal.
+2. An array with fewer elements is smaller.
+3. Otherwise, the left array's elements are compared in its order with the right array's elements under
+   the same keys, through references. The first unequal pair decides.
+4. A key the right array lacks gives 1, so such arrays are not equal and neither is smaller.
+
+## Identity: `=== !==`
+
+Two values are identical when they have the same type and:
+
+- the same value; for floats this is numeric equality, so `0.0 === -0.0` and `NAN !== NAN`;
+- for strings, the same bytes;
+- for arrays, the same number of elements, with the same keys in the same order and identical values
+  (through references);
+- for objects, the same object.
+
+## Nested and self-containing arrays
+
+Comparing an array with an element that refers back to it through a reference throws `Error` "Nesting
+level too deep - recursive dependency?". The exception is when both sides share storage at that point,
+which makes them equal without being entered.
+
+The reference throws `Error` "Maximum call stack size reached during comparison" when its call stack
+runs low. That depends on the stack size: with an 8 MiB stack, `==` handles about 32,500 nested levels
+and `===` about 65,000. Ferropress walks nested arrays without recursion and throws the same error past
+a fixed 32,768 levels, for both operators.

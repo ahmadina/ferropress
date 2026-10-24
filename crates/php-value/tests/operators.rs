@@ -10,15 +10,7 @@ use php_value::{ArrayKey, PhpArray, PhpString, Value};
 use serde_json::{Value as Json, json};
 
 /// Operations recorded by the oracle that this crate does not implement yet.
-const PENDING: [&str; 7] = [
-    "preinc",
-    "predec",
-    "eq",
-    "identical",
-    "lt",
-    "le",
-    "spaceship",
-];
+const PENDING: [&str; 2] = ["preinc", "predec"];
 
 /// Mismatches printed in full before the rest are only counted.
 const SHOWN: usize = 25;
@@ -123,6 +115,11 @@ fn binary(name: &str) -> Option<Binary> {
         "bitand" => |a, b, cx| ops::bit_and(a, b, cx),
         "bitxor" => |a, b, cx| ops::bit_xor(a, b, cx),
         "concat" => |a, b, cx| ops::concat(a, b, cx),
+        "eq" => |a, b, cx| ops::loose_equals(a, b, cx).map(Value::Bool),
+        "identical" => |a, b, _| ops::identical(a, b).map(Value::Bool),
+        "lt" => |a, b, cx| ops::less(a, b, cx).map(Value::Bool),
+        "le" => |a, b, cx| ops::less_or_equal(a, b, cx).map(Value::Bool),
+        "spaceship" => |a, b, cx| ops::compare(a, b, cx).map(|o| Value::Int(o as i64)),
         _ => return None,
     })
 }

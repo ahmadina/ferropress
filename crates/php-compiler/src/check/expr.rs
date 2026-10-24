@@ -5,7 +5,7 @@ use php_parser::ast::{
     StringPart, VarName,
 };
 
-use super::{Checker, Flow};
+use super::{Checker, Code, Flow};
 use crate::diagnostic::Severity;
 
 /// How a variable is fetched.
@@ -87,8 +87,17 @@ fn is_writable(expr: &Expr) -> bool {
     (is_variable(base) || is_call(base)) && !is_short_circuited(base)
 }
 
-impl Checker {
-    pub(super) fn expr(&mut self, expr: &Expr) -> Flow {
+impl<'a> Checker<'a> {
+    /// Compiles `expr`, or what folding replaced it with; a folded value needs nothing more.
+    pub(super) fn expr(&mut self, expr: &'a Expr) -> Flow {
+        let expr = self.resolve(expr);
+        if self.folded.contains_key(&std::ptr::from_ref(expr)) {
+            return Ok(());
+        }
+        self.unfolded(expr)
+    }
+
+    fn unfolded(&mut self, expr: &'a Expr) -> Flow {
         self.line = expr.line;
         match &expr.kind {
             ExprKind::Int(_)
@@ -107,7 +116,7 @@ impl Checker {
                 self.interpolated(parts)
             }
             ExprKind::Variable(VarName::Expr(name)) => self.expr(name),
-            ExprKind::Array { items, syntax } => self.array(items, *syntax),
+            ExprKind::Array { items, .. } => self.array(expr, items),
             ExprKind::Dim { .. }
             | ExprKind::Property { .. }
             | ExprKind::StaticProperty { .. }
@@ -179,14 +188,14 @@ impl Checker {
                 self.expr(operand)
             }
             ExprKind::Closure(function) | ExprKind::ArrowFunction { function, .. } => {
-                self.function(function)
+                self.function(function, Code::Closure)
             }
             ExprKind::Match { subject, arms } => self.match_expr(subject, arms),
             ExprKind::Reference(operand) => self.var(operand, Fetch::Write),
         }
     }
 
-    fn binary(&mut self, op: BinaryOp, left: &Expr, right: &Expr) -> Flow {
+    fn binary(&mut self, op: BinaryOp, left: &'a Expr, right: &'a Expr) -> Flow {
         let unparenthesized_arrow = matches!(
             right.kind,
             ExprKind::ArrowFunction {
@@ -202,7 +211,12 @@ impl Checker {
         self.expr(right)
     }
 
-    fn ternary(&mut self, condition: &Expr, then: Option<&Expr>, otherwise: &Expr) -> Flow {
+    fn ternary(
+        &mut self,
+        condition: &'a Expr,
+        then: Option<&'a Expr>,
+        otherwise: &'a Expr,
+    ) -> Flow {
         self.unparenthesized_ternary(condition, then.is_some())?;
         self.expr(condition)?;
         if let Some(then) = then {
@@ -212,14 +226,14 @@ impl Checker {
     }
 
     fn mark_generator(&self) -> Flow {
-        if self.frame.is_function {
-            Ok(())
-        } else {
+        if self.frame.code == Code::File {
             self.fatal("The \"yield\" expression can only be used inside a function")
+        } else {
+            Ok(())
         }
     }
 
-    fn interpolated(&mut self, parts: &[StringPart]) -> Flow {
+    fn interpolated(&mut self, parts: &'a [StringPart]) -> Flow {
         for part in parts {
             match part {
                 StringPart::Literal(_) => continue,
@@ -246,23 +260,10 @@ impl Checker {
         Ok(())
     }
 
-    fn array(&mut self, items: &[Option<ArrayItem>], syntax: ArraySyntax) -> Flow {
-        if syntax == ArraySyntax::List {
-            return self.fatal("Cannot use list() as standalone expression");
-        }
-        let mut last_line = None;
-        for item in items {
-            match item {
-                None => {
-                    if let Some(line) = last_line {
-                        self.line = line;
-                    }
-                    return self.fatal("Cannot use empty array elements in arrays");
-                }
-                Some(ArrayItem::Value { value, .. } | ArrayItem::Spread(value)) => {
-                    last_line = Some(value.line);
-                }
-            }
+    /// An array literal: folded first, like a constant expression, then compiled if it stays.
+    fn array(&mut self, expr: &'a Expr, items: &'a [Option<ArrayItem>]) -> Flow {
+        if self.fold(expr)?.is_some() {
+            return Ok(());
         }
         for item in items.iter().flatten() {
             match item {
@@ -283,7 +284,7 @@ impl Checker {
     }
 
     /// Compiles `expr` as a variable fetched for `fetch`.
-    pub(super) fn var(&mut self, expr: &Expr, fetch: Fetch) -> Flow {
+    pub(super) fn var(&mut self, expr: &'a Expr, fetch: Fetch) -> Flow {
         self.line = expr.line;
         match &expr.kind {
             ExprKind::Variable(VarName::Name(_)) => Ok(()),
@@ -343,14 +344,14 @@ impl Checker {
         }
     }
 
-    fn member(&mut self, member: &Member) -> Flow {
+    fn member(&mut self, member: &'a Member) -> Flow {
         match member {
             Member::Name(_) => Ok(()),
             Member::Expr(name) => self.expr(name),
         }
     }
 
-    fn class_ref(&mut self, class: &Expr) -> Flow {
+    fn class_ref(&mut self, class: &'a Expr) -> Flow {
         if matches!(class.kind, ExprKind::Name(_)) {
             Ok(())
         } else {
@@ -358,7 +359,7 @@ impl Checker {
         }
     }
 
-    fn args(&mut self, args: &Args) -> Flow {
+    fn args(&mut self, args: &'a Args) -> Flow {
         let Args::List(args) = args else {
             return Ok(());
         };
@@ -417,7 +418,7 @@ impl Checker {
     }
 
     /// Compiles `target` as the destination of an assignment whose value is already computed.
-    pub(super) fn assign_target(&mut self, target: &Expr) -> Flow {
+    pub(super) fn assign_target(&mut self, target: &'a Expr) -> Flow {
         if let ExprKind::Array { items, syntax } = &target.kind {
             return self.list_assign(items, *syntax);
         }
@@ -428,7 +429,7 @@ impl Checker {
         self.var(target, Fetch::Write)
     }
 
-    fn assign(&mut self, target: &Expr, value: &Expr) -> Flow {
+    fn assign(&mut self, target: &'a Expr, value: &'a Expr) -> Flow {
         if is_this(target) {
             return self.fatal("Cannot re-assign $this");
         }
@@ -445,7 +446,7 @@ impl Checker {
         self.expr(value)
     }
 
-    fn assign_ref(&mut self, target: &Expr, value: &Expr) -> Flow {
+    fn assign_ref(&mut self, target: &'a Expr, value: &'a Expr) -> Flow {
         if is_this(target) {
             return self.fatal("Cannot re-assign $this");
         }
@@ -460,7 +461,7 @@ impl Checker {
         self.var(value, Fetch::Write)
     }
 
-    fn list_assign(&mut self, items: &[Option<ArrayItem>], style: ArraySyntax) -> Flow {
+    fn list_assign(&mut self, items: &'a [Option<ArrayItem>], style: ArraySyntax) -> Flow {
         let keyed = matches!(
             items.iter().flatten().next(),
             Some(ArrayItem::Value { key: Some(_), .. })
@@ -514,7 +515,7 @@ impl Checker {
         }
     }
 
-    fn isset(&mut self, operand: &Expr) -> Flow {
+    fn isset(&mut self, operand: &'a Expr) -> Flow {
         if !is_variable(operand) {
             return self.fatal(
                 "Cannot use isset() on the result of an expression (you can use \"null !== expression\" instead)",
@@ -534,7 +535,7 @@ impl Checker {
         self.var(operand, Fetch::Isset)
     }
 
-    pub(super) fn unset(&mut self, operand: &Expr) -> Flow {
+    pub(super) fn unset(&mut self, operand: &'a Expr) -> Flow {
         self.ensure_writable(operand)?;
         if is_global_var(operand) {
             return match &operand.kind {
@@ -573,7 +574,7 @@ impl Checker {
         }
     }
 
-    fn match_expr(&mut self, subject: &Expr, arms: &[MatchArm]) -> Flow {
+    fn match_expr(&mut self, subject: &'a Expr, arms: &'a [MatchArm]) -> Flow {
         self.expr(subject)?;
         let mut has_default = false;
         for arm in arms {

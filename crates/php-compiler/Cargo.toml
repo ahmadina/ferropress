@@ -10,6 +10,7 @@ repository.workspace = true
 
 [dependencies]
 php-parser = { path = "../php-parser" }
+php-value = { path = "../php-value" }
 
 [dev-dependencies]
 serde_json = { workspace = true }

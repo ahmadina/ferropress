@@ -641,6 +641,91 @@
 {"name":"constants 154","source":"<?php enum E: int { case A = self::B; }","diagnostics":[]}
 {"name":"constants 155","source":"<?php enum E: int { case A = 1; case B = 1; }","diagnostics":[]}
 {"name":"constants 156","source":"<?php enum E: int { case A = E::B; }","diagnostics":[]}
+{"name":"constant folding 1","source":"<?php const A = true ? 1 : $a;","diagnostics":[]}
+{"name":"constant folding 2","source":"<?php const A = false ? $a : 1;","diagnostics":[]}
+{"name":"constant folding 3","source":"<?php const A = $a ? 1 : 2;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 4","source":"<?php const A = 0 ?: $a;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 5","source":"<?php const A = 1 ?: $a;","diagnostics":[]}
+{"name":"constant folding 6","source":"<?php const A = null ?? $a;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 7","source":"<?php const A = 1 ?? $a;","diagnostics":[]}
+{"name":"constant folding 8","source":"<?php const A = [1, 2][1];","diagnostics":[]}
+{"name":"constant folding 9","source":"<?php const A = [1][$a];","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 10","source":"<?php const A = \"abc\"[1];","diagnostics":[]}
+{"name":"constant folding 11","source":"<?php const A = \"abc\"[5][$a];","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 12","source":"<?php const A = [...1];","diagnostics":[["Fatal error","Only arrays and Traversables can be unpacked, int given",1]]}
+{"name":"constant folding 13","source":"<?php const A = [...null];","diagnostics":[["Fatal error","Only arrays and Traversables can be unpacked, null given",1]]}
+{"name":"constant folding 14","source":"<?php const A = [...[1], ...$a];","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 15","source":"<?php const A = [[] => 1];","diagnostics":[["Fatal error","Illegal offset type",1]]}
+{"name":"constant folding 16","source":"<?php const A = [1.5 => 1];","diagnostics":[]}
+{"name":"constant folding 17","source":"<?php const A = [null => 1];","diagnostics":[]}
+{"name":"constant folding 18","source":"<?php const A = [true => 1, $a];","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 19","source":"<?php const A = [&$a];","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 20","source":"<?php const A = [1, [$a]];","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 21","source":"<?php $a = [...1];","diagnostics":[["Fatal error","Only arrays and Traversables can be unpacked, int given",1]]}
+{"name":"constant folding 22","source":"<?php $a = [[] => 1];","diagnostics":[["Fatal error","Illegal offset type",1]]}
+{"name":"constant folding 23","source":"<?php const A = 1 + [];","diagnostics":[]}
+{"name":"constant folding 24","source":"<?php const A = 1 / 0;","diagnostics":[]}
+{"name":"constant folding 25","source":"<?php const A = 1 % 0;","diagnostics":[]}
+{"name":"constant folding 26","source":"<?php const A = \"a\" . [];","diagnostics":[]}
+{"name":"constant folding 27","source":"<?php const A = 1 << -1;","diagnostics":[]}
+{"name":"constant folding 28","source":"<?php const A = \"x\" + 1;","diagnostics":[]}
+{"name":"constant folding 29","source":"<?php const A = true && $a;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 30","source":"<?php const A = false && $a;","diagnostics":[]}
+{"name":"constant folding 31","source":"<?php const A = true || $a;","diagnostics":[]}
+{"name":"constant folding 32","source":"<?php const A = false || $a;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 33","source":"<?php const A = 1 > $a;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 34","source":"<?php const A = 2 > 1;","diagnostics":[]}
+{"name":"constant folding 35","source":"<?php const A = -[];","diagnostics":[]}
+{"name":"constant folding 36","source":"<?php const A = -$a;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 37","source":"<?php const A = !$a;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 38","source":"<?php const A = ~1.5;","diagnostics":[]}
+{"name":"constant folding 39","source":"<?php const A = ~\"a\";","diagnostics":[]}
+{"name":"constant folding 40","source":"<?php const A = (int) $a;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 41","source":"<?php const A = (string) [];","diagnostics":[]}
+{"name":"constant folding 42","source":"<?php const A = (string) 1.5;","diagnostics":[]}
+{"name":"constant folding 43","source":"<?php const A = (int) 1e100;","diagnostics":[]}
+{"name":"constant folding 44","source":"<?php const A = (1e1000 - 1e1000) ? 1 : 2;","diagnostics":[["Warning","unexpected NAN value was coerced to bool",1]]}
+{"name":"constant folding 45","source":"<?php const A = (bool) (1e1000 - 1e1000);","diagnostics":[]}
+{"name":"constant folding 46","source":"<?php const A = !(1e1000 - 1e1000);","diagnostics":[]}
+{"name":"constant folding 47","source":"<?php const A = (1e1000 - 1e1000) xor 1;","diagnostics":[["Warning","unexpected NAN value was coerced to bool",1]]}
+{"name":"constant folding 48","source":"<?php const A = (1e1000 - 1e1000) && 1;","diagnostics":[["Warning","unexpected NAN value was coerced to bool",1]]}
+{"name":"constant folding 49","source":"<?php const A = __LINE__ . $a;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 50","source":"<?php const A = @1;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 51","source":"<?php const A = 1 and $a;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 52","source":"<?php const A = null ?? $a ?? 1;","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 53","source":"<?php function f($a = true ? $b : 1) {}","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 54","source":"<?php function f($a = false ? $b : 1) {}","diagnostics":[]}
+{"name":"constant folding 55","source":"<?php enum E: int { case A = true ? 1 : $a; }","diagnostics":[]}
+{"name":"constant folding 56","source":"<?php enum E: int { case A = $a ? 1 : 2; }","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 57","source":"<?php #[A($a)] function f() {}","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 58","source":"<?php #[A(new B)] function f() {}","diagnostics":[]}
+{"name":"constant folding 59","source":"<?php #[A(1 + 1)] function f() {}","diagnostics":[]}
+{"name":"constant folding 60","source":"<?php class A { public $a = true ? 1 : $b; }","diagnostics":[]}
+{"name":"constant folding 61","source":"<?php class A { const B = [1, 2][$a]; }","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 62","source":"<?php class A { public $a = (object) []; }","diagnostics":[["Fatal error","Object casts are not supported in this context",1]]}
+{"name":"constant folding 63","source":"<?php class A { const B = (object) []; }","diagnostics":[["Fatal error","Object casts are not supported in this context",1]]}
+{"name":"constant folding 64","source":"<?php function f($a = (object) []) {}","diagnostics":[]}
+{"name":"constant folding 65","source":"<?php const A = new A(...);","diagnostics":[["Fatal error","Cannot create Closure for new expression",1]]}
+{"name":"constant folding 66","source":"<?php const A = A::f(...$a);","diagnostics":[["Fatal error","Constant expression contains invalid operations",1]]}
+{"name":"constant folding 67","source":"<?php const A = new A(b: 1, 2);","diagnostics":[["Fatal error","Cannot use positional argument after named argument",1]]}
+{"name":"constant folding 68","source":"<?php const A = [1, , 2];","diagnostics":[["Fatal error","Cannot use empty array elements in arrays",1]]}
+{"name":"constant folding 69","source":"<?php const A = [1,\n\n, 2];","diagnostics":[["Fatal error","Cannot use empty array elements in arrays",1]]}
+{"name":"constant folding 70","source":"<?php const A = list($a);","diagnostics":[["Parse error","syntax error, unexpected token \";\", expecting \"=\"",1]]}
+{"name":"constant folding 71","source":"<?php const A = $a[];","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"constant folding 72","source":"<?php const A = A::B[];","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"constant folding 73","source":"<?php const A = [][];","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"constant folding 74","source":"<?php const A = static function () { return $this; };","diagnostics":[]}
+{"name":"constant folding 75","source":"<?php const A = static function () { yield; };","diagnostics":[]}
+{"name":"constant folding 76","source":"<?php const A = (1)::class;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"constant folding 77","source":"<?php const A = parent::class;","diagnostics":[]}
+{"name":"constant folding 79","source":"<?php class A { const B = parent::C; }","diagnostics":[]}
+{"name":"constant folding 80","source":"<?php class A { public $a = new static; }","diagnostics":[["Fatal error","New expressions are not supported in this context",1]]}
+{"name":"constant folding 81","source":"<?php function f($a = new static) {}","diagnostics":[["Fatal error","\"static\" is not allowed in compile-time constants",1]]}
+{"name":"constant folding 82","source":"<?php function f($a = new parent) {}","diagnostics":[]}
+{"name":"constant folding 83","source":"<?php const A = \\strlen(...);","diagnostics":[]}
+{"name":"constant folding 84","source":"<?php const A = namespace\\f(...);","diagnostics":[]}
+{"name":"constant folding 85","source":"<?php const A = A::{\"f\"}(...);","diagnostics":[]}
+{"name":"constant folding 86","source":"<?php const A = [1, 2] + [3];","diagnostics":[]}
 {"name":"class members 1","source":"<?php class A { function f() {} function f() {} }","diagnostics":[["Fatal error","Cannot redeclare A::f()",1]]}
 {"name":"class members 2","source":"<?php class A { function F() {} function f() {} }","diagnostics":[["Fatal error","Cannot redeclare A::f()",1]]}
 {"name":"class members 3","source":"<?php class A { public $a; public $a; }","diagnostics":[["Fatal error","Cannot redeclare A::$a",1]]}

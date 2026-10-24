@@ -5,14 +5,18 @@
 //! follows the same rule, so a diagnostic raised between two children reports the line of the
 //! last node visited.
 
+mod constant;
 mod expr;
 
+use std::collections::HashMap;
+
 use php_parser::ast::{
-    Case, Catch, ClassLike, ClassMember, Expr, ExprKind, Function, FunctionBody, HookBody, Program,
-    Stmt, StmtKind, TopStatement, Try,
+    Case, Catch, ClassKind, ClassLike, ClassMember, Expr, ExprKind, Function, FunctionBody,
+    HookBody, Program, Stmt, StmtKind, TopStatement, Try,
 };
 
 use crate::diagnostic::{Diagnostic, Diagnostics, Severity};
+use constant::Folded;
 
 /// The result of a check; `Err` carries the fatal error that stops compilation.
 pub(crate) type Flow<T = ()> = Result<T, Box<Diagnostic>>;
@@ -40,30 +44,78 @@ enum Jumpable {
     Switch,
 }
 
+/// The code a frame compiles, which names `__FUNCTION__` and `__METHOD__`.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+enum Code {
+    /// The top level of the file.
+    #[default]
+    File,
+    /// A function, by its namespaced name.
+    Function(Vec<u8>),
+    /// A method or property hook of `class` (`None` when anonymous).
+    Method {
+        class: Option<Vec<u8>>,
+        name: Vec<u8>,
+    },
+    /// A closure or arrow function, whose generated name holds the file path.
+    Closure,
+}
+
 /// The state of the function being compiled; the file's top level is a function too.
 #[derive(Debug, Default)]
 struct Frame {
-    /// Whether this is a declared function, method or closure rather than the top level.
-    is_function: bool,
+    /// What is being compiled.
+    code: Code,
+    /// The property whose default, attributes or hooks are being compiled.
+    property: Option<Vec<u8>>,
     /// The enclosing loops and switches, innermost last.
     jumpables: Vec<Jumpable>,
     /// Names of the `static` variables declared so far.
     statics: Vec<Vec<u8>>,
 }
 
-pub(crate) struct Checker {
+impl Frame {
+    fn new(code: Code) -> Self {
+        Self {
+            code,
+            ..Self::default()
+        }
+    }
+}
+
+/// The class-like declaration being compiled.
+#[derive(Debug, Clone)]
+struct ClassScope {
+    /// The namespaced name; `None` for an anonymous class, whose name holds the file path.
+    name: Option<Vec<u8>>,
+    is_trait: bool,
+    has_parent: bool,
+}
+
+pub(crate) struct Checker<'a> {
     line: u32,
     warnings: Vec<Diagnostic>,
     frame: Frame,
+    namespace: Option<Vec<u8>>,
+    class: Option<ClassScope>,
+    /// What constant folding made of the nodes it changed.
+    folded: HashMap<*const Expr, Folded<'a>>,
 }
 
-impl Checker {
-    pub(crate) fn run(program: &Program) -> Diagnostics {
-        let mut checker = Self {
+impl<'a> Checker<'a> {
+    fn new() -> Self {
+        Self {
             line: 1,
             warnings: Vec::new(),
             frame: Frame::default(),
-        };
+            namespace: None,
+            class: None,
+            folded: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn run(program: &'a Program) -> Diagnostics {
+        let mut checker = Self::new();
         let fatal = checker.top_statements(&program.statements).err();
         Diagnostics {
             warnings: checker.warnings,
@@ -89,26 +141,68 @@ impl Checker {
         });
     }
 
-    fn top_statements(&mut self, statements: &[TopStatement]) -> Flow {
+    /// `name` in the current namespace.
+    fn qualify(&self, name: &[u8]) -> Vec<u8> {
+        match &self.namespace {
+            Some(namespace) => {
+                let mut full = namespace.clone();
+                full.push(b'\\');
+                full.extend_from_slice(name);
+                full
+            }
+            None => name.to_vec(),
+        }
+    }
+
+    fn top_statements(&mut self, statements: &'a [TopStatement]) -> Flow {
         for statement in statements {
             match statement {
                 TopStatement::Statement(stmt) => self.stmt(stmt)?,
                 TopStatement::Namespace {
+                    name,
                     body: Some(body),
                     line,
-                    ..
                 } => {
                     self.line = *line;
+                    self.namespace.clone_from(name);
                     self.top_statements(body)?;
+                    self.namespace = None;
                 }
-                TopStatement::Const { items, line, .. } => {
+                TopStatement::Namespace {
+                    name,
+                    body: None,
+                    line,
+                } => {
+                    self.line = *line;
+                    self.namespace.clone_from(name);
+                }
+                TopStatement::Const {
+                    items,
+                    attributes,
+                    line,
+                } => {
                     self.line = *line;
                     for item in items {
-                        self.expr(&item.value)?;
+                        self.constant(&item.value, true)?;
+                        if [b"true".as_slice(), b"false", b"null"]
+                            .iter()
+                            .any(|special| item.name.eq_ignore_ascii_case(special))
+                        {
+                            let mut message = b"Cannot redeclare constant '".to_vec();
+                            message.extend_from_slice(&item.name);
+                            message.push(b'\'');
+                            return self.fatal(message);
+                        }
+                    }
+                    if !attributes.is_empty() {
+                        if items.len() > 1 {
+                            return self
+                                .fatal("Cannot apply attributes to multiple constants at once");
+                        }
+                        self.attributes(attributes)?;
                     }
                 }
-                TopStatement::Namespace { line, .. }
-                | TopStatement::HaltCompiler { line }
+                TopStatement::HaltCompiler { line }
                 | TopStatement::Use { line, .. }
                 | TopStatement::GroupUse { line, .. } => self.line = *line,
             }
@@ -116,11 +210,11 @@ impl Checker {
         Ok(())
     }
 
-    fn stmts(&mut self, stmts: &[Stmt]) -> Flow {
+    fn stmts(&mut self, stmts: &'a [Stmt]) -> Flow {
         stmts.iter().try_for_each(|stmt| self.stmt(stmt))
     }
 
-    fn stmt(&mut self, stmt: &Stmt) -> Flow {
+    fn stmt(&mut self, stmt: &'a Stmt) -> Flow {
         self.line = stmt.line;
         match &stmt.kind {
             StmtKind::Nop | StmtKind::Label(_) | StmtKind::Goto(_) => Ok(()),
@@ -165,12 +259,15 @@ impl Checker {
                 }
                 body.as_ref().map_or(Ok(()), |body| self.stmt(body))
             }
-            StmtKind::Function(function) => self.function(function),
+            StmtKind::Function(function) => {
+                let name = self.qualify(&function.name);
+                self.function(function, Code::Function(name))
+            }
             StmtKind::Class(class) => self.class(class),
         }
     }
 
-    fn exprs(&mut self, exprs: &[Expr]) -> Flow {
+    fn exprs(&mut self, exprs: &'a [Expr]) -> Flow {
         exprs.iter().try_for_each(|expr| self.expr(expr))
     }
 
@@ -181,7 +278,7 @@ impl Checker {
         result
     }
 
-    fn foreach(&mut self, foreach: &php_parser::ast::Foreach) -> Flow {
+    fn foreach(&mut self, foreach: &'a php_parser::ast::Foreach) -> Flow {
         if let Some(key) = &foreach.key {
             match key.kind {
                 ExprKind::Reference(_) => return self.fatal("Key element cannot be a reference"),
@@ -204,7 +301,7 @@ impl Checker {
         self.in_jumpable(Jumpable::Loop, |checker| checker.stmt(&foreach.body))
     }
 
-    fn switch(&mut self, subject: &Expr, cases: &[Case]) -> Flow {
+    fn switch(&mut self, subject: &'a Expr, cases: &'a [Case]) -> Flow {
         self.expr(subject)?;
         self.in_jumpable(Jumpable::Switch, |checker| {
             let mut has_default = false;
@@ -275,7 +372,7 @@ impl Checker {
         Ok(())
     }
 
-    fn global(&mut self, variable: &Expr) -> Flow {
+    fn global(&mut self, variable: &'a Expr) -> Flow {
         if let ExprKind::Variable(php_parser::ast::VarName::Expr(name)) = &variable.kind {
             self.expr(name)?;
         }
@@ -285,7 +382,7 @@ impl Checker {
         Ok(())
     }
 
-    fn static_variable(&mut self, name: &[u8], default: Option<&Expr>) -> Flow {
+    fn static_variable(&mut self, name: &[u8], default: Option<&'a Expr>) -> Flow {
         if name == b"this" {
             return self.fatal("Cannot use $this as static variable");
         }
@@ -298,7 +395,7 @@ impl Checker {
         default.map_or(Ok(()), |default| self.expr(default))
     }
 
-    fn try_stmt(&mut self, try_stmt: &Try) -> Flow {
+    fn try_stmt(&mut self, try_stmt: &'a Try) -> Flow {
         if try_stmt.catches.is_empty() && try_stmt.finally.is_none() {
             return self.fatal("Cannot use try without catch or finally");
         }
@@ -312,8 +409,8 @@ impl Checker {
             .map_or(Ok(()), |finally| self.stmts(finally))
     }
 
-    /// Compiles `function` in a frame of its own.
-    fn function(&mut self, function: &Function) -> Flow {
+    /// Compiles `function`, which is `code`, in a frame of its own.
+    fn function(&mut self, function: &'a Function, code: Code) -> Flow {
         self.line = function.line;
         for use_var in &function.uses {
             if use_var.name == b"this" {
@@ -334,19 +431,21 @@ impl Checker {
                 return self.fatal(message);
             }
         }
-        let outer = std::mem::replace(
-            &mut self.frame,
-            Frame {
-                is_function: true,
-                ..Frame::default()
-            },
-        );
-        let result = self.function_inner(function);
+        let is_free = matches!(code, Code::Function(_));
+        let outer = std::mem::replace(&mut self.frame, Frame::new(code));
+        let outer_class = self.class.clone();
+        let result = self.attributes(&function.attributes).and_then(|()| {
+            if is_free {
+                self.class = None;
+            }
+            self.function_inner(function)
+        });
         self.frame = outer;
+        self.class = outer_class;
         result
     }
 
-    fn function_inner(&mut self, function: &Function) -> Flow {
+    fn function_inner(&mut self, function: &'a Function) -> Flow {
         for (index, param) in function.params.iter().enumerate() {
             self.line = param.line;
             if is_auto_global(&param.name) {
@@ -366,8 +465,9 @@ impl Checker {
                 return self.fatal("Cannot use $this as parameter");
             }
             if let Some(default) = &param.default {
-                self.expr(default)?;
+                self.constant(default, true)?;
             }
+            self.attributes(&param.attributes)?;
         }
         for use_var in &function.uses {
             if function
@@ -388,30 +488,88 @@ impl Checker {
         }
     }
 
-    fn class(&mut self, class: &ClassLike) -> Flow {
+    fn class(&mut self, class: &'a ClassLike) -> Flow {
         self.line = class.line;
+        let scope = ClassScope {
+            name: class.name.as_deref().map(|name| self.qualify(name)),
+            is_trait: class.kind == ClassKind::Trait,
+            has_parent: class.kind == ClassKind::Class && class.extends.is_some(),
+        };
+        let outer = self.class.replace(scope);
+        let result = self.class_body(class);
+        self.class = outer;
+        result
+    }
+
+    fn class_body(&mut self, class: &'a ClassLike) -> Flow {
+        self.attributes(&class.attributes)?;
         for member in &class.members {
             match member {
-                ClassMember::Method(method) => self.function(method)?,
+                ClassMember::Method(method) => {
+                    let code = Code::Method {
+                        class: self.class.as_ref().and_then(|scope| scope.name.clone()),
+                        name: method.name.clone(),
+                    };
+                    self.function(method, code)?;
+                }
                 ClassMember::Property(group) => {
+                    self.line = group.line;
                     for property in &group.properties {
-                        for hook in property.hooks.iter().flatten() {
-                            self.hook_body(&hook.body)?;
-                        }
+                        let outer = self.frame.property.replace(property.name.clone());
+                        let result = self.property(property, &group.attributes);
+                        self.frame.property = outer;
+                        result?;
                     }
                 }
-                ClassMember::Constant(_) | ClassMember::EnumCase(_) | ClassMember::TraitUse(_) => {}
+                ClassMember::Constant(group) => {
+                    self.line = group.line;
+                    for item in &group.items {
+                        self.constant(&item.value, false)?;
+                        self.attributes(&group.attributes)?;
+                    }
+                }
+                ClassMember::EnumCase(case) => {
+                    self.line = case.line;
+                    if let Some(value) = &case.value {
+                        self.constant(value, false)?;
+                    }
+                    self.attributes(&case.attributes)?;
+                }
+                ClassMember::TraitUse(_) => {}
             }
         }
         Ok(())
     }
 
-    fn hook_body(&mut self, body: &HookBody) -> Flow {
+    fn property(
+        &mut self,
+        property: &'a php_parser::ast::Property,
+        attributes: &'a [php_parser::ast::AttributeGroup],
+    ) -> Flow {
+        if let Some(default) = &property.default {
+            self.constant(default, false)?;
+        }
+        for hook in property.hooks.iter().flatten() {
+            let mut name = b"$".to_vec();
+            name.extend_from_slice(&property.name);
+            name.extend_from_slice(b"::");
+            name.extend_from_slice(&hook.name);
+            let code = Code::Method {
+                class: self.class.as_ref().and_then(|scope| scope.name.clone()),
+                name,
+            };
+            self.hook_body(&hook.body, code)?;
+        }
+        self.attributes(attributes)
+    }
+
+    fn hook_body(&mut self, body: &'a HookBody, code: Code) -> Flow {
+        let property = self.frame.property.clone();
         let outer = std::mem::replace(
             &mut self.frame,
             Frame {
-                is_function: true,
-                ..Frame::default()
+                property,
+                ..Frame::new(code)
             },
         );
         let result = match body {

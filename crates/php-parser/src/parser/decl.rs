@@ -403,7 +403,8 @@ impl Parser<'_> {
             let params = self.parenthesized_parameters()?;
             let return_type = self.return_type()?;
             self.expect(K::DoubleArrow)?;
-            let body = self.expr_bp(prec::ARROW_FUNCTION)?;
+            let (body, is_generator) =
+                self.function_body(|parser| parser.expr_bp(prec::ARROW_FUNCTION))?;
             let function = Function {
                 name: Vec::new(),
                 by_ref,
@@ -411,6 +412,7 @@ impl Parser<'_> {
                 uses: Vec::new(),
                 return_type,
                 body: FunctionBody::Expr(Box::new(body)),
+                is_generator,
                 modifiers,
                 attributes,
                 line: keyword.line,
@@ -446,7 +448,7 @@ impl Parser<'_> {
         };
         let return_type = self.return_type()?;
         self.expect(OPEN_BRACE)?;
-        let body = self.block_body()?;
+        let (body, is_generator) = self.function_body(Self::block_body)?;
         Ok(Function {
             name: Vec::new(),
             by_ref,
@@ -454,6 +456,7 @@ impl Parser<'_> {
             uses,
             return_type,
             body: FunctionBody::Block(body),
+            is_generator,
             modifiers,
             attributes,
             line,
@@ -500,7 +503,7 @@ impl Parser<'_> {
         let params = self.parenthesized_parameters()?;
         let return_type = self.return_type()?;
         self.expect(OPEN_BRACE)?;
-        let body = self.block_body()?;
+        let (body, is_generator) = self.function_body(Self::block_body)?;
         let function = Function {
             name,
             by_ref,
@@ -508,6 +511,7 @@ impl Parser<'_> {
             uses: Vec::new(),
             return_type,
             body: FunctionBody::Block(body),
+            is_generator,
             modifiers: Modifiers::NONE,
             attributes,
             line,
@@ -725,29 +729,30 @@ impl Parser<'_> {
         } else {
             None
         };
-        let body = match self.peek()? {
+        let (body, is_generator) = self.function_body(|parser| match parser.peek()? {
             SEMICOLON => {
-                self.bump()?;
-                HookBody::Absent
+                parser.bump()?;
+                Ok(HookBody::Absent)
             }
             OPEN_BRACE => {
-                self.bump()?;
-                HookBody::Block(self.block_body()?)
+                parser.bump()?;
+                Ok(HookBody::Block(parser.block_body()?))
             }
             K::DoubleArrow => {
-                self.bump()?;
-                let value = self.expr()?;
-                self.expect_in(SEMICOLON, &[])?;
-                HookBody::Expr(value)
+                parser.bump()?;
+                let value = parser.expr()?;
+                parser.expect_in(SEMICOLON, &[])?;
+                Ok(HookBody::Expr(value))
             }
-            _ => return self.unexpected(&[K::DoubleArrow, SEMICOLON, OPEN_BRACE]),
-        };
+            _ => parser.unexpected(&[K::DoubleArrow, SEMICOLON, OPEN_BRACE]),
+        })?;
         Ok(Hook {
             name,
             by_ref,
             modifiers,
             params,
             body,
+            is_generator,
             attributes,
             line,
         })
@@ -768,17 +773,17 @@ impl Parser<'_> {
         let name = self.identifier_bytes(&name)?;
         let params = self.parenthesized_parameters()?;
         let return_type = self.return_type()?;
-        let body = match self.peek()? {
+        let (body, is_generator) = self.function_body(|parser| match parser.peek()? {
             SEMICOLON => {
-                self.bump()?;
-                FunctionBody::Absent
+                parser.bump()?;
+                Ok(FunctionBody::Absent)
             }
             OPEN_BRACE => {
-                self.bump()?;
-                FunctionBody::Block(self.block_body()?)
+                parser.bump()?;
+                Ok(FunctionBody::Block(parser.block_body()?))
             }
-            _ => return self.unexpected(&[SEMICOLON, OPEN_BRACE]),
-        };
+            _ => parser.unexpected(&[SEMICOLON, OPEN_BRACE]),
+        })?;
         Ok(ClassMember::Method(Box::new(Function {
             name,
             by_ref,
@@ -786,6 +791,7 @@ impl Parser<'_> {
             uses: Vec::new(),
             return_type,
             body,
+            is_generator,
             modifiers,
             attributes,
             line,
@@ -958,8 +964,84 @@ const fn with_default_visibility(flags: Modifiers) -> Modifiers {
 #[cfg(test)]
 mod tests {
     use super::{Target, modifier_list, with_default_visibility};
-    use crate::ast::Modifiers;
+    use crate::ast::{
+        ClassMember, Expr, ExprKind, Function, FunctionBody, Modifiers, StmtKind, TopStatement,
+    };
     use php_lexer::TokenKind as K;
+
+    fn function(source: &str) -> Function {
+        let Ok(parsed) = crate::parse(source.as_bytes(), crate::ParseOptions::default()) else {
+            panic!("source fits");
+        };
+        let Ok(mut program) = parsed.result else {
+            panic!("{source} parses");
+        };
+        match program.statements.remove(0) {
+            TopStatement::Statement(stmt) => match stmt.kind {
+                StmtKind::Function(function) => *function,
+                StmtKind::Class(mut class) => match class.members.remove(0) {
+                    ClassMember::Method(method) => *method,
+                    other => panic!("not a method: {other:?}"),
+                },
+                other => panic!("not a declaration: {other:?}"),
+            },
+            other => panic!("not a statement: {other:?}"),
+        }
+    }
+
+    fn nested(function: &Function) -> &Function {
+        let FunctionBody::Block(body) = &function.body else {
+            panic!("block body");
+        };
+        let StmtKind::Expr(Expr {
+            kind:
+                ExprKind::Closure(inner)
+                | ExprKind::ArrowFunction {
+                    function: inner, ..
+                },
+            ..
+        }) = &body[0].kind
+        else {
+            panic!("closure statement");
+        };
+        inner
+    }
+
+    #[test]
+    fn a_yield_marks_only_the_innermost_body_as_a_generator() {
+        assert!(function("<?php function f() { yield; }").is_generator);
+        assert!(function("<?php function f() { yield from g(); }").is_generator);
+        assert!(!function("<?php function f() { return 1; }").is_generator);
+
+        let outer = function("<?php function f() { function () { yield 1; }; }");
+        assert!(!outer.is_generator);
+        assert!(nested(&outer).is_generator);
+        let outer = function("<?php function f() { fn() => yield 1 => 2; yield; }");
+        assert!(outer.is_generator);
+        assert!(nested(&outer).is_generator);
+
+        assert!(function("<?php class C { function m() { yield; } }").is_generator);
+        let Ok(parsed) = crate::parse(
+            b"<?php class C { public $p { get { yield; } } }",
+            crate::ParseOptions::default(),
+        ) else {
+            panic!("source fits");
+        };
+        let Ok(program) = parsed.result else {
+            panic!("hooked property parses");
+        };
+        let TopStatement::Statement(stmt) = &program.statements[0] else {
+            panic!("statement");
+        };
+        let StmtKind::Class(class) = &stmt.kind else {
+            panic!("class");
+        };
+        let ClassMember::Property(group) = &class.members[0] else {
+            panic!("property");
+        };
+        let hooks = group.properties[0].hooks.as_deref().unwrap_or_default();
+        assert!(hooks[0].is_generator);
+    }
 
     #[test]
     fn modifier_lists_follow_the_reference_checks() {

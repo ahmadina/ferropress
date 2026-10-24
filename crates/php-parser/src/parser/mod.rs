@@ -18,12 +18,14 @@ use crate::error::{ErrorClass, ParseError};
 use crate::stream::{PResult, Stream, Tok};
 use php_lexer::TokenKind;
 
-/// Parser state: the token stream and nothing else; the tree is built bottom-up.
+/// Parser state: the token stream and a little context; the tree is built bottom-up.
 #[derive(Debug)]
 pub(crate) struct Parser<'s> {
     stream: Stream<'s>,
     halt_offset: Option<u32>,
     depth: usize,
+    /// Whether a `yield` was seen in the body being parsed.
+    yielded: bool,
 }
 
 /// Deepest nesting of statements and operands accepted, the size of the reference parser's stack.
@@ -35,7 +37,20 @@ impl<'s> Parser<'s> {
             stream,
             halt_offset: None,
             depth: 0,
+            yielded: false,
         }
+    }
+
+    /// Parses a function, method or hook body, also returning whether it is a generator: whether
+    /// a `yield` appears in it outside the bodies nested in it.
+    fn function_body<T>(
+        &mut self,
+        parse: impl FnOnce(&mut Self) -> PResult<T>,
+    ) -> PResult<(T, bool)> {
+        let outer = std::mem::replace(&mut self.yielded, false);
+        let body = parse(self);
+        let is_generator = std::mem::replace(&mut self.yielded, outer);
+        Ok((body?, is_generator))
     }
 
     /// Runs `parse` one nesting level deeper, failing as the reference does when its stack is full.

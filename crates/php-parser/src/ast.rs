@@ -787,6 +787,8 @@ pub struct Function {
     pub return_type: Option<Type>,
     /// The body.
     pub body: FunctionBody,
+    /// Whether the body contains `yield` outside nested functions.
+    pub is_generator: bool,
     /// Method modifiers, or [`Modifiers::STATIC`] for a static closure.
     pub modifiers: Modifiers,
     /// The attributes.
@@ -1025,6 +1027,8 @@ pub struct Hook {
     pub params: Option<Vec<Param>>,
     /// The body.
     pub body: HookBody,
+    /// Whether the body contains `yield` outside nested functions.
+    pub is_generator: bool,
     /// The attributes.
     pub attributes: Vec<AttributeGroup>,
     /// Line of the name.

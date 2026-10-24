@@ -459,7 +459,10 @@ impl Parser<'_> {
                 ))
             }
             K::Print => self.prefix(prec::PRINT, ExprKind::Print),
-            K::YieldFrom => self.prefix(prec::YIELD_FROM, ExprKind::YieldFrom),
+            K::YieldFrom => {
+                self.yielded = true;
+                self.prefix(prec::YIELD_FROM, ExprKind::YieldFrom)
+            }
             K::Throw => self.prefix(prec::THROW, ExprKind::Throw),
             K::Include => self.include(IncludeKind::Include),
             K::IncludeOnce => self.include(IncludeKind::IncludeOnce),
@@ -505,6 +508,7 @@ impl Parser<'_> {
 
     fn yield_expr(&mut self) -> PResult<Expr> {
         let line = self.bump()?.line;
+        self.yielded = true;
         if !starts_expression(self.peek()?) {
             return Ok(expr(
                 ExprKind::Yield {

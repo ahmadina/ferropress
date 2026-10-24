@@ -598,6 +598,17 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// Folds the class of `class::name` in ordinary code. The reference evaluates it as a constant
+    /// expression first, so a class that folds to anything but a string is illegal, whatever the
+    /// constant's name.
+    pub(super) fn fold_fetched_class(&mut self, class: &'a Expr, name: &'a Member) -> Flow {
+        self.fold_class_constant(class, name)?;
+        match self.value_of(class) {
+            Some(Value::String(_)) | None => Ok(()),
+            Some(_) => self.fatal("Illegal class name"),
+        }
+    }
+
     fn fold_class_constant(&mut self, class: &'a Expr, name: &'a Member) -> Flow<Option<Value>> {
         self.fold(class)?;
         if !matches!(self.fold_member(name)?, Some(Value::String(_))) {
@@ -799,6 +810,9 @@ impl<'a> Checker<'a> {
                     return self.fatal(
                         "Dynamic class names are not allowed in compile-time class constant references",
                     );
+                }
+                if !matches!(self.value_of(class), Some(Value::String(_)) | None) {
+                    return self.fatal("Class name must be a valid object or a string");
                 }
                 if fetch_of(class) == Some(Fetch::Static) {
                     return self.fatal("\"static::\" is not allowed in compile-time constants");

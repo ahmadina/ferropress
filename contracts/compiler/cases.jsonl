@@ -320,6 +320,36 @@
 {"name":"namespace names 6","source":"<?php echo 1; namespace namespace;","diagnostics":[["Fatal error","Namespace declaration statement has to be the very first statement or after any declare call in the script",1]]}
 {"name":"namespace names 7","source":"<?php namespace A; namespace namespace;","diagnostics":[["Fatal error","Cannot use 'namespace' as namespace name",1]]}
 {"name":"namespace names 8","source":"<?php namespace NameSpace { echo 1; }","diagnostics":[["Fatal error","Cannot use 'NameSpace' as namespace name",1]]}
+{"name":"class name values 1","source":"<?php []::X::X;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 2","source":"<?php ((int) 1)::$b;","diagnostics":[]}
+{"name":"class name values 3","source":"<?php (1)::$b;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 4","source":"<?php ((int) 1)::X;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 5","source":"<?php ((int) 1)::f();","diagnostics":[]}
+{"name":"class name values 6","source":"<?php const B = []::{A};","diagnostics":[["Fatal error","Class name must be a valid object or a string",1]]}
+{"name":"class name values 7","source":"<?php const B = []::A;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 8","source":"<?php []::X;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 9","source":"<?php []::$x;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 10","source":"<?php new ([]);","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 11","source":"<?php ((int) 1)::class;","diagnostics":[]}
+{"name":"class name values 12","source":"<?php (-1)::f();","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 13","source":"<?php ((string) 1)::f();","diagnostics":[]}
+{"name":"class name values 14","source":"<?php $a instanceof ((int) 1);","diagnostics":[]}
+{"name":"class name values 15","source":"<?php ((int) 1) instanceof A;","diagnostics":[]}
+{"name":"class name values 16","source":"<?php [1]::$a;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 17","source":"<?php [$a]::$b;","diagnostics":[]}
+{"name":"class name values 18","source":"<?php (\"a\" . \"b\")::X;","diagnostics":[]}
+{"name":"class name values 19","source":"<?php ((int) \"1\")::{\"X\"};","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 20","source":"<?php class X { const B = (1)::{A}; }","diagnostics":[["Fatal error","Class name must be a valid object or a string",1]]}
+{"name":"class name values 21","source":"<?php function f($a = []::{A}) {}","diagnostics":[["Fatal error","Class name must be a valid object or a string",1]]}
+{"name":"class name values 22","source":"<?php const B = (1)::{\"x\"};","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 23","source":"<?php []::class;","diagnostics":[["Fatal error","Cannot use \"::class\" on array",1]]}
+{"name":"class name values 24","source":"<?php [$a]::class;","diagnostics":[]}
+{"name":"class name values 25","source":"<?php [(int) 1]::$a;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 26","source":"<?php (1 + 1)::X;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 27","source":"<?php ((bool) 1)::X;","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 28","source":"<?php (A::class)::X;","diagnostics":[]}
+{"name":"class name values 29","source":"<?php ((int) 1)::{$a};","diagnostics":[["Fatal error","Illegal class name",1]]}
+{"name":"class name values 30","source":"<?php []::{$a}();","diagnostics":[["Fatal error","Illegal class name",1]]}
 {"name":"misc rules 1","source":"<?php $this?->b(...);","diagnostics":[]}
 {"name":"misc rules 2","source":"<?php $this?->a->b(...);","diagnostics":[]}
 {"name":"misc rules 3","source":"<?php $this?->a?->b(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}

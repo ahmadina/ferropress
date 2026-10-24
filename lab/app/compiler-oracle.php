@@ -143,6 +143,18 @@ function compiler_topic_cases(): array {
 			'namespace A\\Namespace;', 'namespace namespace {}', 'echo 1; namespace namespace;',
 			'namespace A; namespace namespace;', 'namespace NameSpace { echo 1; }',
 		),
+		'class name values'  => array(
+			'[]::X::X;', '((int) 1)::$b;', '(1)::$b;',
+			'((int) 1)::X;', '((int) 1)::f();', 'const B = []::{A};',
+			'const B = []::A;', '[]::X;', '[]::$x;',
+			'new ([]);', '((int) 1)::class;', '(-1)::f();',
+			'((string) 1)::f();', '$a instanceof ((int) 1);', '((int) 1) instanceof A;',
+			'[1]::$a;', '[$a]::$b;', '("a" . "b")::X;',
+			'((int) "1")::{"X"};', 'class X { const B = (1)::{A}; }', 'function f($a = []::{A}) {}',
+			'const B = (1)::{"x"};', '[]::class;', '[$a]::class;',
+			'[(int) 1]::$a;', '(1 + 1)::X;', '((bool) 1)::X;',
+			'(A::class)::X;', '((int) 1)::{$a};', '[]::{$a}();',
+		),
 		'misc rules'         => array(
 			'$this?->b(...);', '$this?->a->b(...);', '$this?->a?->b(...);',
 			'$a?->b::c(...);', 'f($a?->b)->c(...);', '$a?->b()->c(...);',

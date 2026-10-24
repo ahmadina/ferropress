@@ -83,11 +83,14 @@ impl<'a> Checker<'a> {
     }
 
     /// The value `expr` compiles to when the reference computes it while compiling: literals,
-    /// `true`, `false` and `null`, `X::class` for a class known by name, and operators and casts
-    /// over those.
+    /// constant array literals, `true`, `false` and `null`, `X::class` for a class known by name,
+    /// and operators over those. Casts always compile to an instruction.
     pub(super) fn compiled_constant(&mut self, expr: &'a Expr) -> Flow<Option<Value>> {
         match &expr.kind {
-            ExprKind::Int(_) | ExprKind::Float(_) | ExprKind::String(_) => self.fold(expr),
+            ExprKind::Int(_)
+            | ExprKind::Float(_)
+            | ExprKind::String(_)
+            | ExprKind::Array { .. } => self.fold(expr),
             ExprKind::Constant(name) => Ok(self.special_constant(name)),
             ExprKind::ClassName(class) => Ok(self.known_class_name(class)),
             ExprKind::Binary { left, right, .. } => {
@@ -98,7 +101,7 @@ impl<'a> Checker<'a> {
                 }
                 self.fold(expr)
             }
-            ExprKind::Unary { operand, .. } | ExprKind::Cast { operand, .. } => {
+            ExprKind::Unary { operand, .. } => {
                 if self.compiled_constant(operand)?.is_none() {
                     return Ok(None);
                 }
@@ -251,6 +254,16 @@ mod tests {
             ),
             ("function f() { \"\\\\A\"::f(); }", &[]),
             ("(1)::f();", &["Illegal class name @1"]),
+            ("((int) 1)::f(); ((int) 1)::$b; [$a]::$b;", &[]),
+            ("[]::$x;", &["Illegal class name @1"]),
+            ("((int) 1)::X;", &["Illegal class name @1"]),
+            ("((int) 1)::{$a};", &["Illegal class name @1"]),
+            ("[]::X::X;", &["Illegal class name @1"]),
+            ("(\"a\" . \"b\")::X;", &[]),
+            (
+                "const B = []::{A};",
+                &["Class name must be a valid object or a string @1"],
+            ),
             ("new (1.5);", &["Illegal class name @1"]),
             ("$a::f(); new ($a . 'b');", &[]),
             ("function f() { (1 + 1)::f(); }", &["Illegal class name @1"]),
@@ -282,7 +295,8 @@ mod tests {
             ("(true)::class;", &["Cannot use \"::class\" on true @1"]),
             ("(null)::class;", &["Cannot use \"::class\" on null @1"]),
             ("(-1)::class;", &["Cannot use \"::class\" on int @1"]),
-            ("((int) 1.5)::class;", &["Cannot use \"::class\" on int @1"]),
+            ("((int) 1.5)::class;", &[]),
+            ("[]::class;", &["Cannot use \"::class\" on array @1"]),
             ("A::class::class;", &["Cannot use \"::class\" on string @1"]),
             (
                 "'A'::class::class;",

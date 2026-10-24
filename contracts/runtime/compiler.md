@@ -125,7 +125,11 @@ Allowed nodes, with their checks:
 - **Constants.** A constant reference is allowed and moves the current line to it.
 - **`X::NAME`.**
   - `X` must be a name: "Dynamic class names are not allowed in compile-time class constant
-    references".
+    references". A folded value counts as a name here.
+  - `X` must not be a value other than a string: "Class name must be a valid object or a string".
+    This is only reached when `NAME` is computed (`[]::{A}`); with a written name, folding has
+    already reported "Illegal class name". The reference raises it as an error thrown while
+    compiling, which stops compilation like a fatal error.
   - `X` must not be `static`: ""static::" is not allowed in compile-time constants".
 - **`X::class`.**
   - `X` must be a name: "(expression)::class cannot be used in constant expressions".
@@ -217,10 +221,15 @@ parent ("Cannot use "parent" when current class scope has no parent").
   - A literal number is a fatal error: "Illegal class name".
   - A literal string is a fully qualified name, with or without its leading `\`; a special one is a
     fatal error: "'\self' is an invalid class name". The parser joins `'a' . 'b'` into one literal.
-  - Any other operand is compiled first. If it compiles to a constant (literals, `true`, `false`,
-    `null`, `X::class` with a known result, and operators and casts over those), a string is checked
-    like a written name without a prefix (special ones get the scope check, others resolve as a fully
-    qualified string) and any other value is "Illegal class name".
+  - Any other operand is compiled first. If it compiles to a constant (literals, array literals
+    whose items all fold, `true`, `false`, `null`, `X::class` with a known result, and operators over
+    those), a string is checked like a written name without a prefix (special ones get the scope
+    check, others resolve as a fully qualified string) and any other value is "Illegal class name".
+    Casts never compile to a constant here, so `((int) 1)::f()` is accepted.
+  - `X::C` first folds its class the way constant expressions fold, casts included. A class that
+    folds to anything but a string is "Illegal class name", whether the constant's name is written or
+    computed: `((int) 1)::X`, `[]::X` and `((int) 1)::{$a}` all fail. A folded string is then the
+    class operand.
   - `instanceof` does not compile its class at all when the tested value compiles to a constant.
 - **`X::class`** in ordinary code:
   - A literal number is "Illegal class name".

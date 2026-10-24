@@ -179,6 +179,7 @@ impl<'a> Checker<'a> {
                 self.constructor_args(args)
             }
             ExprKind::ClassConstant { class, name } => {
+                self.fold_fetched_class(class, name)?;
                 self.class_ref(class)?;
                 self.member(name)
             }

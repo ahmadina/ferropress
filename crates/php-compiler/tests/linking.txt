@@ -1,0 +1,8 @@
+members 10
+class members 123
+class members 124
+class members 126
+property hooks 51
+hook rules 18
+attribute rules 10
+attribute rules 65

@@ -3,8 +3,10 @@
 //! the reference's in order, severity, message and line.
 //!
 //! Cases whose reference diagnostics come from checks not implemented yet are listed by name in
-//! `tests/pending.txt`. A listed case that starts to match fails the test until it is removed from
-//! the list, so the list only shrinks.
+//! `tests/pending.txt`. Cases whose reference diagnostics come from linking classes while compiling
+//! are listed separately in `tests/linking.txt`, until the class linker exists (ADR-0007). A listed
+//! case that starts to match fails the test until it is removed from its list, so both lists only
+//! shrink.
 
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
@@ -129,8 +131,11 @@ fn render(diagnostics: &[Diagnostic]) -> String {
         .join(" | ")
 }
 
-fn pending() -> Result<BTreeSet<String>, String> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/pending.txt");
+/// The case names listed in `tests/{file}`.
+fn listed(file: &str) -> Result<BTreeSet<String>, String> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join(file);
     let contents =
         std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))?;
     Ok(contents
@@ -143,7 +148,13 @@ fn pending() -> Result<BTreeSet<String>, String> {
 #[test]
 fn compiler_matches_the_reference() -> Result<(), String> {
     let cases = load()?;
-    let pending = pending()?;
+    let pending = listed("pending.txt")?;
+    let linking = listed("linking.txt")?;
+    let both: Vec<&String> = pending.intersection(&linking).collect();
+    assert!(
+        both.is_empty(),
+        "listed as both pending and linking: {both:?}"
+    );
     let mut unexpected = String::new();
     let mut resolved = Vec::new();
     let mut differing = Vec::new();
@@ -158,10 +169,11 @@ fn compiler_matches_the_reference() -> Result<(), String> {
             .collect();
         let got = ours(&case.source)?;
         let matches = got == expected;
-        if !matches {
+        let is_linking = linking.contains(&case.name);
+        if !matches && !is_linking {
             differing.push(case.name.clone());
         }
-        match (matches, pending.contains(&case.name)) {
+        match (matches, is_linking || pending.contains(&case.name)) {
             (false, false) => {
                 let _ = writeln!(
                     unexpected,
@@ -181,7 +193,7 @@ fn compiler_matches_the_reference() -> Result<(), String> {
     }
     assert!(
         unexpected.is_empty() && resolved.is_empty(),
-        "{} of {} cases differ outside tests/pending.txt:\n{unexpected}\nnow matching, remove from tests/pending.txt: {resolved:?}",
+        "{} of {} cases differ outside tests/pending.txt and tests/linking.txt:\n{unexpected}\nnow matching, remove from its list: {resolved:?}",
         unexpected
             .lines()
             .filter(|line| !line.starts_with(' '))

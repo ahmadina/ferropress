@@ -3,7 +3,9 @@
 What the reference PHP (version pinned in `contracts/reference-manifest.toml`) reports while compiling a
 file, before any of it runs. Implemented by `crates/php-compiler` (`check`); differential evidence in
 `contracts/compiler/cases.jsonl`, recorded by `cargo xtask lab compiler`. Cases that do not match yet
-are listed in `crates/php-compiler/tests/pending.txt`.
+are listed in `crates/php-compiler/tests/pending.txt`. Cases whose reference error comes from linking
+a class while compiling (early binding, ADR-0007) are listed in `crates/php-compiler/tests/linking.txt`
+until the class linker exists.
 
 Provenance: `Zend/zend_compile.c` in the pinned PHP source.
 
@@ -874,3 +876,16 @@ as above.
 decides the result (falsy for `&&` and `and`, truthy for `||` and `or`), the right operand is not
 compiled at all, so nothing in it is reported: `'s' or yield;` at the top level is accepted.
 Otherwise the right operand compiles as usual.
+
+### Not yet implemented
+
+These need descriptions of the built-in functions (roadmap step 19):
+
+- Built-in functions that the reference compiles to dedicated instructions, such as `strlen()` with
+  one argument, return temporaries. Writing through their result is "Cannot use result of built-in
+  function in write context".
+- Reading `$http_response_header` raises the deprecation "The predefined locally scoped
+  $http_response_header variable is deprecated, call http_get_last_response_headers() instead". The
+  exceptions are when the function has already assigned the variable or has a parameter of that name.
+  Whether a function argument counts as a read depends on whether the called function is known while
+  compiling and takes that argument by value.

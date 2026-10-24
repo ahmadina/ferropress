@@ -285,6 +285,33 @@
 {"name":"top-level blocks 16","source":"<?php {\n;\n}\n$this = 1;","diagnostics":[["Fatal error","Cannot re-assign $this",4]]}
 {"name":"top-level blocks 17","source":"<?php namespace a {} { namespace\\f(); }","diagnostics":[["Fatal error","No code may exist outside of namespace {}",1]]}
 {"name":"top-level blocks 18","source":"<?php namespace a {} {} namespace b {}","diagnostics":[]}
+{"name":"reference values 1","source":"<?php function &f() { return $a?->b; yield; }","diagnostics":[]}
+{"name":"reference values 2","source":"<?php function &f() { yield; return $a?->b; }","diagnostics":[]}
+{"name":"reference values 3","source":"<?php function &f() { return $a?->b; }","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
+{"name":"reference values 4","source":"<?php function &f() { return $a[]; }","diagnostics":[]}
+{"name":"reference values 5","source":"<?php function f() { return $a[]; }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"reference values 6","source":"<?php function &f() { return f(...)[0]; }","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"reference values 7","source":"<?php function &f() { return $a?->b(); }","diagnostics":[]}
+{"name":"reference values 8","source":"<?php function &f() { return f()->a; }","diagnostics":[]}
+{"name":"reference values 9","source":"<?php fn&() => $a?->b;","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
+{"name":"reference values 10","source":"<?php fn&() => $a[];","diagnostics":[]}
+{"name":"reference values 11","source":"<?php fn&(): never => $a[];","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"reference values 12","source":"<?php fn&(): never => $a?->b;","diagnostics":[]}
+{"name":"reference values 13","source":"<?php fn() => $a[];","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"reference values 14","source":"<?php list(&$foo) = [42];","diagnostics":[["Fatal error","Cannot assign reference to non referenceable value",1]]}
+{"name":"reference values 15","source":"<?php list(&$GLOBALS) = [1];","diagnostics":[["Fatal error","Cannot assign reference to non referenceable value",1]]}
+{"name":"reference values 16","source":"<?php [&$y] = $y->y?->y;","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
+{"name":"reference values 17","source":"<?php [&$y] = f();","diagnostics":[]}
+{"name":"reference values 18","source":"<?php [&$y] = $a |> f(...);","diagnostics":[["Fatal error","Cannot use temporary expression in write context",1]]}
+{"name":"reference values 19","source":"<?php [$foo?->bar->baz] = [1];","diagnostics":[["Fatal error","Assignments can only happen to writable values",1]]}
+{"name":"reference values 20","source":"<?php [$foo?->bar] = [1];","diagnostics":[["Fatal error","Assignments can only happen to writable values",1]]}
+{"name":"reference values 21","source":"<?php list(y|>y) = y;","diagnostics":[["Fatal error","Can't use function return value in write context",1]]}
+{"name":"reference values 22","source":"<?php [$a->b?->c->d] = [1];","diagnostics":[["Fatal error","Assignments can only happen to writable values",1]]}
+{"name":"reference values 23","source":"<?php function () use ($a) { static $a; };","diagnostics":[["Fatal error","Duplicate declaration of static variable $a",1]]}
+{"name":"reference values 24","source":"<?php function () use (&$a) { static $a; };","diagnostics":[["Fatal error","Duplicate declaration of static variable $a",1]]}
+{"name":"reference values 25","source":"<?php function () use ($b) { static $a; };","diagnostics":[]}
+{"name":"reference values 26","source":"<?php class A { function &f() { return $this->a?->b; } }","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
+{"name":"reference values 27","source":"<?php [&$a] = $b?->c();","diagnostics":[["Fatal error","Cannot take reference of a nullsafe chain",1]]}
 {"name":"misc rules 1","source":"<?php $this?->b(...);","diagnostics":[]}
 {"name":"misc rules 2","source":"<?php $this?->a->b(...);","diagnostics":[]}
 {"name":"misc rules 3","source":"<?php $this?->a?->b(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}

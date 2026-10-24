@@ -425,6 +425,8 @@ that name the function use `name()` for functions, `Class::name()` for methods, 
 - **Return type.** A method named `__toString` (any case) without a return type is treated as
   returning `string`. A function returning by reference with a `void` return type is deprecated:
   "f(): Returning by reference from a void function is deprecated".
+- **Closure `use` variables** are declared as the closure's static variables, so a `static` declaration
+  of the same name in its body is "Duplicate declaration of static variable $a".
 - **Parameters**, each on its own line, in this order:
   1. The earlier checks: auto-globals, redefinition, `$this`.
   2. A parameter after a variadic one: "Only the last parameter can be variadic".
@@ -879,6 +881,29 @@ as above.
 decides the result (falsy for `&&` and `and`, truthy for `||` and `or`), the right operand is not
 compiled at all, so nothing in it is reported: `'s' or yield;` at the top level is accepted.
 Otherwise the right operand compiles as usual.
+
+### Values taken by reference
+
+A chain that a `?->` can skip (as defined under Closure creation) cannot be taken by reference: "Cannot
+take reference of a nullsafe chain".
+
+- **`return`** in a function, method, closure or hook that returns by reference, unless it is a
+  generator: a returned variable (a plain variable, element, property or static property) compiles for
+  writing, so `return $a[];` is accepted and a skippable chain fails as above. Calls and other values
+  compile for reading. A generator's `&` applies to its yields, so its `return` statements read. An
+  arrow function's body is such a `return`, unless its return type is `never`, in which case the body
+  is only read.
+- **`list()` with a by-reference item**, at any depth: the assigned value must be a variable or a call
+  (a pipe counts as a call): "Cannot assign reference to non referenceable value". Then a skippable
+  chain fails as above. The value then compiles for writing.
+
+### List targets
+
+Each item of a `list()` or `[]` destructuring must be writable. After dropping the elements and plain
+`->` properties it is built on, the item must be a variable or a call, and no `?->` may be able to skip
+it: "Assignments can only happen to writable values". A `?->` property is not dropped, so
+`[$a?->b->c] = …` fails here. A call or pipe that passes goes on to "Can't use function return value in
+write context" (or "method").
 
 ### Not yet implemented
 

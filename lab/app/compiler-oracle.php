@@ -127,6 +127,17 @@ function compiler_topic_cases(): array {
 			'{ declare(strict_types=1); }', '{ declare(ticks=1); } namespace a;', '{ class A {} } class A {}',
 			"{\n;\n}\n\$this = 1;", 'namespace a {} { namespace\\f(); }', 'namespace a {} {} namespace b {}',
 		),
+		'reference values'   => array(
+			'function &f() { return $a?->b; yield; }', 'function &f() { yield; return $a?->b; }', 'function &f() { return $a?->b; }',
+			'function &f() { return $a[]; }', 'function f() { return $a[]; }', 'function &f() { return f(...)[0]; }',
+			'function &f() { return $a?->b(); }', 'function &f() { return f()->a; }', 'fn&() => $a?->b;',
+			'fn&() => $a[];', 'fn&(): never => $a[];', 'fn&(): never => $a?->b;',
+			'fn() => $a[];', 'list(&$foo) = [42];', 'list(&$GLOBALS) = [1];',
+			'[&$y] = $y->y?->y;', '[&$y] = f();', '[&$y] = $a |> f(...);',
+			'[$foo?->bar->baz] = [1];', '[$foo?->bar] = [1];', 'list(y|>y) = y;',
+			'[$a->b?->c->d] = [1];', 'function () use ($a) { static $a; };', 'function () use (&$a) { static $a; };',
+			'function () use ($b) { static $a; };', 'class A { function &f() { return $this->a?->b; } }', '[&$a] = $b?->c();',
+		),
 		'misc rules'         => array(
 			'$this?->b(...);', '$this?->a->b(...);', '$this?->a?->b(...);',
 			'$a?->b::c(...);', 'f($a?->b)->c(...);', '$a?->b()->c(...);',

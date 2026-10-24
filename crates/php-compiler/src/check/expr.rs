@@ -59,7 +59,13 @@ fn is_variable(expr: &Expr) -> bool {
 fn is_call(expr: &Expr) -> bool {
     matches!(
         expr.kind,
-        ExprKind::Call { .. } | ExprKind::MethodCall { .. } | ExprKind::StaticCall { .. }
+        ExprKind::Call { .. }
+            | ExprKind::MethodCall { .. }
+            | ExprKind::StaticCall { .. }
+            | ExprKind::Binary {
+                op: BinaryOp::Pipe,
+                ..
+            }
     )
 }
 
@@ -113,8 +119,12 @@ fn is_short_circuited(expr: &Expr) -> bool {
 /// Whether a list item may be assigned to.
 fn is_writable(expr: &Expr) -> bool {
     let mut base = expr;
-    while let ExprKind::Dim { base: inner, .. } | ExprKind::Property { object: inner, .. } =
-        &base.kind
+    while let ExprKind::Dim { base: inner, .. }
+    | ExprKind::Property {
+        object: inner,
+        nullsafe: false,
+        ..
+    } = &base.kind
     {
         base = inner;
     }
@@ -541,6 +551,12 @@ impl<'a> Checker<'a> {
         self.ensure_writable(target)?;
         if let ExprKind::Array { items, syntax } = &target.kind {
             if list_has_refs(items) {
+                if !is_variable(value) && !is_call(value) {
+                    return self.fatal("Cannot assign reference to non referenceable value");
+                }
+                if is_short_circuited(value) {
+                    return self.fatal("Cannot take reference of a nullsafe chain");
+                }
                 self.var(value, Fetch::Write)?;
             } else {
                 self.expr(value)?;
@@ -549,6 +565,18 @@ impl<'a> Checker<'a> {
         }
         self.var(target, Fetch::Write)?;
         self.expr(value)
+    }
+
+    /// Compiles the value of a `return`. A function returning by reference, other than a
+    /// generator, fetches a returned variable for writing.
+    pub(super) fn return_value(&mut self, value: &'a Expr) -> Flow {
+        if !self.frame.by_ref || self.frame.is_generator || !is_variable(value) {
+            return self.expr(value);
+        }
+        if is_short_circuited(value) {
+            return self.fatal("Cannot take reference of a nullsafe chain");
+        }
+        self.var(value, Fetch::Write)
     }
 
     fn assign_ref(&mut self, target: &'a Expr, value: &'a Expr) -> Flow {
@@ -765,6 +793,40 @@ mod tests {
             ("f(...)->a->b ??= 1;", &[BUILT_IN]),
             ("f(...)[0]; isset(f(...)[0]); f(f(...)[0]);", &[]),
             ("$x = &f(); f()[0] = 1; $x = &$a->b;", &[]),
+        ]);
+    }
+
+    #[test]
+    fn values_taken_by_reference_follow_the_reference_rules() {
+        let chain = "Cannot take reference of a nullsafe chain @1";
+        let unreferenceable = "Cannot assign reference to non referenceable value @1";
+        let unwritable = "Assignments can only happen to writable values @1";
+        assert_cases(&[
+            ("function &f() { return $a?->b; }", &[chain]),
+            ("function &f() { return $a?->b; yield; }", &[]),
+            ("function &f() { return $a[]; }", &[]),
+            (
+                "function f() { return $a[]; }",
+                &["Cannot use [] for reading @1"],
+            ),
+            ("function &f() { return f(...)[0]; }", &[BUILT_IN]),
+            ("function &f() { return $a?->b(); }", &[]),
+            ("fn&() => $a?->b;", &[chain]),
+            ("fn&() => $a[];", &[]),
+            ("fn&(): never => $a?->b;", &[]),
+            ("list(&$a) = [1];", &[unreferenceable]),
+            ("[&$y] = $y->y?->y;", &[chain]),
+            ("[&$y] = f();", &[]),
+            ("[$a?->b->c] = [1];", &[unwritable]),
+            ("[$a->b->c] = [1];", &[]),
+            (
+                "list(y |> y) = y;",
+                &["Can't use function return value in write context @1"],
+            ),
+            (
+                "function () use ($a) { static $a; };",
+                &["Duplicate declaration of static variable $a @1"],
+            ),
         ]);
     }
 

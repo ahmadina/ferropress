@@ -272,7 +272,7 @@ impl<'a> Checker<'a> {
             StmtKind::Continue(depth) => self.break_continue(false, depth.as_ref()),
             StmtKind::Return(value) => {
                 if let Some(value) = value {
-                    self.expr(value)?;
+                    self.return_value(value)?;
                 }
                 self.returned(value.as_ref())
             }
@@ -505,20 +505,22 @@ impl<'a> Checker<'a> {
                 return self.fatal(message);
             }
         }
+        let uses = function.uses.iter().map(|use_var| use_var.name.clone());
+        self.frame.statics.extend(uses);
         self.no_discard_return()?;
         match &function.body {
             FunctionBody::Block(stmts) => self.stmts(stmts),
             FunctionBody::Expr(expr) => {
                 let line = self.line;
-                self.expr(expr)?;
                 let returns_never = self
                     .frame
                     .returns
                     .as_ref()
                     .is_some_and(|returns| returns.mask().intersects(Mask::NEVER));
                 if returns_never {
-                    return Ok(());
+                    return self.expr(expr);
                 }
+                self.return_value(expr)?;
                 self.line = line;
                 self.returned(Some(expr))
             }

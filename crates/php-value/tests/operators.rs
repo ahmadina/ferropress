@@ -1,16 +1,12 @@
 //! Differential test: replays every operation recorded from the reference PHP
 //! (`contracts/operators/`) on `php_value::ops` and compares results, diagnostics and thrown errors.
 
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
 use php_value::ops::{self, Collect, OpError};
 use php_value::{ArrayKey, PhpArray, PhpString, Value};
 use serde_json::{Value as Json, json};
-
-/// Operations recorded by the oracle that this crate does not implement yet.
-const PENDING: [&str; 2] = ["preinc", "predec"];
 
 /// Mismatches printed in full before the rest are only counted.
 const SHOWN: usize = 25;
@@ -114,6 +110,8 @@ fn unary(name: &str) -> Option<Unary> {
         "string" => |v, cx| v.to_php_string(cx).map(Value::String),
         "bool" => |v, cx| v.to_bool(cx).map(Value::Bool),
         "array" => |v, cx| v.to_array(cx).map(Value::Array),
+        "preinc" => |v, cx| ops::increment(v, cx),
+        "predec" => |v, cx| ops::decrement(v, cx),
         _ => return None,
     })
 }
@@ -213,7 +211,6 @@ fn operations_match_the_reference() -> Result<(), String> {
 
     let mut checked = 0_usize;
     let mut mismatches = Vec::new();
-    let mut pending_seen = BTreeSet::new();
     for line in lines {
         let line: Json = serde_json::from_str(line).map_err(|e| e.to_string())?;
         let name = line["op"].as_str().ok_or("no operation")?;
@@ -223,11 +220,7 @@ fn operations_match_the_reference() -> Result<(), String> {
         };
         let (unary, binary) = (unary(name), binary(name));
         if unary.is_none() && binary.is_none() {
-            if !PENDING.contains(&name) {
-                return Err(format!("unknown operation {name}"));
-            }
-            pending_seen.insert(name.to_owned());
-            continue;
+            return Err(format!("unknown operation {name}"));
         }
         let results = line["results"].as_array().ok_or("no results")?;
         for (operand, recorded_json) in operands.iter().zip(results) {
@@ -251,9 +244,6 @@ fn operations_match_the_reference() -> Result<(), String> {
                 ));
             }
         }
-    }
-    if pending_seen.len() != PENDING.len() {
-        return Err(format!("pending operations recorded: {pending_seen:?}"));
     }
     if checked == 0 || !mismatches.is_empty() {
         return Err(format!(

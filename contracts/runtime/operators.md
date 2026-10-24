@@ -129,6 +129,31 @@ The operators behave as follows:
 Both operands are converted as `(string)` converts them, left first (so each array warns "Array to
 string conversion" and each `NAN` warns), and joined.
 
+## Increment and decrement: `++ --`
+
+The variable is replaced by the result; pre- and post-forms differ only in which value the expression
+yields. Here "numeric" means wholly numeric, trailing whitespace allowed.
+
+| Operand | `++` | `--` |
+|---|---|---|
+| `null` | 1 | unchanged, warning "Decrement on type null has no effect, this will change in the next major version of PHP" |
+| `false` / `true` | unchanged, warning "Increment on type bool has no effect, this will change in the next major version of PHP" | unchanged, the same warning with "Decrement" |
+| integer | plus 1; `PHP_INT_MAX` becomes the float one above it | minus 1; `PHP_INT_MIN` becomes the float one below it |
+| float | plus 1.0 | minus 1.0 |
+| numeric string | its number plus 1, as for integers and floats | its number minus 1, likewise |
+| `""` | `"1"`, after the deprecation below | -1, deprecation "Decrement on empty string is deprecated as non-numeric" |
+| other string | deprecation "Increment on non-numeric string is deprecated, use str_increment() instead", then the next string in sequence | unchanged, deprecation "Decrement on non-numeric string has no effect and is deprecated" |
+| array | `TypeError` "Cannot increment array" | `TypeError` "Cannot decrement array" |
+
+The next string in sequence counts from the last byte:
+
+- Lowercase letters, uppercase letters and digits each step within their own range (`a`→`b`, `Z`→`A`
+  with a carry, `9`→`0` with a carry).
+- A carry moves on to the byte before.
+- A carry out of the first byte adds a new first byte: `1` after a digit, `A` after an uppercase letter,
+  `a` after a lowercase letter (`"zz"`→`"aaa"`, `"Az"`→`"Ba"`, `"9"` is numeric).
+- Any other byte stops the count without changing anything further (`"a-z"`→`"a-a"`, `"z-"` unchanged).
+
 ## Comparison: `== != < <= > >= <=>`
 
 Every loose comparison is one three-way comparison giving -1, 0 or 1:

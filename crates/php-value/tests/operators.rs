@@ -86,6 +86,23 @@ fn encode(value: &Value) -> Result<Json, String> {
     })
 }
 
+/// Writes every `NAN` in an encoded value the same way. Its sign and payload come from the processor,
+/// for the reference as here (x86-64 gives `INF - INF` the sign bit, arm64 does not), and PHP prints
+/// every `NAN` alike.
+fn canonical_nan(json: &mut Json) {
+    let Json::Array(items) = json else {
+        return;
+    };
+    if let [Json::String(tag), Json::String(hex)] = items.as_mut_slice()
+        && tag == "float"
+        && u64::from_str_radix(hex, 16).is_ok_and(|bits| f64::from_bits(bits).is_nan())
+    {
+        "nan".clone_into(hex);
+        return;
+    }
+    items.iter_mut().for_each(canonical_nan);
+}
+
 fn unary(name: &str) -> Option<Unary> {
     Some(match name {
         "neg" => |v, cx| ops::mul(v, &Value::Int(-1), cx),
@@ -214,14 +231,17 @@ fn operations_match_the_reference() -> Result<(), String> {
         }
         let results = line["results"].as_array().ok_or("no results")?;
         for (operand, recorded_json) in operands.iter().zip(results) {
-            let expected = recorded(recorded_json, &messages, &errors)?;
+            let mut expected = recorded(recorded_json, &messages, &errors)?;
             let mut cx = Collect::default();
             let result = match (left, unary, binary) {
                 (None, Some(op), _) => op(operand, &mut cx),
                 (Some(left), _, Some(op)) => op(left, operand, &mut cx),
                 _ => return Err(format!("`{name}` has the wrong arity")),
             };
-            let actual = outcome(result, &cx)?;
+            let mut actual = outcome(result, &cx)?;
+            for value in [&mut expected.0, &mut actual.0].into_iter().flatten() {
+                canonical_nan(value);
+            }
             checked += 1;
             if actual != expected {
                 let left = left.map_or(Ok(json!("-")), encode)?;

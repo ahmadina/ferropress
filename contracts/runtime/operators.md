@@ -66,6 +66,9 @@ trailing space it is a float.
   A `precision` of -1 uses the shortest digits that read back exactly, with plain notation up to an
   exponent of 17; a `precision` of 0 means 1.
 - Diagnostic messages always print floats with the shortest digits (`1.0E+100`, `9.223372036854776E+18`).
+- The sign and payload of a `NAN` produced by arithmetic come from the processor: `INF - INF` has the
+  sign bit set on x86-64 and not on arm64, in the reference as in Ferropress. PHP prints every `NAN`
+  alike, so the capture is compared with all `NAN`s treated as one value.
 
 ## Arithmetic: `+ - * / % **`
 

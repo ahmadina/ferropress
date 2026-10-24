@@ -202,6 +202,42 @@ impl DeclaredType {
         self.mask.intersects(kind) || (kind == Mask::INT && self.mask.intersects(Mask::FLOAT))
     }
 
+    /// Whether a parameter of type `param` admits every value of this type, as a set hook's
+    /// parameter must for its property's type. `None` when that depends on how classes are
+    /// related, which is only known once classes are linked.
+    pub(super) fn accepted_by(&self, param: &Self) -> Option<bool> {
+        if param.mask == Mask::ANY {
+            return Some(true);
+        }
+        if self.mask.without(param.mask) != Mask::NONE {
+            return Some(false);
+        }
+        let depends_on_classes = !param.members.is_empty()
+            || param
+                .mask
+                .intersects(Mask::OBJECT.union(Mask::CALLABLE).union(Mask::STATIC));
+        let mut known = true;
+        for member in &self.members {
+            let names = match member {
+                Member::Class(name) => std::slice::from_ref(name),
+                Member::Intersection(names) => names.as_slice(),
+            };
+            let is_named = names.iter().any(|name| {
+                param.members.iter().any(
+                    |other| matches!(other, Member::Class(other) if other.eq_ignore_ascii_case(name)),
+                )
+            });
+            if is_named {
+                continue;
+            }
+            if !depends_on_classes {
+                return Some(false);
+            }
+            known = false;
+        }
+        known.then_some(true)
+    }
+
     /// Whether a generator may declare this return type.
     pub(super) fn admits_generators(&self) -> bool {
         if self.mask.intersects(Mask::OBJECT) {
@@ -657,6 +693,34 @@ mod tests {
     use crate::check::Checker;
     use php_parser::{ParseOptions, parse};
     use php_value::Value;
+
+    #[test]
+    fn parameter_types_accept_property_types_known_without_classes() {
+        let class = |name: &str| DeclaredType::class(name.as_bytes().to_vec());
+        let both = DeclaredType {
+            members: vec![Member::Intersection(vec![b"A".to_vec(), b"B".to_vec()])],
+            is_intersection: true,
+            ..DeclaredType::default()
+        };
+        let int = DeclaredType::of(Mask::INT);
+        assert_eq!(int.accepted_by(&DeclaredType::of(Mask::ANY)), Some(true));
+        assert_eq!(int.accepted_by(&DeclaredType::of(Mask::FLOAT)), Some(false));
+        assert_eq!(int.nullable().accepted_by(&int), Some(false));
+        assert_eq!(class("A").accepted_by(&class("a")), Some(true));
+        assert_eq!(class("A").accepted_by(&int), Some(false));
+        assert_eq!(both.accepted_by(&class("B")), Some(true));
+        assert_eq!(both.accepted_by(&int), Some(false));
+        assert_eq!(class("A").accepted_by(&class("B")), None);
+        assert_eq!(
+            class("A").accepted_by(&DeclaredType::of(Mask::OBJECT)),
+            None
+        );
+        assert_eq!(
+            class("A").accepted_by(&DeclaredType::of(Mask::CALLABLE)),
+            None
+        );
+        assert_eq!(both.accepted_by(&class("C")), None);
+    }
 
     /// Every diagnostic compiling `source` reports, as `severity: message`.
     fn diagnostics(source: &str) -> Vec<String> {

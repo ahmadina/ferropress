@@ -4,13 +4,14 @@
 use std::collections::HashSet;
 
 use php_parser::ast::{
-    ClassKind, ClassLike, ClassMember, ConstantGroup, EnumCase, Function, HookBody, Modifiers,
-    Param, Property, PropertyGroup,
+    ClassKind, ClassLike, ClassMember, ConstantGroup, EnumCase, Modifiers, Param, Property,
+    PropertyGroup,
 };
 use php_value::Value;
 
+use super::hooks::HookedProperty;
 use super::types::{ANONYMOUS_CLASS, DeclaredType, Mask};
-use super::{Checker, ClassScope, Code, Flow, Frame, types};
+use super::{Checker, ClassScope, Code, Flow, types};
 
 /// How restrictive a visibility is, from public (the default) to private.
 fn visibility_rank(modifiers: Modifiers, protected: Modifiers, private: Modifiers) -> u8 {
@@ -98,7 +99,7 @@ impl<'a> Checker<'a> {
     }
 
     /// `Class::member`, or `Class::$member` with `sigil`, as messages name a member.
-    fn member_subject(&self, sigil: &[u8], name: &[u8]) -> Vec<u8> {
+    pub(super) fn member_subject(&self, sigil: &[u8], name: &[u8]) -> Vec<u8> {
         let mut subject = self.class_label();
         subject.extend_from_slice(b"::");
         subject.extend_from_slice(sigil);
@@ -308,16 +309,15 @@ impl<'a> Checker<'a> {
             }
         }
         self.declare_property(&property.name, modifiers, declared.is_some())?;
-        for hook in property.hooks.iter().flatten() {
-            let mut name = b"$".to_vec();
-            name.extend_from_slice(&property.name);
-            name.extend_from_slice(b"::");
-            name.extend_from_slice(&hook.name);
-            let code = Code::Method {
-                class: self.class.as_ref().and_then(|scope| scope.name.clone()),
-                name,
-            };
-            self.hook_body(&hook.body, code)?;
+        if let Some(hooks) = &property.hooks {
+            self.property_hooks(&HookedProperty {
+                name: &property.name,
+                modifiers,
+                declared_type: group.property_type.as_ref(),
+                declared,
+                has_default: property.default.is_some(),
+                hooks,
+            })?;
         }
         self.attributes(&group.attributes)
     }
@@ -408,16 +408,14 @@ impl<'a> Checker<'a> {
     }
 
     /// Checks and declares the property that `param` of `function` promotes.
-    pub(super) fn promoted_property(&mut self, function: &Function, param: &'a Param) -> Flow {
+    pub(super) fn promoted_property(&mut self, param: &'a Param, is_abstract: bool) -> Flow {
         let is_constructor = self.class.is_some()
             && matches!(&self.frame.code, Code::Method { name, .. }
                 if name.eq_ignore_ascii_case(b"__construct"));
         if !is_constructor {
             return self.fatal("Cannot declare promoted property outside a constructor");
         }
-        if function.modifiers.contains(Modifiers::ABSTRACT)
-            || self.class_kind() == Some(ClassKind::Interface)
-        {
+        if is_abstract || self.class_kind() == Some(ClassKind::Interface) {
             return self.fatal("Cannot declare promoted property in an abstract constructor");
         }
         if param.variadic {
@@ -441,25 +439,18 @@ impl<'a> Checker<'a> {
             message.extend_from_slice(b" must have type");
             return self.fatal(message);
         }
-        self.declare_property(&param.name, modifiers, declared.is_some())
-    }
-
-    fn hook_body(&mut self, body: &'a HookBody, code: Code) -> Flow {
-        let property = self.frame.property.clone();
-        let outer = std::mem::replace(
-            &mut self.frame,
-            Frame {
-                property,
-                ..Frame::new(code)
-            },
-        );
-        let result = match body {
-            HookBody::Absent => Ok(()),
-            HookBody::Expr(expr) => self.expr(expr),
-            HookBody::Block(stmts) => self.stmts(stmts),
-        };
-        self.frame = outer;
-        result
+        self.declare_property(&param.name, modifiers, declared.is_some())?;
+        match &param.hooks {
+            Some(hooks) => self.property_hooks(&HookedProperty {
+                name: &param.name,
+                modifiers,
+                declared_type: param.declared_type.as_ref(),
+                declared,
+                has_default: false,
+                hooks,
+            }),
+            None => Ok(()),
+        }
     }
 }
 

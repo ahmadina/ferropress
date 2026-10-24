@@ -33,42 +33,11 @@ arguments 10
 arguments 12
 arguments 13
 members 10
-class members 24
-class members 26
 class members 123
 class members 124
 class members 126
-property hooks 1
-property hooks 2
-property hooks 3
-property hooks 5
-property hooks 6
-property hooks 7
-property hooks 8
-property hooks 9
-property hooks 10
-property hooks 11
-property hooks 12
-property hooks 13
-property hooks 14
-property hooks 16
-property hooks 19
-property hooks 20
-property hooks 21
-property hooks 29
-property hooks 36
-property hooks 37
-property hooks 38
-property hooks 39
-property hooks 40
-property hooks 42
-property hooks 44
-property hooks 49
-property hooks 50
 property hooks 51
-property hooks 56
-property hooks 57
-property hooks 59
+hook rules 18
 attributes 1
 attributes 2
 attributes 3
@@ -97,8 +66,6 @@ traits 2
 lines 4
 lines 8
 lines 21
-lines 23
-parser error property hook list empty
 parser expression 14
 parser expression 1935
 parser expression 2630

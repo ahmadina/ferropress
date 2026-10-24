@@ -1184,6 +1184,97 @@
 {"name":"property hooks 58","source":"<?php class A { var $a { get => 1; } }","diagnostics":[]}
 {"name":"property hooks 59","source":"<?php class A { public $a { get => 1; set; } }","diagnostics":[["Fatal error","Non-abstract property hook must have a body",1]]}
 {"name":"property hooks 60","source":"<?php class A { public $a, $b { get => 1; } }","diagnostics":[["Parse error","syntax error, unexpected token \"{\", expecting \",\" or \";\"",1]]}
+{"name":"hook rules 1","source":"<?php class A {\n public $a {\n get\n ;\n }\n}","diagnostics":[["Fatal error","Non-abstract property hook must have a body",3]]}
+{"name":"hook rules 2","source":"<?php class A {\n public $a {\n final\n get\n {} \n get\n {\n }\n }\n}","diagnostics":[["Fatal error","Cannot redeclare property hook \"get\"",8]]}
+{"name":"hook rules 3","source":"<?php class A {\n public int $a {\n set(string $x)\n {\n }\n }\n}","diagnostics":[["Fatal error","Type of parameter $x of hook A::$a::set must be compatible with property type",5]]}
+{"name":"hook rules 4","source":"<?php abstract class A {\n abstract public $a {\n get => 1;\n }\n}","diagnostics":[["Fatal error","Abstract property A::$a must specify at least one abstract hook",3]]}
+{"name":"hook rules 5","source":"<?php class A {\n public $a = 1 {\n get => 1;\n }\n}","diagnostics":[["Fatal error","Cannot specify default value for virtual hooked property A::$a",3]]}
+{"name":"hook rules 6","source":"<?php class A { private $a { final get {} } }","diagnostics":[["Fatal error","Property hook cannot be both final and private",1]]}
+{"name":"hook rules 7","source":"<?php abstract class A { abstract private $a { get; } }","diagnostics":[["Fatal error","Property hook cannot be both abstract and private",1]]}
+{"name":"hook rules 8","source":"<?php abstract class A { abstract public $a { final get; } }","diagnostics":[["Fatal error","Property hook cannot be both abstract and final",1]]}
+{"name":"hook rules 9","source":"<?php class A { public $a { GET {} get {} } }","diagnostics":[["Fatal error","Cannot redeclare property hook \"get\"",1]]}
+{"name":"hook rules 10","source":"<?php class A { public $a { SET($x, $y) {} } }","diagnostics":[["Fatal error","SET hook of property A::$a must accept exactly one parameters",1]]}
+{"name":"hook rules 11","source":"<?php interface I { public $a = 1 { get; } }","diagnostics":[["Fatal error","Cannot specify default value for virtual hooked property I::$a",1]]}
+{"name":"hook rules 12","source":"<?php class A { public $a { } }","diagnostics":[["Fatal error","Property hook list must not be empty",1]]}
+{"name":"hook rules 13","source":"<?php class A { public $a = 1 { get => fn() => $this->a; } }","diagnostics":[["Fatal error","Cannot specify default value for virtual hooked property A::$a",1]]}
+{"name":"hook rules 14","source":"<?php class A { public $a = 1 { get => function () { return $this->a; }; } }","diagnostics":[["Fatal error","Cannot specify default value for virtual hooked property A::$a",1]]}
+{"name":"hook rules 15","source":"<?php class A { public private(set) int $a { get => 1; } }","diagnostics":[["Fatal error","Read-only virtual property A::$a must not specify asymmetric visibility",1]]}
+{"name":"hook rules 16","source":"<?php class A { public private(set) int $a { set {} } }","diagnostics":[["Fatal error","Write-only virtual property A::$a must not specify asymmetric visibility",1]]}
+{"name":"hook rules 17","source":"<?php class A { public private(set) int $a { get => 1; set {} } }","diagnostics":[]}
+{"name":"hook rules 18","source":"<?php class B {} class A extends B { public $a = 1 { get => 1; } }","diagnostics":[["Fatal error","Cannot specify default value for virtual hooked property A::$a",1]]}
+{"name":"hook rules 19","source":"<?php class A { public int $a { get { yield 1; } } }","diagnostics":[["Fatal error","Generator return type must be a supertype of Generator, int given",1]]}
+{"name":"hook rules 20","source":"<?php class A { public iterable $a { get { yield 1; } } }","diagnostics":[]}
+{"name":"hook rules 21","source":"<?php class A { public $a { set { yield; } } }","diagnostics":[["Fatal error","Generator return type must be a supertype of Generator, void given",1]]}
+{"name":"hook rules 22","source":"<?php class A { public $a { &set {} } }","diagnostics":[["Deprecated","A::$a::set(): Returning by reference from a void function is deprecated",1]]}
+{"name":"hook rules 23","source":"<?php class A { public $a { set(int $x = 1, ) {} } }","diagnostics":[["Fatal error","Parameter $x of set hook A::$a must not have a default value",1]]}
+{"name":"hook rules 24","source":"<?php class A { public ?int $a { get { return; } } }","diagnostics":[["Fatal error","A method with return type must return a value (did you mean \"return null;\" instead of \"return;\"?)",1]]}
+{"name":"hook rules 25","source":"<?php class A { function __construct(public $a = 1 { get => 1; }) {} }","diagnostics":[]}
+{"name":"hook rules 26","source":"<?php class A { function __construct(public static $a { get => 1; }) {} }","diagnostics":[["Fatal error","Cannot use the static modifier on a parameter",1]]}
+{"name":"hook rules 27","source":"<?php class A { function __construct(public int $a { set(string $v) {} }) {} }","diagnostics":[["Fatal error","Type of parameter $v of hook A::$a::set must be compatible with property type",1]]}
+{"name":"hook rules 28","source":"<?php class A { function __construct(public readonly int $a { get => 1; }) {} }","diagnostics":[["Fatal error","Hooked properties cannot be readonly",1]]}
+{"name":"hook rules 29","source":"<?php class A { function __construct(public $a { }) {} }","diagnostics":[["Fatal error","Property hook list must not be empty",1]]}
+{"name":"hook rules 30","source":"<?php class A { public $a { get => 1; get => 2; } }","diagnostics":[["Fatal error","Cannot redeclare property hook \"get\"",1]]}
+{"name":"hook rules 31","source":"<?php class A { public $a { get => parent::$a::GET(); } }","diagnostics":[]}
+{"name":"hook rules 32","source":"<?php class A { public $a { get => (parent::$a)::get(); } }","diagnostics":[["Fatal error","Cannot use \"parent\" when current class scope has no parent",1]]}
+{"name":"hook rules 33","source":"<?php class A { public $a { get => parent::${'a'}::get(); } }","diagnostics":[]}
+{"name":"hook rules 34","source":"<?php function f() { parent::$a::get(); }","diagnostics":[["Fatal error","Cannot use \"parent\" when no class scope is active",1]]}
+{"name":"hook rules 35","source":"<?php function f() { \\parent::$a::get(); }","diagnostics":[["Fatal error","Cannot use \"parent\" when no class scope is active",1]]}
+{"name":"hook rules 36","source":"<?php function f() { \"PARENT\"::$a::get(); }","diagnostics":[["Fatal error","Cannot use \"parent\" when no class scope is active",1]]}
+{"name":"hook rules 37","source":"<?php namespace N; function f() { namespace\\parent::$a::get(); }","diagnostics":[["Fatal error","Cannot use \"parent\" when no class scope is active",1]]}
+{"name":"hook rules 38","source":"<?php class A { public $a { get => PARENT::$a::get(); } }","diagnostics":[]}
+{"name":"hook rules 39","source":"<?php class A { public $a { get => function() { return parent::$a::get(); }; } }","diagnostics":[["Fatal error","Must not use parent::$a::get() outside a property hook",1]]}
+{"name":"hook rules 40","source":"<?php class A { public $a { get => new class { function f() { return parent::$a::get(); } }; } }","diagnostics":[["Fatal error","Must not use parent::$a::get() outside a property hook",1]]}
+{"name":"hook rules 41","source":"<?php class A { public $a { get => fn() => parent::$a::set(); } }","diagnostics":[["Fatal error","Must not use parent::$a::set() outside a property hook",1]]}
+{"name":"hook rules 42","source":"<?php class A { public $a { get {} set {} } public $b { get => parent::$a::get(); } }","diagnostics":[["Fatal error","Must not use parent::$a::get() in a different property ($b)",1]]}
+{"name":"hook rules 43","source":"<?php class A { public $a { get { return 1; } set { parent::$a::get(); } } }","diagnostics":[["Fatal error","Must not use parent::$a::get() in a different property hook (set)",1]]}
+{"name":"hook rules 44","source":"<?php class A { public $a { get => $this->a; set {} } }","diagnostics":[]}
+{"name":"hook rules 45","source":"<?php class A { public $a { &get => $this->a; set => 1; } }","diagnostics":[["Fatal error","Get hook of backed property A::a with set hook may not return by reference",1]]}
+{"name":"hook rules 46","source":"<?php class A { public $a { &get => 1; set {} } }","diagnostics":[]}
+{"name":"hook rules 47","source":"<?php class A { public $a = 1 { get => $this?->a; } }","diagnostics":[]}
+{"name":"hook rules 48","source":"<?php class A { public $a = 1 { get => $this->{'a'}; } }","diagnostics":[]}
+{"name":"hook rules 49","source":"<?php class A { public $a = 1 { get => \"$this->a\"; } }","diagnostics":[]}
+{"name":"hook rules 50","source":"<?php class A { public $a = 1 { get => \"{$this->a}\"; } }","diagnostics":[]}
+{"name":"hook rules 51","source":"<?php class A { public $a = 1 { get => $THIS->a; } }","diagnostics":[["Fatal error","Cannot specify default value for virtual hooked property A::$a",1]]}
+{"name":"hook rules 52","source":"<?php class A { public $a = 1 { get => ${'this'}->a; } }","diagnostics":[]}
+{"name":"hook rules 53","source":"<?php class A { public $a = 1 { get => $this->b; } }","diagnostics":[["Fatal error","Cannot specify default value for virtual hooked property A::$a",1]]}
+{"name":"hook rules 54","source":"<?php class A { public $a = 1 { get => $this->A; } }","diagnostics":[["Fatal error","Cannot specify default value for virtual hooked property A::$a",1]]}
+{"name":"hook rules 55","source":"<?php abstract class A { abstract public $a { get => 1; set; } }","diagnostics":[]}
+{"name":"hook rules 56","source":"<?php class A { public static $a { } }","diagnostics":[["Fatal error","Property hook list must not be empty",1]]}
+{"name":"hook rules 57","source":"<?php class A { public readonly int $a { } }","diagnostics":[["Fatal error","Hooked properties cannot be readonly",1]]}
+{"name":"hook rules 58","source":"<?php readonly class A { public int $a { get => 1; } }","diagnostics":[["Fatal error","Hooked properties cannot be readonly",1]]}
+{"name":"hook rules 59","source":"<?php class A { public $a { get; get; } }","diagnostics":[["Fatal error","Non-abstract property hook must have a body",1]]}
+{"name":"hook rules 60","source":"<?php class A { public $a { foo; } }","diagnostics":[["Fatal error","Non-abstract property hook must have a body",1]]}
+{"name":"hook rules 61","source":"<?php class A { public $a { final foo {} } }","diagnostics":[["Fatal error","Unknown hook \"foo\" for property A::$a, expected \"get\" or \"set\"",1]]}
+{"name":"hook rules 62","source":"<?php interface I { public $a { get; set => 1; } }","diagnostics":[["Fatal error","Abstract property hook cannot have body",1]]}
+{"name":"hook rules 63","source":"<?php interface I { public $a { final get; } }","diagnostics":[["Fatal error","Property hook cannot be both abstract and final",1]]}
+{"name":"hook rules 64","source":"<?php abstract class A { private abstract $a { get; } }","diagnostics":[["Fatal error","Property hook cannot be both abstract and private",1]]}
+{"name":"hook rules 65","source":"<?php class A { public $a { set(&$x) {} set {} } }","diagnostics":[["Fatal error","Parameter $x of set hook A::$a must not be pass-by-reference",1]]}
+{"name":"hook rules 66","source":"<?php class A { public $a { set { return; } } }","diagnostics":[]}
+{"name":"hook rules 67","source":"<?php class A { public $a { set(public $x) {} } }","diagnostics":[["Fatal error","Cannot declare promoted property outside a constructor",1]]}
+{"name":"hook rules 68","source":"<?php class A { public $a { set(void $x) {} } }","diagnostics":[["Fatal error","Type of parameter $x of hook A::$a::set must be compatible with property type",1]]}
+{"name":"hook rules 69","source":"<?php class A { public $a { set($this) {} } }","diagnostics":[["Fatal error","Cannot use $this as parameter",1]]}
+{"name":"hook rules 70","source":"<?php class A { public int $a { set(int|string $v) {} get => 1; } }","diagnostics":[]}
+{"name":"hook rules 71","source":"<?php class A { public A&B $a { set(A&B $v) {} } }","diagnostics":[]}
+{"name":"hook rules 72","source":"<?php class A { public A&B $a { set(A $v) {} } }","diagnostics":[]}
+{"name":"hook rules 73","source":"<?php class A { public A $a { set(A|B $v) {} } }","diagnostics":[]}
+{"name":"hook rules 74","source":"<?php class A { public ?A $a { set(A $v) {} } }","diagnostics":[["Fatal error","Type of parameter $v of hook A::$a::set must be compatible with property type",1]]}
+{"name":"hook rules 75","source":"<?php class A { public A|int $a { set(int $v) {} } }","diagnostics":[["Fatal error","Type of parameter $v of hook A::$a::set must be compatible with property type",1]]}
+{"name":"hook rules 76","source":"<?php class A { public iterable $a { set(array $v) {} } }","diagnostics":[["Fatal error","Type of parameter $v of hook A::$a::set must be compatible with property type",1]]}
+{"name":"hook rules 77","source":"<?php class A { public array $a { set(iterable $v) {} } }","diagnostics":[]}
+{"name":"hook rules 78","source":"<?php class A { public Traversable $a { set(iterable $v) {} } }","diagnostics":[]}
+{"name":"hook rules 79","source":"<?php class A { public int $a { set(float $v) {} } }","diagnostics":[["Fatal error","Type of parameter $v of hook A::$a::set must be compatible with property type",1]]}
+{"name":"hook rules 80","source":"<?php class A { public int $a { set(?float $v) {} } }","diagnostics":[["Fatal error","Type of parameter $v of hook A::$a::set must be compatible with property type",1]]}
+{"name":"hook rules 81","source":"<?php class A { public false $a { set(bool $v) {} } }","diagnostics":[]}
+{"name":"hook rules 82","source":"<?php class A { public self $a { set(A $v) {} } }","diagnostics":[]}
+{"name":"hook rules 83","source":"<?php class A { public B $a { set(object $v) {} } }","diagnostics":[]}
+{"name":"hook rules 84","source":"<?php class A { public Closure $a { set(callable $v) {} } }","diagnostics":[]}
+{"name":"hook rules 85","source":"<?php class A { public B $a { set(C $v) {} } }","diagnostics":[]}
+{"name":"hook rules 86","source":"<?php class B {} class C extends B {} class A { public C $a { set(B $v) {} } }","diagnostics":[]}
+{"name":"hook rules 87","source":"<?php class A { public C $a { set(B $v) {} } } class B {} class C {}","diagnostics":[]}
+{"name":"hook rules 88","source":"<?php class A { public integer $a { get => 1; set {} } }","diagnostics":[["Warning","\"integer\" will be interpreted as a class name. Did you mean \"int\"? Write \"\\integer\" to suppress this warning",1],["Warning","\"integer\" will be interpreted as a class name. Did you mean \"int\"? Write \"\\integer\" to suppress this warning",1],["Warning","\"integer\" will be interpreted as a class name. Did you mean \"int\"? Write \"\\integer\" to suppress this warning",1]]}
+{"name":"hook rules 89","source":"<?php class A { public $a { #[A] get => 1; } }","diagnostics":[]}
+{"name":"hook rules 90","source":"<?php class A { public $a { get => $undefined; set => 1; } }","diagnostics":[]}
+{"name":"hook rules 91","source":"<?php class A { public int $a { get => 1; set(int $value) { $this->a = $value; } } }","diagnostics":[]}
 {"name":"attributes 1","source":"<?php #[Attribute] #[Attribute] class A {}","diagnostics":[["Fatal error","Attribute \"Attribute\" must not be repeated",1]]}
 {"name":"attributes 2","source":"<?php #[Attribute, Attribute] class A {}","diagnostics":[["Fatal error","Attribute \"Attribute\" must not be repeated",1]]}
 {"name":"attributes 3","source":"<?php #[Attribute] function f() {}","diagnostics":[["Fatal error","Attribute \"Attribute\" cannot target function (allowed targets: class)",1]]}

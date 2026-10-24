@@ -589,7 +589,109 @@ Checks run in this order:
 
 ### Not yet implemented
 
-- Property hook checks.
 - The class-level checks that run when a class is linked. One example is the abstract-member count:
   "Class A contains 1 abstract method and must therefore be declared abstract or implement the
   remaining method (A::$a::get)".
+
+## Property hooks
+
+A property's hooks compile right after the property is declared, and before its attributes. This
+covers declared and promoted properties alike. Hook names are compared case-insensitively, but
+messages show them as written.
+
+### The hook list
+
+1. A readonly property, including any property of a readonly class: "Hooked properties cannot be
+   readonly".
+2. An empty list: "Property hook list must not be empty".
+
+### Each hook
+
+Each hook reports on the line of its name. Its checks run in this order:
+
+1. A static property: "Cannot declare hooks for static property".
+2. A final hook of a private property: "Property hook cannot be both final and private".
+3. **Abstract hooks.** A hook is abstract when it is in an interface, or when the property is
+   abstract and the hook has no body.
+   - An abstract hook may not have a body: "Abstract property hook cannot have body".
+   - The property may not be private: "Property hook cannot be both abstract and private".
+   - The hook may not be final: "Property hook cannot be both abstract and final".
+   - Any other hook needs a body: "Non-abstract property hook must have a body".
+4. A name other than `get` or `set`: "Unknown hook "foo" for property A::$a, expected "get" or
+   "set"".
+5. **Get parameters.** A get hook may not have a parameter list, even an empty one: "get hook of
+   property A::$a must not have a parameter list".
+6. **Set parameters.** A set hook's parameter list, if written, must hold exactly one parameter: "set
+   hook of property A::$a must accept exactly one parameters". That parameter:
+   - may not be by reference: "Parameter $x of set hook A::$a must not be pass-by-reference";
+   - may not be variadic ("must not be variadic");
+   - may not have a default ("must not have a default value").
+
+   It must be typed exactly when the property is typed. Otherwise: "Type of parameter $x of hook
+   A::$a::set must be compatible with property type".
+7. **Compilation.** The hook compiles as a method named `$a::get` (the hook name as written). Its
+   attributes come first.
+   - A get hook returns the property's type.
+   - A set hook returns `void`, so `&set` gets the by-reference void deprecation. Without a
+     parameter list it takes `$value` of the property's type.
+
+   The property's type is compiled again each time it is used, so its warnings repeat. A
+   short-bodied get hook returns its expression. The usual return and generator checks apply.
+
+The remaining checks run after the body and report on the line where the hook's last token ends:
+
+8. A second hook of the same kind: "Cannot redeclare property hook "get"".
+9. **Set parameter type.** A declared parameter type must admit every value of the property's
+   type. It fails with the message from step 6 when it is known to fall short:
+   - when the property allows builtin kinds the parameter does not;
+   - when one of the property's classes is not named in the parameter's type, and the parameter
+     has neither other classes nor `object` or `callable`.
+
+   `mixed` admits everything. A class counts as named when a class of the parameter has the same
+   name (case-insensitively), and an intersection when one of its classes is. Every other case
+   depends on how classes are related, so the reference decides it when classes are linked.
+
+### Virtual properties
+
+A property is virtual when it is in an interface, or when no hook body uses it. A body uses it when
+it fetches `$this->name` with the exact name, outside the closures, arrow functions and classes
+declared inside it. A short-bodied set hook always uses it. `${'this'}` counts as `$this`.
+
+### Verification
+
+When the class has no parent, these checks follow the hooks. With a parent they happen when the
+class is linked. They report on the line where the last hook ends.
+
+1. A virtual property with an explicit default: "Cannot specify default value for virtual hooked
+   property A::$a". Promoted properties have no explicit default.
+2. A by-reference get hook on a property that is not virtual and also has a set hook: "Get hook of
+   backed property A::a with set hook may not return by reference".
+3. An abstract property without an abstract hook: "Abstract property A::$a must specify at least
+   one abstract hook".
+4. A virtual property with a set visibility and only one hook: "Read-only virtual property A::$a
+   must not specify asymmetric visibility" ("Write-only" when the get hook is missing).
+
+### Parent hook calls
+
+A static call is a call of the parent class's hook when all of these hold:
+
+- its method is a literal `get` or `set` (any case);
+- its class part is an unparenthesized `parent::$name`;
+- the property name is literal;
+- `parent` is written as a name in any form or as a string.
+
+Otherwise it compiles as an ordinary static call. Its checks:
+
+1. Outside any class: "Cannot use "parent" when no class scope is active".
+2. With `(...)` arguments: "Cannot create Closure for parent property hook call".
+3. Outside a hook, including closures and classes declared inside one: "Must not use
+   parent::$a::get() outside a property hook".
+4. A different property: "Must not use parent::$b::get() in a different property ($a)".
+5. A different hook kind: "Must not use parent::$a::set() in a different property hook (get)".
+
+Whether the class has a parent is not checked here.
+
+### Not yet implemented
+
+- `#[\Override]` on a hook. The check runs when the class is linked.
+- Set parameter types that depend on class relationships.

@@ -335,6 +335,9 @@ impl<'a> Checker<'a> {
                 self.args(args)
             }
             ExprKind::StaticCall { class, name, args } => {
+                if self.parent_hook_call(class, name, args)? {
+                    return Ok(());
+                }
                 self.class_ref(class)?;
                 self.member(name)?;
                 self.args(args)
@@ -351,7 +354,7 @@ impl<'a> Checker<'a> {
         }
     }
 
-    fn args(&mut self, args: &'a Args) -> Flow {
+    pub(super) fn args(&mut self, args: &'a Args) -> Flow {
         let Args::List(args) = args else {
             return Ok(());
         };

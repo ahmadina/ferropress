@@ -8,6 +8,7 @@
 mod classes;
 mod constant;
 mod expr;
+mod hooks;
 mod members;
 mod methods;
 mod names;
@@ -92,6 +93,8 @@ struct Frame {
     code: Code,
     /// The property whose default, attributes or hooks are being compiled.
     property: Option<Vec<u8>>,
+    /// The kind of the property hook being compiled.
+    hook: Option<hooks::HookKind>,
     /// The enclosing loops and switches, innermost last.
     jumpables: Vec<Jumpable>,
     /// Names of the `static` variables declared so far.
@@ -509,19 +512,10 @@ impl<'a> Checker<'a> {
                 b"Returning by reference from a void function is deprecated",
             );
         }
-        let last_required = function
-            .params
-            .iter()
-            .rposition(|param| param.default.is_none() && !param.variadic);
-        for (index, param) in function.params.iter().enumerate() {
-            let required = last_required
-                .filter(|&last| index < last)
-                .map(|last| function.params[last].name.as_slice());
-            self.param(&function.params[..index], param, required)?;
-            if param.hooks.is_some() || param.modifiers.intersects(PROMOTION) {
-                self.promoted_property(function, param)?;
-            }
-        }
+        self.params(
+            &function.params,
+            function.modifiers.contains(Modifiers::ABSTRACT),
+        )?;
         if let (true, Some(returns)) = (function.is_generator, &returns)
             && !returns.admits_generators()
         {
@@ -533,6 +527,23 @@ impl<'a> Checker<'a> {
         self.frame.returns = returns;
         self.frame.is_generator = function.is_generator;
         self.frame.by_ref = function.by_ref;
+        Ok(())
+    }
+
+    /// Compiles the parameters of a function, which is abstract when `is_abstract`.
+    fn params(&mut self, params: &'a [Param], is_abstract: bool) -> Flow {
+        let last_required = params
+            .iter()
+            .rposition(|param| param.default.is_none() && !param.variadic);
+        for (index, param) in params.iter().enumerate() {
+            let required = last_required
+                .filter(|&last| index < last)
+                .map(|last| params[last].name.as_slice());
+            self.param(&params[..index], param, required)?;
+            if param.hooks.is_some() || param.modifiers.intersects(PROMOTION) {
+                self.promoted_property(param, is_abstract)?;
+            }
+        }
         Ok(())
     }
 

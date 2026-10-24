@@ -81,6 +81,14 @@ dependencies = [
 name = "php-serialize"
 version = "0.0.0"
 dependencies = [
+ "php-value",
+ "thiserror",
+]
+
+[[package]]
+name = "php-value"
+version = "0.0.0"
+dependencies = [
  "thiserror",
 ]
 

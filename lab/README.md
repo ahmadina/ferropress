@@ -25,6 +25,7 @@ cargo xtask lab lexer-corpus              # compare our lexer with the reference
 cargo xtask lab parser                    # record parser cases into contracts/parser/
 cargo xtask lab parser-corpus             # compare our parser with the reference on the upstream sources
 cargo xtask lab compiler                  # record compile-time diagnostics into contracts/compiler/
+cargo xtask lab operators                 # record operator and conversion results into contracts/operators/
 ```
 
 `lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
@@ -227,6 +228,21 @@ area they probe, followed by every parser oracle case that parses.
 The result is written to `contracts/compiler/cases.jsonl` (a header line recording the PHP version,
 `short_open_tag` and `zend.assertions`, then one case per line, byte strings encoded as above). A second
 run produces a byte-identical file.
+
+## Operators
+
+`lab operators` runs our own script (`app/operator-oracle.php`) in the running lab, with
+`serialize_precision` -1 and without strict types. It applies every unary operation (negation, unary
+plus, bitwise not, logical not, the five casts, pre-increment and pre-decrement) to a fixed grid of
+operands, and every binary operator (arithmetic, bitwise, shifts, concatenation and the comparisons) to
+every pair of them. For each operation it records the result, the warnings, notices and deprecations
+raised, in order, and the class and message of any error thrown.
+
+The result is written to `contracts/operators/cases.jsonl`: a header line with the PHP version, the
+operands, and the tables of messages and errors the results refer to by index, then one line per unary
+operation and one per binary operator and left operand. Values are tagged (`["int",7]`); a float is
+its IEEE 754 bit pattern in hex, so NAN payloads and negative zero survive, and byte strings are
+encoded as above. A second run produces a byte-identical file.
 
 ## Pinning
 

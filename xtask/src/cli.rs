@@ -66,6 +66,8 @@ pub(crate) enum LabCommand {
     ParserCorpus,
     /// Record what the reference PHP reports while compiling source text into contracts/compiler
     Compiler,
+    /// Record what the reference PHP's operators and conversions return into contracts/operators
+    Operators,
     /// Run contracts/scenarios/SCENARIO.toml twice from fresh installs and require identical results
     Check {
         /// Scenario id
@@ -110,6 +112,7 @@ mod tests {
             ("parser", LabCommand::Parser),
             ("parser-corpus", LabCommand::ParserCorpus),
             ("compiler", LabCommand::Compiler),
+            ("operators", LabCommand::Operators),
         ];
         for (name, command) in lab {
             assert_eq!(parse(&["lab", name]), Ok(Command::Lab(command)), "{name}");

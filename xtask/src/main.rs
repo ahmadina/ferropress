@@ -14,6 +14,7 @@ mod lexer;
 mod lexer_corpus;
 mod lifecycle;
 mod manifest;
+mod operators;
 mod parser;
 mod parser_corpus;
 mod process;
@@ -452,6 +453,41 @@ fn run_lab_compiler(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Resul
     })
 }
 
+fn run_lab_operators(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let env = lab::lab_env(&manifest)?;
+    let output = process::capture_checked(
+        runner,
+        &lab::compose(
+            &env,
+            [
+                "exec",
+                "-T",
+                "--user",
+                "www-data",
+                "app",
+                "php",
+                operators::SCRIPT,
+            ],
+        ),
+    )
+    .context("running the operator oracle script")?;
+    let oracle = operators::parse(&output)?;
+    operators::write(&oracle, &repo_root.join(operators::OPERATORS_DIR))?;
+    Ok(Report {
+        text: format!(
+            "lab operators: wrote {} for PHP {} ({})",
+            operators::OPERATORS_DIR,
+            oracle.php_version(),
+            oracle.summary()
+        ),
+        success: true,
+    })
+}
+
 fn run_lab_lexer_corpus(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
     let manifest = match load_valid_manifest(repo_root)? {
         Ok(manifest) => manifest,
@@ -663,6 +699,9 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                 }
                 LabCommand::Parser => return run_lab_parser(repo_root(), &mut system_runner()),
                 LabCommand::Compiler => return run_lab_compiler(repo_root(), &mut system_runner()),
+                LabCommand::Operators => {
+                    return run_lab_operators(repo_root(), &mut system_runner());
+                }
                 LabCommand::ParserCorpus => {
                     return run_lab_parser_corpus(repo_root(), &mut system_runner());
                 }
@@ -1677,6 +1716,81 @@ path = "/"
         fs::write(blocked.0.join("contracts/compiler"), b"not a directory").unwrap();
         let error =
             run_lab_compiler(&blocked.0, &mut compiler_runner(COMPILER_OUTPUT)).unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    fn operators_runner(
+        output: String,
+    ) -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        FakeRunner::new(move |invocation: &process::Invocation| {
+            let script = invocation.args.last().map(String::as_str) == Some(operators::SCRIPT);
+            Ok(Some(if script {
+                output.clone()
+            } else {
+                String::new()
+            }))
+        })
+    }
+
+    #[test]
+    fn lab_operators_runs_the_oracle_and_writes_the_cases() {
+        let repo = TempRepo::new("operators-ok", Some(&lab_manifest_text()));
+        let mut runner = operators_runner(operators::sample_output());
+        let report = run_lab_operators(&repo.0, &mut runner).unwrap();
+        assert_eq!(
+            report,
+            Report {
+                text: "lab operators: wrote contracts/operators for PHP 8.5.12 (2 operands, 90 results, 45 thrown errors, 45 with messages)"
+                    .to_owned(),
+                success: true,
+            }
+        );
+        assert_eq!(runner.seen.len(), 1, "{:?}", runner.seen);
+        assert!(
+            runner.seen[0]
+                .ends_with("exec -T --user www-data app php /opt/ferropress/operator-oracle.php"),
+            "{:?}",
+            runner.seen
+        );
+        assert_eq!(
+            operators::Oracle::load(&repo.0.join(operators::OPERATORS_DIR)).unwrap(),
+            operators::parse(&operators::sample_output()).unwrap()
+        );
+    }
+
+    #[test]
+    fn lab_operators_refuses_invalid_input_and_propagates_failures() {
+        let invalid = TempRepo::new("operators-invalid", Some(&manifest_text(5)));
+        let mut runner = operators_runner(operators::sample_output());
+        let report = run_lab_operators(&invalid.0, &mut runner).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let incomplete = TempRepo::new("operators-incomplete", Some(&manifest_text(1)));
+        let error = run_lab_operators(
+            &incomplete.0,
+            &mut operators_runner(operators::sample_output()),
+        )
+        .unwrap_err();
+        assert!(
+            error.to_string().starts_with("the manifest has no"),
+            "{error}"
+        );
+
+        let repo = TempRepo::new("operators-fail", Some(&lab_manifest_text()));
+        let error = run_lab_operators(&repo.0, &mut recording(false)).unwrap_err();
+        assert_eq!(error.to_string(), "running the operator oracle script");
+
+        let error = run_lab_operators(&repo.0, &mut operators_runner("{}".to_owned())).unwrap_err();
+        assert_eq!(error.to_string(), "parsing the operator oracle's header");
+
+        let blocked = TempRepo::new("operators-blocked", Some(&lab_manifest_text()));
+        fs::write(blocked.0.join("contracts/operators"), b"not a directory").unwrap();
+        let error = run_lab_operators(
+            &blocked.0,
+            &mut operators_runner(operators::sample_output()),
+        )
+        .unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

@@ -1,13 +1,21 @@
-//! Float text as PHP writes it under `serialize_precision` -1: in a serialized `d:` token, and in
-//! diagnostic messages.
+//! Float text as PHP writes it.
 //!
-//! The digits are the shortest decimal string that reads back as the same `f64`; when two strings of
+//! Under a precision of -1 (`serialize_precision`'s default, used in a serialized `d:` token and in
+//! diagnostic messages) the digits are the shortest decimal string that reads back as the same `f64`; when two strings of
 //! that length read back, the one nearer the exact binary value wins, and an exact tie goes to the
 //! even last digit. They are laid out in plain notation while the decimal exponent stays within
 //! -3..=17 and in `d.dddE±x` notation outside it; non-finite values are written as `NAN`, `INF` and
 //! `-INF`.
+//!
+//! Under a precision of `n` digits (`precision`, 14 by default, used when a float becomes a string)
+//! the value is rounded to `n` significant digits, an exact tie going to the even digit, trailing zeros
+//! are dropped, and the plain layout holds while the decimal exponent stays within -3..=`n`.
 
-/// Largest decimal exponent written in plain notation.
+use std::num::NonZeroU32;
+
+/// Most significant decimal digits an `f64` can have; asking for more adds nothing.
+const EXACT_DIGITS: usize = 767;
+/// Largest decimal exponent written in plain notation by the shortest notation.
 const PLAIN_MAX_EXPONENT: i32 = 17;
 /// Smallest decimal exponent written in plain notation.
 const PLAIN_MIN_EXPONENT: i32 = -3;
@@ -115,6 +123,70 @@ impl Decimal {
     }
 }
 
+/// How many significant digits a float is written with.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Precision {
+    /// The fewest digits that read back as the same float (a setting of -1).
+    Shortest,
+    /// At most this many digits, correctly rounded.
+    Significant(NonZeroU32),
+}
+
+impl Precision {
+    /// The precision a `precision` or `serialize_precision` setting asks for: any negative value is
+    /// [`Precision::Shortest`], and 0 means one digit.
+    ///
+    /// ```
+    /// use php_value::Precision;
+    ///
+    /// assert_eq!(Precision::from_setting(-1), Precision::Shortest);
+    /// assert_eq!(Precision::from_setting(0), Precision::from_setting(1));
+    /// ```
+    pub fn from_setting(setting: i64) -> Self {
+        if setting < 0 {
+            return Self::Shortest;
+        }
+        let digits = u32::try_from(setting).unwrap_or(u32::MAX);
+        Self::Significant(NonZeroU32::new(digits).unwrap_or(NonZeroU32::MIN))
+    }
+}
+
+/// Appends `value` as PHP writes it under `precision`.
+///
+/// ```
+/// use php_value::{Precision, write_float_with};
+///
+/// let mut out = Vec::new();
+/// write_float_with(&mut out, 0.1 + 0.2, Precision::from_setting(14));
+/// assert_eq!(out, b"0.3");
+/// ```
+pub fn write_float_with(out: &mut Vec<u8>, value: f64, precision: Precision) {
+    let Precision::Significant(digits) = precision else {
+        write_float(out, value);
+        return;
+    };
+    if !value.is_finite() {
+        write_float(out, value);
+        return;
+    }
+    let rendered = (digits.get() as usize).min(EXACT_DIGITS);
+    let text = format!("{value:.*e}", rendered - 1);
+    let (mantissa, exponent) = text.split_once('e').unwrap_or((&text, "0"));
+    let mut significant: Vec<u8> = mantissa.bytes().filter(u8::is_ascii_digit).collect();
+    while significant.len() > 1 && significant.last() == Some(&b'0') {
+        significant.pop();
+    }
+    let point = exponent.parse::<i32>().unwrap_or_default() + 1;
+    let plain_max = i32::try_from(digits.get()).unwrap_or(i32::MAX);
+    write_layout(
+        out,
+        mantissa.starts_with('-'),
+        &significant,
+        point,
+        plain_max,
+    );
+}
+
 /// Appends `value` in PHP's shortest round-trip float notation.
 ///
 /// ```
@@ -144,16 +216,21 @@ pub fn write_float(out: &mut Vec<u8>, value: f64) {
     } else {
         shortest
     };
-    write_decimal(out, &decimal);
+    write_layout(
+        out,
+        decimal.negative,
+        decimal.digits(),
+        decimal.point,
+        PLAIN_MAX_EXPONENT,
+    );
 }
 
-fn write_decimal(out: &mut Vec<u8>, decimal: &Decimal) {
-    if decimal.negative {
+/// Appends `0.digits × 10^point`, in plain notation while `point` is within -3..=`plain_max`.
+fn write_layout(out: &mut Vec<u8>, negative: bool, digits: &[u8], point: i32, plain_max: i32) {
+    if negative {
         out.push(b'-');
     }
-    let digits = decimal.digits();
-    let point = decimal.point;
-    if !(PLAIN_MIN_EXPONENT..=PLAIN_MAX_EXPONENT).contains(&point) {
+    if !(PLAIN_MIN_EXPONENT..=plain_max).contains(&point) {
         write_scientific(out, digits, point - 1);
     } else if point <= 0 {
         out.extend_from_slice(b"0.");
@@ -197,8 +274,9 @@ fn write_scientific(out: &mut Vec<u8>, digits: &[u8], exponent: i32) {
 
 #[cfg(test)]
 mod tests {
-    use super::{Decimal, write_float};
+    use super::{Decimal, Precision, write_float, write_float_with};
     use proptest::prelude::*;
+    use std::num::NonZeroU32;
 
     fn text(value: f64) -> String {
         let mut out = Vec::new();
@@ -230,6 +308,46 @@ mod tests {
         for (value, expected) in cases {
             assert_eq!(text(value), expected, "{value:?}");
         }
+    }
+
+    fn with(value: f64, setting: i64) -> String {
+        let mut out = Vec::new();
+        write_float_with(&mut out, value, Precision::from_setting(setting));
+        String::from_utf8(out).unwrap()
+    }
+
+    #[test]
+    fn significant_digits_round_and_choose_the_layout() {
+        let cases = [
+            (0.1 + 0.2, 14, "0.3"),
+            (1e14, 14, "1.0E+14"),
+            (123_456_789_012_345.0, 14, "1.2345678901234E+14"),
+            (1e13, 14, "10000000000000"),
+            (0.0001, 14, "0.0001"),
+            (0.00001, 14, "1.0E-5"),
+            (-0.0, 14, "-0"),
+            (0.0, 14, "0"),
+            (1.25, 2, "1.2"),
+            (1.35, 2, "1.4"),
+            (1.5, 0, "2"),
+            (0.1, 17, "0.10000000000000001"),
+            (0.1, -1, "0.1"),
+            (1e15, -1, "1000000000000000"),
+            (0.1, 30, "0.100000000000000005551115123126"),
+            (1e29, 30, "99999999999999991433150857216"),
+            (1e30, 30, "1.00000000000000001988462483866E+30"),
+            (f64::NAN, 14, "NAN"),
+            (f64::NEG_INFINITY, 14, "-INF"),
+        ];
+        for (value, setting, expected) in cases {
+            assert_eq!(with(value, setting), expected, "{value:?} at {setting}");
+        }
+        assert_eq!(with(5e-324, 1000).len(), 757);
+        assert_eq!(
+            Precision::from_setting(i64::MAX),
+            Precision::Significant(NonZeroU32::MAX)
+        );
+        assert_eq!(Precision::from_setting(-5), Precision::Shortest);
     }
 
     #[test]

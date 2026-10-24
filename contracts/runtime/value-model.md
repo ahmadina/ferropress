@@ -111,5 +111,6 @@ Other diagnostics:
 
 ## Owned by the engine
 
-Type conversions and comparisons, float/bool/null offsets, string offsets, `ArrayAccess`, destructors,
-the cycle collector, and visibility of declared properties are outside the value model.
+Float/bool/null offsets, string offsets, `ArrayAccess`, destructors, the cycle collector, and
+visibility of declared properties are outside the value model. Conversions and operators are described
+in `operators.md`.

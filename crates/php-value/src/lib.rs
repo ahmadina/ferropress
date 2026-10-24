@@ -8,7 +8,8 @@
 //! behind PHP's `&`, held by [`Slot`]s. Everything is reference-counted with `Rc`, so values belong to
 //! one request on one thread and cannot be sent elsewhere.
 //!
-//! Conversions between types, comparison, offsets of other types than integers and strings, string
+//! [`ops`] holds PHP's conversions and operators over these values, with the diagnostics they raise.
+//! Object conversions and handlers, offsets of other types than integers and strings, string
 //! offsets, cycle collection and destructors belong to the engine and are not modeled here.
 //!
 //! ```
@@ -25,13 +26,14 @@ mod array;
 mod float;
 mod key;
 mod object;
+pub mod ops;
 mod reference;
 mod string;
 mod table;
 mod value;
 
 pub use array::{NextIndex, NextIndexOccupied, PhpArray};
-pub use float::write_float;
+pub use float::{Precision, write_float, write_float_with};
 pub use key::ArrayKey;
 pub use object::{Object, ObjectId, ObjectIdsExhausted, ObjectStore, Properties};
 pub use reference::{Reference, Slot};

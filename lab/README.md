@@ -242,7 +242,8 @@ The result is written to `contracts/operators/cases.jsonl`: a header line with t
 operands, and the tables of messages and errors the results refer to by index, then one line per unary
 operation and one per binary operator and left operand. Values are tagged (`["int",7]`); a float is
 its IEEE 754 bit pattern in hex, so NAN payloads and negative zero survive, and byte strings are
-encoded as above. A second run produces a byte-identical file.
+encoded as above. A second run produces a byte-identical file. `crates/php-value` replays it in
+`tests/operators.rs`.
 
 ## Pinning
 

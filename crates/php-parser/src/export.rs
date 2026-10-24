@@ -446,7 +446,7 @@ impl Printer {
                 self.text(if *nullsafe { "?->" } else { "->" });
                 self.member_var(name, indent);
             }
-            ExprKind::StaticProperty { class, name } => {
+            ExprKind::StaticProperty { class, name, .. } => {
                 self.qualified(class, indent);
                 self.text("::$");
                 self.var_name(name, indent);

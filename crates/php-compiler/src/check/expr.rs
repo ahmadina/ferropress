@@ -312,7 +312,7 @@ impl<'a> Checker<'a> {
                 }
                 self.member(name)
             }
-            ExprKind::StaticProperty { class, name } => {
+            ExprKind::StaticProperty { class, name, .. } => {
                 self.class_ref(class)?;
                 match name {
                     VarName::Name(_) => Ok(()),

@@ -720,6 +720,7 @@ impl Parser<'_> {
                             Shape::CallableVariable,
                         )
                     } else {
+                        self.note_property_fetch(&value, &name);
                         (
                             expr(
                                 ExprKind::Property {
@@ -836,7 +837,14 @@ impl Parser<'_> {
                 ));
             }
             return Ok((
-                expr(ExprKind::StaticProperty { class, name }, line),
+                expr(
+                    ExprKind::StaticProperty {
+                        class,
+                        name,
+                        parenthesized: false,
+                    },
+                    line,
+                ),
                 Shape::Variable,
             ));
         }
@@ -1265,10 +1273,12 @@ impl Parser<'_> {
                     kind @ (K::ObjectOperator | K::NullsafeObjectOperator) => {
                         self.bump()?;
                         let name = self.expect(K::Identifier)?;
+                        let name = Member::Name(self.text(&name).to_vec());
+                        self.note_property_fetch(&variable, &name);
                         Ok(expr(
                             ExprKind::Property {
                                 object: Box::new(variable),
-                                name: Member::Name(self.text(&name).to_vec()),
+                                name,
                                 nullsafe: kind == K::NullsafeObjectOperator,
                             },
                             line,
@@ -1493,6 +1503,7 @@ impl Parser<'_> {
                 kind @ (K::ObjectOperator | K::NullsafeObjectOperator) => {
                     self.bump()?;
                     let name = self.property_name()?;
+                    self.note_property_fetch(&class, &name);
                     expr(
                         ExprKind::Property {
                             object: Box::new(class),
@@ -1509,6 +1520,7 @@ impl Parser<'_> {
                         ExprKind::StaticProperty {
                             class: Box::new(class),
                             name,
+                            parenthesized: false,
                         },
                         line,
                     )
@@ -1583,10 +1595,13 @@ pub(super) fn static_name() -> Name {
     }
 }
 
-/// Records that `value` was written in parentheses where that changes how it is printed.
+/// Records that `value` was written in parentheses where that changes how it is printed or
+/// compiled.
 fn parenthesized(mut value: Expr) -> Expr {
     match &mut value.kind {
-        ExprKind::Ternary { parenthesized, .. } | ExprKind::ArrowFunction { parenthesized, .. } => {
+        ExprKind::Ternary { parenthesized, .. }
+        | ExprKind::ArrowFunction { parenthesized, .. }
+        | ExprKind::StaticProperty { parenthesized, .. } => {
             *parenthesized = true;
         }
         _ => {}

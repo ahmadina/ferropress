@@ -369,7 +369,7 @@ impl Parser<'_> {
             None
         };
         let hooks = if self.at(OPEN_BRACE)? {
-            Some(self.hook_list()?)
+            Some(self.hook_list(&name)?)
         } else {
             None
         };
@@ -672,7 +672,7 @@ impl Parser<'_> {
                 None
             };
             if properties.is_empty() && self.at(OPEN_BRACE)? {
-                let hooks = Some(self.hook_list()?);
+                let hooks = Some(self.hook_list(&name)?);
                 properties.push(Property {
                     name,
                     default,
@@ -707,17 +707,17 @@ impl Parser<'_> {
         }))
     }
 
-    /// `{ hooks }`.
-    fn hook_list(&mut self) -> PResult<Vec<Hook>> {
+    /// `{ hooks }` of the property `property`.
+    fn hook_list(&mut self, property: &[u8]) -> PResult<Vec<Hook>> {
         self.bump()?;
         let mut hooks = Vec::new();
         while self.eat(CLOSE_BRACE)?.is_none() {
-            hooks.push(self.hook()?);
+            hooks.push(self.hook(property)?);
         }
         Ok(hooks)
     }
 
-    fn hook(&mut self) -> PResult<Hook> {
+    fn hook(&mut self, property: &[u8]) -> PResult<Hook> {
         let attributes = self.attributes()?;
         let tokens = self.modifier_tokens()?;
         let modifiers = self.modifiers(Target::Hook, &tokens)?;
@@ -730,23 +730,24 @@ impl Parser<'_> {
         } else {
             None
         };
-        let (body, is_generator) = self.function_body(|parser| match parser.peek()? {
-            SEMICOLON => {
-                parser.bump()?;
-                Ok(HookBody::Absent)
-            }
-            OPEN_BRACE => {
-                parser.bump()?;
-                Ok(HookBody::Block(parser.block_body()?))
-            }
-            K::DoubleArrow => {
-                parser.bump()?;
-                let value = parser.expr()?;
-                parser.expect_in(SEMICOLON, &[])?;
-                Ok(HookBody::Expr(value))
-            }
-            _ => parser.unexpected(&[K::DoubleArrow, SEMICOLON, OPEN_BRACE]),
-        })?;
+        let (body, is_generator, fetched) =
+            self.function_body_fetching(|parser| match parser.peek()? {
+                SEMICOLON => {
+                    parser.bump()?;
+                    Ok(HookBody::Absent)
+                }
+                OPEN_BRACE => {
+                    parser.bump()?;
+                    Ok(HookBody::Block(parser.block_body()?))
+                }
+                K::DoubleArrow => {
+                    parser.bump()?;
+                    let value = parser.expr()?;
+                    parser.expect_in(SEMICOLON, &[])?;
+                    Ok(HookBody::Expr(value))
+                }
+                _ => parser.unexpected(&[K::DoubleArrow, SEMICOLON, OPEN_BRACE]),
+            })?;
         Ok(Hook {
             name,
             by_ref,
@@ -754,8 +755,10 @@ impl Parser<'_> {
             params,
             body,
             is_generator,
+            uses_property: fetched.iter().any(|name| name == property),
             attributes,
             line,
+            end_line: self.stream.consumed_line(),
         })
     }
 
@@ -1087,6 +1090,63 @@ mod tests {
             with_default_visibility(Modifiers::PRIVATE),
             Modifiers::PRIVATE
         );
+    }
+
+    #[test]
+    fn hooks_record_property_use_and_lines() {
+        let source = b"<?php class C { public $p {\n get => [$this->p, fn() => $this->q];\n set {\n $this->q = $this?->r;\n }\n } }";
+        let Ok(parsed) = crate::parse(source, crate::ParseOptions::default()) else {
+            panic!("source fits");
+        };
+        let Ok(program) = parsed.result else {
+            panic!("hooked property parses");
+        };
+        let TopStatement::Statement(stmt) = &program.statements[0] else {
+            panic!("statement");
+        };
+        let StmtKind::Class(class) = &stmt.kind else {
+            panic!("class");
+        };
+        let ClassMember::Property(group) = &class.members[0] else {
+            panic!("property");
+        };
+        let hooks = group.properties[0].hooks.as_deref().unwrap_or_default();
+        let facts: Vec<(bool, u32, u32)> = hooks
+            .iter()
+            .map(|hook| (hook.uses_property, hook.line, hook.end_line))
+            .collect();
+        assert_eq!(facts, [(true, 2, 2), (false, 3, 5)]);
+    }
+
+    #[test]
+    fn parenthesized_static_properties_are_marked() {
+        let Ok(parsed) = crate::parse(
+            b"<?php (A::$a)::f(); A::$b::f();",
+            crate::ParseOptions::default(),
+        ) else {
+            panic!("source fits");
+        };
+        let Ok(program) = parsed.result else {
+            panic!("calls parse");
+        };
+        let marks: Vec<bool> = program
+            .statements
+            .iter()
+            .map(|statement| match statement {
+                TopStatement::Statement(stmt) => match &stmt.kind {
+                    StmtKind::Expr(call) => match &call.kind {
+                        ExprKind::StaticCall { class, .. } => match &class.kind {
+                            ExprKind::StaticProperty { parenthesized, .. } => *parenthesized,
+                            _ => panic!("static property"),
+                        },
+                        _ => panic!("static call"),
+                    },
+                    _ => panic!("expression statement"),
+                },
+                _ => panic!("statement"),
+            })
+            .collect();
+        assert_eq!(marks, [true, false]);
     }
 
     #[test]

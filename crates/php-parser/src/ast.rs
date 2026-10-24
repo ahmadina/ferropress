@@ -330,6 +330,8 @@ pub enum ExprKind {
         class: Box<Expr>,
         /// The property.
         name: VarName,
+        /// Whether the whole expression was in parentheses.
+        parenthesized: bool,
     },
     /// `callee(args)`.
     Call {
@@ -1031,10 +1033,14 @@ pub struct Hook {
     pub body: HookBody,
     /// Whether the body contains `yield` outside nested functions.
     pub is_generator: bool,
+    /// Whether the body fetches the hooked property as `$this->name` outside nested functions.
+    pub uses_property: bool,
     /// The attributes.
     pub attributes: Vec<AttributeGroup>,
     /// Line of the name.
     pub line: u32,
+    /// Line the hook's last token ends on.
+    pub end_line: u32,
 }
 
 /// The body of a property hook.

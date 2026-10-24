@@ -12,7 +12,7 @@ mod decl;
 mod expr;
 mod stmt;
 
-use crate::ast::Program;
+use crate::ast::{Expr, ExprKind, Member, Program, VarName};
 use crate::describe;
 use crate::error::{ErrorClass, ParseError};
 use crate::stream::{PResult, Stream, Tok};
@@ -26,6 +26,9 @@ pub(crate) struct Parser<'s> {
     depth: usize,
     /// Whether a `yield` was seen in the body being parsed.
     yielded: bool,
+    /// The properties fetched from `$this` by a name known while parsing, in the body being
+    /// parsed.
+    this_properties: Vec<Vec<u8>>,
 }
 
 /// Deepest nesting of statements and operands accepted, the size of the reference parser's stack.
@@ -38,6 +41,7 @@ impl<'s> Parser<'s> {
             halt_offset: None,
             depth: 0,
             yielded: false,
+            this_properties: Vec::new(),
         }
     }
 
@@ -47,10 +51,33 @@ impl<'s> Parser<'s> {
         &mut self,
         parse: impl FnOnce(&mut Self) -> PResult<T>,
     ) -> PResult<(T, bool)> {
-        let outer = std::mem::replace(&mut self.yielded, false);
+        self.function_body_fetching(parse)
+            .map(|(body, is_generator, _)| (body, is_generator))
+    }
+
+    /// Like [`Self::function_body`], also returning the properties the body fetches from `$this`
+    /// by a name known while parsing, outside the bodies nested in it.
+    fn function_body_fetching<T>(
+        &mut self,
+        parse: impl FnOnce(&mut Self) -> PResult<T>,
+    ) -> PResult<(T, bool, Vec<Vec<u8>>)> {
+        let outer_yielded = std::mem::replace(&mut self.yielded, false);
+        let outer_properties = std::mem::take(&mut self.this_properties);
         let body = parse(self);
-        let is_generator = std::mem::replace(&mut self.yielded, outer);
-        Ok((body?, is_generator))
+        let is_generator = std::mem::replace(&mut self.yielded, outer_yielded);
+        let properties = std::mem::replace(&mut self.this_properties, outer_properties);
+        Ok((body?, is_generator, properties))
+    }
+
+    /// Records a fetch of property `name` from `object` when it is `$this->name`.
+    fn note_property_fetch(&mut self, object: &Expr, name: &Member) {
+        if let (ExprKind::Variable(VarName::Name(variable)), Member::Name(name)) =
+            (&object.kind, name)
+            && variable == b"this"
+            && !self.this_properties.contains(name)
+        {
+            self.this_properties.push(name.clone());
+        }
     }
 
     /// Runs `parse` one nesting level deeper, failing as the reference does when its stack is full.

@@ -57,6 +57,8 @@ pub(crate) struct Stream<'s> {
     lexer: Lexer<'s>,
     reported: usize,
     ahead: VecDeque<Tok>,
+    /// The line the scanner was on once the last consumed token was read.
+    consumed_line: u32,
     contexts: Vec<Context>,
     stopped: bool,
     halted: bool,
@@ -70,6 +72,7 @@ impl<'s> Stream<'s> {
             lexer: Lexer::new(source, options)?,
             reported: 0,
             ahead: VecDeque::with_capacity(2),
+            consumed_line: 1,
             contexts: vec![Context::Code(0)],
             stopped: false,
             halted: false,
@@ -126,10 +129,17 @@ impl<'s> Stream<'s> {
 
     /// Consumes and returns the next token.
     pub(crate) fn bump(&mut self) -> PResult<Tok> {
-        match self.ahead.pop_front() {
-            Some(token) => Ok(token),
-            None => self.fetch(),
-        }
+        let token = match self.ahead.pop_front() {
+            Some(token) => token,
+            None => self.fetch()?,
+        };
+        self.consumed_line = token.end_line;
+        Ok(token)
+    }
+
+    /// The line the scanner was on once the last consumed token was read.
+    pub(crate) const fn consumed_line(&self) -> u32 {
+        self.consumed_line
     }
 
     /// Stops reading after `__halt_compiler();`: every later token is the end of input, which

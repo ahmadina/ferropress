@@ -9,6 +9,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+php-value = { path = "../php-value" }
 thiserror = { workspace = true }
 
 [dev-dependencies]

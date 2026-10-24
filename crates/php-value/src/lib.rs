@@ -22,6 +22,7 @@
 //! ```
 
 mod array;
+mod float;
 mod key;
 mod object;
 mod reference;
@@ -30,6 +31,7 @@ mod table;
 mod value;
 
 pub use array::{NextIndex, NextIndexOccupied, PhpArray};
+pub use float::write_float;
 pub use key::ArrayKey;
 pub use object::{Object, ObjectId, ObjectIdsExhausted, ObjectStore, Properties};
 pub use reference::{Reference, Slot};

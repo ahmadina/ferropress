@@ -1,6 +1,6 @@
 //! Token-by-token writer for the serialized format.
 
-use crate::float::write_float;
+use php_value::write_float;
 
 /// Writes values in PHP's serialized format, one token at a time, into an owned buffer.
 ///

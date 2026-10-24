@@ -1,4 +1,5 @@
-//! Float text as PHP writes it inside a `d:` token under the default `serialize_precision` (-1).
+//! Float text as PHP writes it under `serialize_precision` -1: in a serialized `d:` token, and in
+//! diagnostic messages.
 //!
 //! The digits are the shortest decimal string that reads back as the same `f64`; when two strings of
 //! that length read back, the one nearer the exact binary value wins, and an exact tie goes to the
@@ -114,8 +115,14 @@ impl Decimal {
     }
 }
 
-/// Appends `value` in PHP's serialized float notation.
-pub(crate) fn write_float(out: &mut Vec<u8>, value: f64) {
+/// Appends `value` in PHP's shortest round-trip float notation.
+///
+/// ```
+/// let mut out = Vec::new();
+/// php_value::write_float(&mut out, 1e25);
+/// assert_eq!(out, b"1.0E+25");
+/// ```
+pub fn write_float(out: &mut Vec<u8>, value: f64) {
     if value.is_nan() {
         out.extend_from_slice(b"NAN");
         return;
@@ -177,7 +184,15 @@ fn write_scientific(out: &mut Vec<u8>, digits: &[u8], exponent: i32) {
     }
     out.push(b'E');
     out.push(if exponent < 0 { b'-' } else { b'+' });
-    crate::write::push_decimal(out, u64::from(exponent.unsigned_abs()));
+    let magnitude = exponent.unsigned_abs();
+    let mut started = false;
+    for divisor in [100, 10, 1] {
+        let digit = magnitude / divisor % 10;
+        if started || digit != 0 || divisor == 1 {
+            started = true;
+            out.push(b'0' + u8::try_from(digit).unwrap_or_default());
+        }
+    }
 }
 
 #[cfg(test)]

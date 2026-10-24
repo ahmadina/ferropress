@@ -18,7 +18,6 @@
 mod decode;
 mod document;
 mod error;
-mod float;
 mod write;
 
 pub use decode::{DecodeOptions, decode, decode_with};

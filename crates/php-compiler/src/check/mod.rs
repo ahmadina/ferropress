@@ -5,6 +5,7 @@
 //! follows the same rule, so a diagnostic raised between two children reports the line of the
 //! last node visited.
 
+mod attributes;
 mod classes;
 mod constant;
 mod expr;
@@ -23,6 +24,7 @@ use php_parser::ast::{
 use php_value::Value;
 
 use crate::diagnostic::{Diagnostic, Diagnostics, Severity};
+use attributes::Target;
 use constant::Folded;
 use types::{ANONYMOUS_CLASS, DeclaredType, Mask};
 
@@ -95,6 +97,8 @@ struct Frame {
     property: Option<Vec<u8>>,
     /// The kind of the property hook being compiled.
     hook: Option<hooks::HookKind>,
+    /// Whether `#[\NoDiscard]` applies to the function.
+    no_discard: bool,
     /// The enclosing loops and switches, innermost last.
     jumpables: Vec<Jumpable>,
     /// Names of the `static` variables declared so far.
@@ -446,15 +450,23 @@ impl<'a> Checker<'a> {
         }
         let is_free = matches!(code, Code::Function(_));
         let outer = std::mem::replace(&mut self.frame, Frame::new(code));
-        let result = self.attributes(&function.attributes).and_then(|()| {
-            if !is_free {
-                return self.function_inner(function);
-            }
-            let outer_class = self.class.take();
-            let result = self.function_inner(function);
-            self.class = outer_class;
-            result
-        });
+        let target = if matches!(self.frame.code, Code::Method { .. }) {
+            Target::Method
+        } else {
+            Target::Function
+        };
+        let result = self
+            .attributes(&function.attributes, target)
+            .and_then(|applied| {
+                self.frame.no_discard = applied.no_discard;
+                if !is_free {
+                    return self.function_inner(function);
+                }
+                let outer_class = self.class.take();
+                let result = self.function_inner(function);
+                self.class = outer_class;
+                result
+            });
         let frame = std::mem::replace(&mut self.frame, outer);
         result.map(|()| frame)
     }
@@ -473,6 +485,7 @@ impl<'a> Checker<'a> {
                 return self.fatal(message);
             }
         }
+        self.no_discard_return()?;
         match &function.body {
             FunctionBody::Block(stmts) => self.stmts(stmts),
             FunctionBody::Expr(expr) => {
@@ -574,11 +587,15 @@ impl<'a> Checker<'a> {
             Some(default) => Some(self.constant(default, true)?),
             None => None,
         };
-        self.attributes(&param.attributes)?;
+        let promoted = param.hooks.is_some() || param.modifiers.intersects(PROMOTION);
+        self.attributes_on(
+            &param.attributes,
+            Target::Parameter,
+            promoted.then_some(Target::Property),
+        )?;
         let mut forced = false;
         let mut compiled = None;
         if let Some(declared) = &param.declared_type {
-            let promoted = param.hooks.is_some() || param.modifiers.intersects(PROMOTION);
             let force_null = !promoted && matches!(default, Some(Some(Value::Null)));
             let (declared, was_forced) = self.declared_type(declared, force_null)?;
             forced = was_forced;
@@ -645,6 +662,29 @@ impl<'a> Checker<'a> {
         text.extend_from_slice(b"(): ");
         text.extend_from_slice(message);
         self.report(Severity::Deprecated, text);
+    }
+
+    /// Checks that a function with `#[\NoDiscard]` can return a value.
+    fn no_discard_return(&self) -> Flow {
+        let (true, Some(returns)) = (self.frame.no_discard, &self.frame.returns) else {
+            return Ok(());
+        };
+        let kind = if self.class.is_some() {
+            "method"
+        } else {
+            "function"
+        };
+        let mask = returns.mask();
+        let returned = if mask.intersects(Mask::VOID) {
+            "void"
+        } else if mask.intersects(Mask::NEVER) {
+            "never returning"
+        } else {
+            return Ok(());
+        };
+        self.fatal(format!(
+            "A {returned} {kind} does not return a value, but #[\\NoDiscard] requires a return value"
+        ))
     }
 
     /// Checks a `return` of `value` against the declared return type.

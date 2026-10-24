@@ -4,6 +4,7 @@ use php_parser::ast::{
     Args, ClassKind, Expr, ExprKind, Hook, HookBody, Member, Modifiers, Param, Type, VarName,
 };
 
+use super::attributes::Target;
 use super::types::{DeclaredType, Mask};
 use super::{Checker, Code, Flow, Frame};
 
@@ -270,7 +271,7 @@ impl<'a> Checker<'a> {
         hook: &'a Hook,
         kind: HookKind,
     ) -> Flow {
-        self.attributes(&hook.attributes)?;
+        self.attributes(&hook.attributes, Target::Method)?;
         let returns = match (kind, property.declared_type) {
             (HookKind::Get, Some(declared)) => Some(self.declared_type(declared, false)?.0),
             (HookKind::Get, None) => None,

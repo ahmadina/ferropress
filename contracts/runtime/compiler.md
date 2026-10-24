@@ -180,8 +180,6 @@ The following stay unfolded, so their values do not take part in later checks:
 - `X::class` for a class name and for `parent`.
 - `__FILE__` and `__DIR__`.
 - Anonymous class names, and the names of closures declared inside their methods.
-- `#[\NoDiscard]` on `__construct`, `__destruct` and the magic methods returning `void`, which the
-  reference rejects.
 - Class constants in ordinary code, which the reference evaluates while compiling when the class is
   known: `(self::B)::f()` with `const B = 1` is "Illegal class name" there.
 - Folding in ordinary code other than array literals.
@@ -695,3 +693,72 @@ Whether the class has a parent is not checked here.
 
 - `#[\Override]` on a hook. The check runs when the class is linked.
 - Set parameter types that depend on class relationships.
+
+## Built-in attributes
+
+Source: `Zend/zend_attributes.c` and `zend_compile_attributes` in `Zend/zend_compile.c`.
+
+Each attribute name resolves like a class name, so `#[Override]` inside a namespace without an import
+names `N\Override`, not the built-in. Lookup is case-insensitive, and messages print the name as
+written in the source. The built-ins, and where each may appear:
+
+| Attribute | Targets | Extra check |
+|---|---|---|
+| `Attribute` | class | yes |
+| `ReturnTypeWillChange` | method | |
+| `AllowDynamicProperties` | class | yes |
+| `SensitiveParameter` | parameter | |
+| `Override` | method, property | |
+| `Deprecated` | class, function, method, class constant, constant | yes |
+| `NoDiscard` | function, method | yes |
+| `DelayedTargetValidation` | everything | |
+
+Targets: closures and arrow functions count as functions inside a function or at the top level, and as
+methods inside a class. Property hooks count as methods. Enum cases count as class constants. Top-level
+`const` is a constant.
+
+None of the built-ins may be repeated. User attributes may be.
+
+### Order
+
+1. All arguments of every attribute on the declaration are checked first (see "Attributes" under
+   constant expressions).
+2. Then each attribute, in source order:
+   1. A built-in whose targets do not include this one: "Attribute "X" cannot target T (allowed
+      targets: A, B)". The allowed targets are listed in the order of the table header above (class,
+      function, method, property, class constant, parameter, constant).
+   2. A built-in seen before on the same declaration: "Attribute "X" must not be repeated".
+   3. The extra check.
+
+If `DelayedTargetValidation` appears anywhere on the declaration, the target errors and the extra
+checks are skipped. The repetition error and the `NoDiscard` return check below still apply.
+
+On a promoted constructor parameter, a built-in that targets properties but not parameters is skipped
+while checking the parameter, and the other way round.
+
+### Extra checks
+
+- `Attribute`: "Cannot apply #[\Attribute] to trait T", then interface, enum, and "abstract class A".
+- `AllowDynamicProperties`: "Cannot apply #[\AllowDynamicProperties] to trait T", then interface,
+  "readonly class A", then enum. Anonymous classes print as `class@anonymous`.
+- `Deprecated` on a class: "Cannot apply #[\Deprecated] to interface I", enum or "class A". Only
+  traits accept it.
+- `NoDiscard` on a property hook: "#[\NoDiscard] is not supported for property hooks".
+
+### NoDiscard and return types
+
+After a function's `use` checks and before its body, a `NoDiscard` function or method returning `void`
+or `never` is a fatal error: "A void function does not return a value, but #[\NoDiscard] requires a
+return value". The message reads "never returning" for `never`, and "method" for methods and closures
+inside classes.
+
+Magic methods that return nothing (`__construct`, `__destruct`, `__clone`, and `__set`, `__unset`,
+`__unserialize`, `__wakeup` and the other `void` ones) reject it: "Method A::__construct cannot be
+#[\NoDiscard]". `__get`, `__toString` and the other magic methods that return a value accept it.
+
+### Not yet implemented
+
+- `#[\Override]` on methods and properties. The reference checks it when the class is linked: "A::$a has
+  #[\Override] attribute, but no matching parent property exists".
+- User attribute classes and their own `Attribute::TARGET_*` flags. The reference checks them at run
+  time, when the attribute is instantiated.

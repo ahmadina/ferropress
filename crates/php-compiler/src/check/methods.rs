@@ -268,8 +268,17 @@ impl<'a> Checker<'a> {
             (Binding::Static, false) => return self.fatal(fail("must be static")),
             _ => {}
         }
+        let no_discard = || {
+            let mut message = b"Method ".to_vec();
+            message.extend_from_slice(&subject);
+            message.extend_from_slice(b" cannot be #[\\NoDiscard]");
+            message
+        };
         if magic.no_return && method.return_type.is_some() {
             return self.fatal(fail("cannot declare a return type"));
+        }
+        if magic.no_return && frame.no_discard {
+            return self.fatal(no_discard());
         }
         if magic.public && modifiers.intersects(Modifiers::PRIVATE.union(Modifiers::PROTECTED)) {
             let mut message = b"The magic method ".to_vec();
@@ -288,6 +297,9 @@ impl<'a> Checker<'a> {
                 message.extend_from_slice(b" when declared");
                 return self.fatal(message);
             }
+        }
+        if magic.returns == Some(Mask::VOID) && frame.no_discard {
+            return self.fatal(no_discard());
         }
         match (magic.returns, &frame.returns) {
             (Some(expected), Some(returns))

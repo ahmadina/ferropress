@@ -38,29 +38,8 @@ class members 124
 class members 126
 property hooks 51
 hook rules 18
-attributes 1
-attributes 2
-attributes 3
-attributes 8
-attributes 9
-attributes 11
-attributes 13
-attributes 14
-attributes 22
-attributes 23
-attributes 24
-attributes 25
-attributes 26
-attributes 28
-attributes 29
-attributes 30
-attributes 31
-attributes 32
-attributes 35
-attributes 43
-attributes 45
-attributes 48
-attributes 49
+attribute rules 10
+attribute rules 65
 traits 1
 traits 2
 lines 4

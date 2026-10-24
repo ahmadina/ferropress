@@ -15,8 +15,8 @@ use std::cmp::Ordering;
 use std::ptr;
 
 use php_parser::ast::{
-    Arg, Args, ArrayItem, ArraySyntax, AttributeGroup, BinaryOp, CastKind, Expr, ExprKind,
-    MagicConstant, Member, Modifiers, Name, NameKind, UnaryOp,
+    Arg, Args, ArrayItem, ArraySyntax, BinaryOp, CastKind, Expr, ExprKind, MagicConstant, Member,
+    Modifiers, Name, NameKind, UnaryOp,
 };
 use php_value::ops::{self, Collect, Number, OpError};
 use php_value::{ArrayKey, PhpArray, PhpString, Slot, Value};
@@ -232,48 +232,6 @@ impl<'a> Checker<'a> {
         let value = self.fold(expr)?;
         self.validate(expr, allow_dynamic)?;
         Ok(value)
-    }
-
-    /// Compiles the arguments of `groups`' attributes.
-    pub(super) fn attributes(&mut self, groups: &'a [AttributeGroup]) -> Flow {
-        for attribute in groups.iter().flatten() {
-            let args = match &attribute.args {
-                None => continue,
-                Some(Args::CallableConvert) => {
-                    return self.fatal("Cannot create Closure as attribute argument");
-                }
-                Some(Args::List(args)) => args,
-            };
-            let mut named = false;
-            for (index, arg) in args.iter().enumerate() {
-                let value = match arg {
-                    Arg::Unpack(_) => {
-                        return self.fatal("Cannot use unpacking in attribute argument list");
-                    }
-                    Arg::Named { name, value } => {
-                        let repeated = args[..index].iter().any(
-                            |earlier| matches!(earlier, Arg::Named { name: other, .. } if other == name),
-                        );
-                        if repeated {
-                            let mut message = b"Duplicate named parameter $".to_vec();
-                            message.extend_from_slice(name);
-                            return self.fatal(message);
-                        }
-                        named = true;
-                        value
-                    }
-                    Arg::Positional(value) => {
-                        if named {
-                            return self
-                                .fatal("Cannot use positional argument after named argument");
-                        }
-                        value
-                    }
-                };
-                self.constant(value, true)?;
-            }
-        }
-        Ok(())
     }
 
     /// What `expr` stands for after folding: the node, or the operand that replaced it.

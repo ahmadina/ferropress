@@ -7,6 +7,7 @@ use php_parser::ast::{
     AttributeGroup, ClassKind, ConstItem, Function, StmtKind, TopStatement, UseItem, UseKind,
 };
 
+use super::attributes::Target;
 use super::types::{ANONYMOUS_CLASS, is_reserved_class_name};
 use super::{Checker, ClosureName, Code, Flow};
 use crate::diagnostic::Severity;
@@ -361,7 +362,7 @@ impl<'a> Checker<'a> {
             if items.len() > 1 {
                 return self.fatal("Cannot apply attributes to multiple constants at once");
             }
-            self.attributes(attributes)?;
+            self.attributes(attributes, Target::Constant)?;
         }
         Ok(())
     }

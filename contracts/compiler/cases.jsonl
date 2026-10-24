@@ -1324,6 +1324,76 @@
 {"name":"attributes 47","source":"<?php #[\\Deprecated] fn() => 1;","diagnostics":[]}
 {"name":"attributes 48","source":"<?php #[\\NoDiscard] fn(): void => 1;","diagnostics":[["Fatal error","A void function does not return a value, but #[\\NoDiscard] requires a return value",1]]}
 {"name":"attributes 49","source":"<?php #[\\NoDiscard] function &f(): void {}","diagnostics":[["Deprecated","f(): Returning by reference from a void function is deprecated",1],["Fatal error","A void function does not return a value, but #[\\NoDiscard] requires a return value",1]]}
+{"name":"attribute rules 1","source":"<?php #[\\DelayedTargetValidation] #[\\Override] function f() {}","diagnostics":[]}
+{"name":"attribute rules 2","source":"<?php #[\\Override] #[\\DelayedTargetValidation] function f() {}","diagnostics":[]}
+{"name":"attribute rules 3","source":"<?php #[\\DelayedTargetValidation] #[\\Attribute] trait T {}","diagnostics":[]}
+{"name":"attribute rules 4","source":"<?php #[\\DelayedTargetValidation] #[\\Override] #[\\Override] function f() {}","diagnostics":[["Fatal error","Attribute \"Override\" must not be repeated",1]]}
+{"name":"attribute rules 5","source":"<?php #[\\DelayedTargetValidation] #[\\DelayedTargetValidation] class A {}","diagnostics":[["Fatal error","Attribute \"DelayedTargetValidation\" must not be repeated",1]]}
+{"name":"attribute rules 6","source":"<?php #[\\DelayedTargetValidation] #[\\NoDiscard] function f(): void {}","diagnostics":[["Fatal error","A void function does not return a value, but #[\\NoDiscard] requires a return value",1]]}
+{"name":"attribute rules 7","source":"<?php class A { public $a { #[\\DelayedTargetValidation] #[\\NoDiscard] get => 1; } }","diagnostics":[]}
+{"name":"attribute rules 8","source":"<?php class A { public $a { #[\\NoDiscard] get => 1; } }","diagnostics":[["Fatal error","#[\\NoDiscard] is not supported for property hooks",1]]}
+{"name":"attribute rules 9","source":"<?php class A { public $a { #[\\Override] #[\\Override] get => 1; } }","diagnostics":[["Fatal error","Attribute \"Override\" must not be repeated",1]]}
+{"name":"attribute rules 10","source":"<?php class A { function __construct(#[\\Override] public $a) {} }","diagnostics":[["Fatal error","A::$a has #[\\Override] attribute, but no matching parent property exists",1]]}
+{"name":"attribute rules 11","source":"<?php class A { function __construct(#[\\SensitiveParameter] public $a) {} }","diagnostics":[]}
+{"name":"attribute rules 12","source":"<?php class A { function __construct(#[\\Deprecated] public $a) {} }","diagnostics":[["Fatal error","Attribute \"Deprecated\" cannot target parameter (allowed targets: class, function, method, class constant, constant)",1]]}
+{"name":"attribute rules 13","source":"<?php class A { function __construct(#[\\SensitiveParameter] #[\\SensitiveParameter] public $a) {} }","diagnostics":[["Fatal error","Attribute \"SensitiveParameter\" must not be repeated",1]]}
+{"name":"attribute rules 14","source":"<?php class A { function __construct(#[\\Override] #[\\Override] public $a) {} }","diagnostics":[["Fatal error","Attribute \"Override\" must not be repeated",1]]}
+{"name":"attribute rules 15","source":"<?php function f(#[\\SensitiveParameter] $a, #[\\SensitiveParameter] $b) {}","diagnostics":[]}
+{"name":"attribute rules 16","source":"<?php function f(#[\\Override] $a) {}","diagnostics":[["Fatal error","Attribute \"Override\" cannot target parameter (allowed targets: method, property)",1]]}
+{"name":"attribute rules 17","source":"<?php function f(#[\\SensitiveParameter] #[\\SensitiveParameter] $a) {}","diagnostics":[["Fatal error","Attribute \"SensitiveParameter\" must not be repeated",1]]}
+{"name":"attribute rules 18","source":"<?php class A { #[\\NoDiscard] function __construct() {} }","diagnostics":[["Fatal error","Method A::__construct cannot be #[\\NoDiscard]",1]]}
+{"name":"attribute rules 19","source":"<?php class A { #[\\NoDiscard] function __destruct() {} }","diagnostics":[["Fatal error","Method A::__destruct cannot be #[\\NoDiscard]",1]]}
+{"name":"attribute rules 20","source":"<?php class A { #[\\NoDiscard] function __clone() {} }","diagnostics":[["Fatal error","Method A::__clone cannot be #[\\NoDiscard]",1]]}
+{"name":"attribute rules 21","source":"<?php class A { #[\\NoDiscard] function __set($a, $b) {} }","diagnostics":[["Fatal error","Method A::__set cannot be #[\\NoDiscard]",1]]}
+{"name":"attribute rules 22","source":"<?php class A { #[\\NoDiscard] function __get($a) {} }","diagnostics":[]}
+{"name":"attribute rules 23","source":"<?php class A { #[\\NoDiscard] function __wakeup() {} }","diagnostics":[["Fatal error","Method A::__wakeup cannot be #[\\NoDiscard]",1]]}
+{"name":"attribute rules 24","source":"<?php class A { #[\\NoDiscard] function __unserialize(array $a) {} }","diagnostics":[["Fatal error","Method A::__unserialize cannot be #[\\NoDiscard]",1]]}
+{"name":"attribute rules 25","source":"<?php class A { #[\\NoDiscard] function __toString() {} }","diagnostics":[]}
+{"name":"attribute rules 26","source":"<?php class A { #[\\NoDiscard] function __set($a, $b): void {} }","diagnostics":[["Fatal error","A void method does not return a value, but #[\\NoDiscard] requires a return value",1]]}
+{"name":"attribute rules 27","source":"<?php class A { #[\\NoDiscard] function f(): void {} }","diagnostics":[["Fatal error","A void method does not return a value, but #[\\NoDiscard] requires a return value",1]]}
+{"name":"attribute rules 28","source":"<?php class A { #[\\NoDiscard] function f(): never {} }","diagnostics":[["Fatal error","A never returning method does not return a value, but #[\\NoDiscard] requires a return value",1]]}
+{"name":"attribute rules 29","source":"<?php class A { function f() { #[\\NoDiscard] function g(): void {} } }","diagnostics":[["Fatal error","A void function does not return a value, but #[\\NoDiscard] requires a return value",1]]}
+{"name":"attribute rules 30","source":"<?php class A { function f() { return #[\\NoDiscard] function (): void {}; } }","diagnostics":[["Fatal error","A void method does not return a value, but #[\\NoDiscard] requires a return value",1]]}
+{"name":"attribute rules 31","source":"<?php #[\\NoDiscard] function f(): ?int {}","diagnostics":[]}
+{"name":"attribute rules 32","source":"<?php #[\\NoDiscard] function f(): int|never {}","diagnostics":[["Fatal error","never can only be used as a standalone type",1]]}
+{"name":"attribute rules 33","source":"<?php namespace N; #[Override] function f() {}","diagnostics":[]}
+{"name":"attribute rules 34","source":"<?php namespace N; use Override; #[Override] function f() {}","diagnostics":[["Fatal error","Attribute \"Override\" cannot target function (allowed targets: method, property)",1]]}
+{"name":"attribute rules 35","source":"<?php namespace N; #[\\override] function f() {}","diagnostics":[["Fatal error","Attribute \"override\" cannot target function (allowed targets: method, property)",1]]}
+{"name":"attribute rules 36","source":"<?php #[OVERRIDE] class A {}","diagnostics":[["Fatal error","Attribute \"OVERRIDE\" cannot target class (allowed targets: method, property)",1]]}
+{"name":"attribute rules 37","source":"<?php #[\\Deprecated] trait T {}","diagnostics":[]}
+{"name":"attribute rules 38","source":"<?php #[\\Deprecated] interface I {}","diagnostics":[["Fatal error","Cannot apply #[\\Deprecated] to interface I",1]]}
+{"name":"attribute rules 39","source":"<?php #[\\Deprecated] enum E {}","diagnostics":[["Fatal error","Cannot apply #[\\Deprecated] to enum E",1]]}
+{"name":"attribute rules 40","source":"<?php #[\\Deprecated] abstract class A {}","diagnostics":[["Fatal error","Cannot apply #[\\Deprecated] to class A",1]]}
+{"name":"attribute rules 42","source":"<?php #[\\Override] const A = 1;","diagnostics":[["Fatal error","Attribute \"Override\" cannot target constant (allowed targets: method, property)",1]]}
+{"name":"attribute rules 43","source":"<?php #[\\Deprecated] #[\\Deprecated] function f() {}","diagnostics":[["Fatal error","Attribute \"Deprecated\" must not be repeated",1]]}
+{"name":"attribute rules 44","source":"<?php enum E { #[\\Override] case A; }","diagnostics":[["Fatal error","Attribute \"Override\" cannot target class constant (allowed targets: method, property)",1]]}
+{"name":"attribute rules 47","source":"<?php #[\\AllowDynamicProperties] abstract class A {}","diagnostics":[]}
+{"name":"attribute rules 48","source":"<?php #[\\AllowDynamicProperties] final class A {}","diagnostics":[]}
+{"name":"attribute rules 49","source":"<?php new #[\\AllowDynamicProperties] readonly class {};","diagnostics":[["Fatal error","Cannot apply #[\\AllowDynamicProperties] to readonly class class@anonymous",1]]}
+{"name":"attribute rules 50","source":"<?php new #[\\Attribute] class {};","diagnostics":[]}
+{"name":"attribute rules 51","source":"<?php new #[\\Deprecated] class {};","diagnostics":[["Fatal error","Cannot apply #[\\Deprecated] to class class@anonymous",1]]}
+{"name":"attribute rules 52","source":"<?php #[\\Attribute] final class A {}","diagnostics":[]}
+{"name":"attribute rules 53","source":"<?php #[\\ReturnTypeWillChange] function f() {}","diagnostics":[["Fatal error","Attribute \"ReturnTypeWillChange\" cannot target function (allowed targets: method)",1]]}
+{"name":"attribute rules 54","source":"<?php class A { #[\\ReturnTypeWillChange] function f() {} }","diagnostics":[]}
+{"name":"attribute rules 55","source":"<?php class A { #[\\ReturnTypeWillChange] public $a; }","diagnostics":[["Fatal error","Attribute \"ReturnTypeWillChange\" cannot target property (allowed targets: method)",1]]}
+{"name":"attribute rules 56","source":"<?php $f = #[\\Override] fn() => 1;","diagnostics":[["Fatal error","Attribute \"Override\" cannot target function (allowed targets: method, property)",1]]}
+{"name":"attribute rules 57","source":"<?php $f = #[\\Override] function () {};","diagnostics":[["Fatal error","Attribute \"Override\" cannot target function (allowed targets: method, property)",1]]}
+{"name":"attribute rules 58","source":"<?php class A { #[\\SensitiveParameter] public $a; }","diagnostics":[["Fatal error","Attribute \"SensitiveParameter\" cannot target property (allowed targets: parameter)",1]]}
+{"name":"attribute rules 59","source":"<?php #[\\Attribute(1)] #[\\SensitiveParameter] class A {}","diagnostics":[["Fatal error","Attribute \"SensitiveParameter\" cannot target class (allowed targets: parameter)",1]]}
+{"name":"attribute rules 60","source":"<?php #[\\Override(...)] class A {}","diagnostics":[["Fatal error","Cannot create Closure as attribute argument",1]]}
+{"name":"attribute rules 61","source":"<?php #[\\Override(...$a)] class A {}","diagnostics":[["Fatal error","Cannot use unpacking in attribute argument list",1]]}
+{"name":"attribute rules 62","source":"<?php #[\\Override]\nclass\nA\n{}","diagnostics":[["Fatal error","Attribute \"Override\" cannot target class (allowed targets: method, property)",2]]}
+{"name":"attribute rules 63","source":"<?php #[\\Override]\nfunction\nf\n()\n{}","diagnostics":[["Fatal error","Attribute \"Override\" cannot target function (allowed targets: method, property)",2]]}
+{"name":"attribute rules 64","source":"<?php class A {\n #[\\Override]\n const\n B = 1;\n}","diagnostics":[["Fatal error","Attribute \"Override\" cannot target class constant (allowed targets: method, property)",4]]}
+{"name":"attribute rules 65","source":"<?php class A {\n #[\\Override]\n public\n $b;\n}","diagnostics":[["Fatal error","A::$b has #[\\Override] attribute, but no matching parent property exists",1]]}
+{"name":"attribute rules 66","source":"<?php #[\\Override, A, \\Override] class B {}","diagnostics":[["Fatal error","Attribute \"Override\" cannot target class (allowed targets: method, property)",1]]}
+{"name":"attribute rules 67","source":"<?php #[\\Attribute] #[A] #[\\Attribute] class B {}","diagnostics":[["Fatal error","Attribute \"Attribute\" must not be repeated",1]]}
+{"name":"attribute rules 69","source":"<?php function f() { #[\\NoDiscard] fn(): void => 1; }","diagnostics":[["Fatal error","A void function does not return a value, but #[\\NoDiscard] requires a return value",1]]}
+{"name":"attribute rules 70","source":"<?php #[\\NoDiscard] function f(): void { yield; }","diagnostics":[["Fatal error","Generator return type must be a supertype of Generator, void given",1]]}
+{"name":"attribute rules 71","source":"<?php #[\\NoDiscard] function f() use ($a): void {}","diagnostics":[["Parse error","syntax error, unexpected token \"use\", expecting \"{\"",1]]}
+{"name":"attribute rules 72","source":"<?php $f = #[\\NoDiscard] function () use ($a): void {};","diagnostics":[["Fatal error","A void function does not return a value, but #[\\NoDiscard] requires a return value",1]]}
+{"name":"attribute rules 73","source":"<?php $f = #[\\NoDiscard] function ($a) use ($a): void {};","diagnostics":[["Fatal error","Cannot use lexical variable $a as a parameter name",1]]}
+{"name":"attribute rules 74","source":"<?php #[\\NoDiscard] function &f(): never {}","diagnostics":[["Fatal error","A never returning function does not return a value, but #[\\NoDiscard] requires a return value",1]]}
 {"name":"traits 1","source":"<?php class A { use T { f as static; } }","diagnostics":[["Fatal error","Cannot use \"static\" as method modifier in trait alias",1]]}
 {"name":"traits 2","source":"<?php class A { use T { f as abstract; } }","diagnostics":[["Fatal error","Cannot use \"abstract\" as method modifier in trait alias",1]]}
 {"name":"traits 3","source":"<?php class A { use T { f as final; } }","diagnostics":[]}

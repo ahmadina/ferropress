@@ -9,6 +9,7 @@ use php_parser::ast::{
 };
 use php_value::Value;
 
+use super::attributes::Target;
 use super::hooks::HookedProperty;
 use super::types::{ANONYMOUS_CLASS, DeclaredType, Mask};
 use super::{Checker, ClassScope, Code, Flow, types};
@@ -48,7 +49,7 @@ impl<'a> Checker<'a> {
     }
 
     fn class_body(&mut self, class: &'a ClassLike) -> Flow {
-        self.attributes(&class.attributes)?;
+        self.attributes(&class.attributes, Target::Class)?;
         for interface in &class.implements {
             self.declared_class(interface, "interface name")?;
         }
@@ -193,7 +194,7 @@ impl<'a> Checker<'a> {
                 return self.fatal(message);
             }
             self.declare_constant(&item.name, group.modifiers)?;
-            self.attributes(&group.attributes)?;
+            self.attributes(&group.attributes, Target::ClassConstant)?;
         }
         Ok(())
     }
@@ -227,7 +228,8 @@ impl<'a> Checker<'a> {
             self.constant(value, false)?;
         }
         self.declare_constant(&case.name, Modifiers::PUBLIC)?;
-        self.attributes(&case.attributes)
+        self.attributes(&case.attributes, Target::ClassConstant)
+            .map(drop)
     }
 
     /// The checks the reference makes once for a property declaration statement.
@@ -319,7 +321,8 @@ impl<'a> Checker<'a> {
                 hooks,
             })?;
         }
-        self.attributes(&group.attributes)
+        self.attributes(&group.attributes, Target::Property)
+            .map(drop)
     }
 
     fn property_default(
@@ -440,17 +443,18 @@ impl<'a> Checker<'a> {
             return self.fatal(message);
         }
         self.declare_property(&param.name, modifiers, declared.is_some())?;
-        match &param.hooks {
-            Some(hooks) => self.property_hooks(&HookedProperty {
+        if let Some(hooks) = &param.hooks {
+            self.property_hooks(&HookedProperty {
                 name: &param.name,
                 modifiers,
                 declared_type: param.declared_type.as_ref(),
                 declared,
                 has_default: false,
                 hooks,
-            }),
-            None => Ok(()),
+            })?;
         }
+        self.attributes_on(&param.attributes, Target::Property, Some(Target::Parameter))
+            .map(drop)
     }
 }
 

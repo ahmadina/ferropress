@@ -1,12 +1,7 @@
 write context 15
-write context 40
-this 17
 functions 96
 functions 97
 functions 98
-arguments 10
-arguments 12
-arguments 13
 members 10
 class members 123
 class members 124
@@ -15,10 +10,6 @@ property hooks 51
 hook rules 18
 attribute rules 10
 attribute rules 65
-traits 1
-traits 2
 lines 4
 lines 8
-parser expression 14
-parser expression 1935
 parser expression 2630

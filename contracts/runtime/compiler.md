@@ -229,9 +229,14 @@ parent ("Cannot use "parent" when current class scope has no parent").
   `use` compiles. A special name that is not fully qualified is a fatal error there: "Cannot use
   "self" as class name, as it is reserved", with "interface name" or "trait name". A `use` inside an
   interface is a fatal error first: "Cannot use traits inside of interfaces. T is used in I".
+- **Trait adaptations.** After the trait list, each adaptation of the `use` block is checked in
+  order. `T::f insteadof U, V` resolves `T`, then `U` and `V`, as trait names. `[T::]f as …` is first
+  checked for its modifier: `static` is "Cannot use "static" as method modifier in trait alias",
+  `abstract` is the same with "abstract". Then `T` resolves as a trait name.
 - **`catch`.** Each class is checked in order. A special name that is not fully qualified is a fatal
-  error: "Bad class name in the catch statement". The others resolve as class names. Errors are
-  reported on the line of the catch's first class.
+  error: "Bad class name in the catch statement". The others resolve as class names. After each class,
+  a variable named `$this` is a fatal error: "Cannot re-assign $this". So it is reported once the
+  first class has passed. Errors are reported on the line of the catch's first class.
 
 ## Namespaces, imports and declarations
 
@@ -816,3 +821,45 @@ the file wins. Each error is reported on the line of the jump.
   and warnings come first.
 
 Jumps out of `try` and `catch` blocks, and into `catch` blocks, are allowed.
+
+## Calls and write contexts
+
+Source: `zend_compile_method_call`, `zend_compile_static_call`, `zend_compile_new`,
+`zend_compile_call_common`, `zend_separate_if_call_and_write`, `zend_compile_assign_ref` and
+`zend_compile_assign_coalesce` in `Zend/zend_compile.c`.
+
+### Closure creation
+
+A call written `f(...)` creates a closure.
+
+- `new X(...)`, including anonymous classes and `new (expr)(...)`: "Cannot create Closure for new
+  expression". It is reported after the class (or the anonymous class body) compiles. The `new`
+  expression's line is its class's line, so `new` and `A` on different lines report `A`'s line.
+- A method call whose chain a `?->` can skip: "Cannot combine nullsafe operator with Closure
+  creation". The chain is the method call itself and, through its object, the properties, elements
+  and method calls it is built on. A `?->` applied directly to `$this` does not count, because it
+  never skips. A `?->` inside a function argument, a static class reference or a parenthesized call
+  target belongs to a different chain. It is reported on the line of the method name, after the name
+  compiles.
+
+### Method names
+
+A method name given as an expression (`$a->{expr}()`, `A::{expr}()`) compiles after the object or
+class. If it folds to a constant that is not a string (an integer, float, boolean, null or array):
+"Method name must be a string". Runtime constants such as `PHP_EOL` do not fold.
+
+### Writing through a created closure
+
+A closure created by `f(...)` is a temporary value. Using it as the container of an element or
+property that is written, incremented, unset, assigned by reference, or used as a `foreach` or
+`list()` target is a fatal error: "Cannot use result of built-in function in write context". The
+check follows right after the container compiles. `$x = &f(...)` fails the same way after both
+sides compile. Reads, `isset()` and function arguments are not writes.
+
+### Coalescing assignment
+
+`target ??= value` first checks that the target is writable, as other assignments do. Then it
+compiles the target for an `isset()`-style read, so `[]` without an index fails as "Cannot use [] for
+reading". Then it compiles the value. Finally it checks the write: a container that is a temporary
+expression fails as "Cannot use temporary expression in write context", and a created closure fails
+as above.

@@ -1,9 +1,11 @@
 //! Expressions: reads, writes, lists and calls.
 
 use php_parser::ast::{
-    Arg, Args, ArrayItem, ArraySyntax, BinaryOp, CastKind, Expr, ExprKind, MatchArm, Member,
-    StringPart, VarName,
+    Arg, Args, ArrayItem, ArraySyntax, AssignOp, BinaryOp, CastKind, Expr, ExprKind, MatchArm,
+    Member, StringPart, VarName,
 };
+
+use php_value::Value;
 
 use super::{Checker, Code, Flow};
 use crate::diagnostic::Severity;
@@ -59,6 +61,38 @@ fn is_call(expr: &Expr) -> bool {
         expr.kind,
         ExprKind::Call { .. } | ExprKind::MethodCall { .. } | ExprKind::StaticCall { .. }
     )
+}
+
+/// A call written `f(...)`, which creates a closure: a temporary value, never a variable.
+fn is_closure_creation(expr: &Expr) -> bool {
+    matches!(
+        &expr.kind,
+        ExprKind::Call { args, .. }
+            | ExprKind::MethodCall { args, .. }
+            | ExprKind::StaticCall { args, .. }
+            if matches!(args, Args::CallableConvert)
+    )
+}
+
+/// Whether a `?->` in the property, element and method chain ending in `expr` can skip it. A
+/// `?->` applied to `$this` cannot, since `$this` is never null.
+fn has_nullsafe_step(expr: &Expr) -> bool {
+    match &expr.kind {
+        ExprKind::Property {
+            object,
+            nullsafe: true,
+            ..
+        }
+        | ExprKind::MethodCall {
+            object,
+            nullsafe: true,
+            ..
+        } => !is_this(object) || has_nullsafe_step(object),
+        ExprKind::Dim { base: inner, .. }
+        | ExprKind::Property { object: inner, .. }
+        | ExprKind::MethodCall { object: inner, .. } => has_nullsafe_step(inner),
+        _ => false,
+    }
 }
 
 /// Whether a `?->` earlier in the chain may skip `expr`.
@@ -124,12 +158,15 @@ impl<'a> Checker<'a> {
             | ExprKind::MethodCall { .. }
             | ExprKind::StaticCall { .. } => self.var(expr, Fetch::Read),
             ExprKind::New { class, args } => {
+                self.line = class.line;
                 self.class_ref(class)?;
-                self.args(args)
+                self.constructor_args(args)
             }
             ExprKind::NewAnonymous { class, args } => {
                 self.args(args)?;
-                self.class(class)
+                self.class(class)?;
+                self.line = class.line;
+                self.constructor_args(args)
             }
             ExprKind::ClassConstant { class, name } => {
                 self.class_ref(class)?;
@@ -154,10 +191,8 @@ impl<'a> Checker<'a> {
             ExprKind::Instanceof { expr, class } => self.instanceof(expr, class),
             ExprKind::Assign { target, value } => self.assign(target, value),
             ExprKind::AssignRef { target, value } => self.assign_ref(target, value),
-            ExprKind::CompoundAssign { target, value, .. } => {
-                self.ensure_writable(target)?;
-                self.var(target, Fetch::ReadWrite)?;
-                self.expr(value)
+            ExprKind::CompoundAssign { op, target, value } => {
+                self.compound_assign(*op, target, value)
             }
             ExprKind::Ternary {
                 condition,
@@ -193,6 +228,17 @@ impl<'a> Checker<'a> {
             ExprKind::Match { subject, arms } => self.match_expr(subject, arms),
             ExprKind::Reference(operand) => self.var(operand, Fetch::Write),
         }
+    }
+
+    fn compound_assign(&mut self, op: AssignOp, target: &'a Expr, value: &'a Expr) -> Flow {
+        self.ensure_writable(target)?;
+        if op != AssignOp::Coalesce {
+            self.var(target, Fetch::ReadWrite)?;
+            return self.expr(value);
+        }
+        self.var(target, Fetch::Isset)?;
+        self.expr(value)?;
+        self.write_chain(target)
     }
 
     fn binary(&mut self, op: BinaryOp, left: &'a Expr, right: &'a Expr) -> Flow {
@@ -297,6 +343,7 @@ impl<'a> Checker<'a> {
                     };
                 }
                 self.var(base, fetch)?;
+                self.writable_base(base, fetch)?;
                 match index {
                     None if matches!(fetch, Fetch::Read | Fetch::Isset) => {
                         self.fatal("Cannot use [] for reading")
@@ -309,6 +356,7 @@ impl<'a> Checker<'a> {
             ExprKind::Property { object, name, .. } => {
                 if !is_this(object) {
                     self.var(object, fetch)?;
+                    self.writable_base(object, fetch)?;
                 }
                 self.member(name)
             }
@@ -326,12 +374,21 @@ impl<'a> Checker<'a> {
                 self.args(args)
             }
             ExprKind::MethodCall {
-                object, name, args, ..
+                object,
+                name,
+                name_line,
+                args,
+                nullsafe,
             } => {
                 if !is_this(object) {
                     self.expr(object)?;
                 }
-                self.member(name)?;
+                self.line = *name_line;
+                self.method_name(name)?;
+                let skips = (*nullsafe && !is_this(object)) || has_nullsafe_step(object);
+                if skips && matches!(args, Args::CallableConvert) {
+                    return self.fatal("Cannot combine nullsafe operator with Closure creation");
+                }
                 self.args(args)
             }
             ExprKind::StaticCall { class, name, args } => {
@@ -339,7 +396,7 @@ impl<'a> Checker<'a> {
                     return Ok(());
                 }
                 self.class_ref(class)?;
-                self.member(name)?;
+                self.method_name(name)?;
                 self.args(args)
             }
             _ if fetch.writes() => self.fatal("Cannot use temporary expression in write context"),
@@ -351,6 +408,53 @@ impl<'a> Checker<'a> {
         match member {
             Member::Name(_) => Ok(()),
             Member::Expr(name) => self.expr(name),
+        }
+    }
+
+    /// Compiles the name of a called method, which must not fold to anything but a string.
+    fn method_name(&mut self, member: &'a Member) -> Flow {
+        let Member::Expr(name) = member else {
+            return Ok(());
+        };
+        self.expr(name)?;
+        match self.fold(name)? {
+            Some(Value::String(_)) | None => Ok(()),
+            Some(_) => self.fatal("Method name must be a string"),
+        }
+    }
+
+    /// The arguments of `new`, which cannot create a closure.
+    fn constructor_args(&mut self, args: &'a Args) -> Flow {
+        if matches!(args, Args::CallableConvert) {
+            return self.fatal("Cannot create Closure for new expression");
+        }
+        self.args(args)
+    }
+
+    /// Checks `base`, just compiled for `fetch`, as the container of an element or property.
+    fn writable_base(&self, base: &Expr, fetch: Fetch) -> Flow {
+        if fetch.writes() && is_closure_creation(base) {
+            return self.fatal("Cannot use result of built-in function in write context");
+        }
+        Ok(())
+    }
+
+    /// The checks of writing to `target` that remain once it has been compiled for reading.
+    fn write_chain(&self, target: &Expr) -> Flow {
+        match &target.kind {
+            ExprKind::Dim { base: inner, .. } | ExprKind::Property { object: inner, .. } => {
+                if is_this(inner) {
+                    return Ok(());
+                }
+                self.write_chain(inner)?;
+                self.writable_base(inner, Fetch::Write)
+            }
+            ExprKind::Variable(_)
+            | ExprKind::StaticProperty { .. }
+            | ExprKind::Call { .. }
+            | ExprKind::MethodCall { .. }
+            | ExprKind::StaticCall { .. } => Ok(()),
+            _ => self.fatal("Cannot use temporary expression in write context"),
         }
     }
 
@@ -453,7 +557,11 @@ impl<'a> Checker<'a> {
             return self.fatal("Cannot acquire reference to $GLOBALS");
         }
         self.var(target, Fetch::Write)?;
-        self.var(value, Fetch::Write)
+        self.var(value, Fetch::Write)?;
+        if is_closure_creation(value) {
+            return self.fatal("Cannot use result of built-in function in write context");
+        }
+        Ok(())
     }
 
     fn list_assign(&mut self, items: &'a [Option<ArrayItem>], style: ArraySyntax) -> Flow {
@@ -600,4 +708,109 @@ fn list_has_refs(items: &[Option<ArrayItem>]) -> bool {
         } => list_has_refs(items),
         _ => false,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::check::Checker;
+    use php_parser::{ParseOptions, parse};
+
+    /// The diagnostics compiling `source` reports, as `message @line`.
+    fn diagnostics(source: &str) -> Vec<String> {
+        let source = format!("<?php {source}");
+        let program = parse(source.as_bytes(), ParseOptions::default())
+            .unwrap()
+            .result
+            .unwrap();
+        let checked = Checker::run(&program, b"");
+        checked
+            .warnings
+            .iter()
+            .chain(&checked.fatal)
+            .map(|diagnostic| {
+                format!(
+                    "{} @{}",
+                    String::from_utf8_lossy(&diagnostic.message),
+                    diagnostic.line
+                )
+            })
+            .collect()
+    }
+
+    fn assert_cases(cases: &[(&str, &[&str])]) {
+        for (source, expected) in cases {
+            assert_eq!(diagnostics(source), *expected, "{source}");
+        }
+    }
+
+    const BUILT_IN: &str = "Cannot use result of built-in function in write context @1";
+    const NULLSAFE: &str = "Cannot combine nullsafe operator with Closure creation @1";
+
+    #[test]
+    fn closure_creation_is_never_a_writable_container() {
+        assert_cases(&[
+            ("f(...)[0] = 1;", &[BUILT_IN]),
+            ("$a->b(...)->c = 1;", &[BUILT_IN]),
+            ("A::b(...)[0][1]++;", &[BUILT_IN]),
+            ("unset(f(...)[0]);", &[BUILT_IN]),
+            ("$x = &f(...);", &[BUILT_IN]),
+            ("$x = &$a->b(...)[0];", &[BUILT_IN]),
+            ("f(...)[0] ??= 1;", &[BUILT_IN]),
+            ("f(...)->a->b ??= 1;", &[BUILT_IN]),
+            ("f(...)[0]; isset(f(...)[0]); f(f(...)[0]);", &[]),
+            ("$x = &f(); f()[0] = 1; $x = &$a->b;", &[]),
+        ]);
+    }
+
+    #[test]
+    fn coalescing_assignments_read_their_target_first() {
+        assert_cases(&[
+            ("$a[] ??= 1;", &["Cannot use [] for reading @1"]),
+            ("$a[][0] ??= 1;", &["Cannot use [] for reading @1"]),
+            ("$a[]->b ??= 1;", &["Cannot use [] for reading @1"]),
+            ("(1)[0] ??= $b[];", &["Cannot use [] for reading @1"]),
+            (
+                "(1)[0] ??= 2;",
+                &["Cannot use temporary expression in write context @1"],
+            ),
+            ("f()->a ??= 1;", &[]),
+            ("$this->a[0] ??= 1; $a::$b[0] ??= 1; $$a ??= 1;", &[]),
+        ]);
+    }
+
+    #[test]
+    fn closures_are_not_created_from_new_or_nullsafe_calls() {
+        let new = "Cannot create Closure for new expression";
+        assert_cases(&[
+            ("new A(...);", &[&format!("{new} @1")]),
+            ("new\nA(...);", &[&format!("{new} @2")]),
+            ("new class(...) {};", &[&format!("{new} @1")]),
+            ("$a?->b(...);", &[NULLSAFE]),
+            ("$a?->b->c(...);", &[NULLSAFE]),
+            ("$a?->b()[0]->c(...);", &[NULLSAFE]),
+            ("$this?->a?->b(...);", &[NULLSAFE]),
+            (
+                "$a\n?->b\n->\nc(...);",
+                &["Cannot combine nullsafe operator with Closure creation @4"],
+            ),
+            ("$this?->b(...); $this?->a->b(...);", &[]),
+            ("$a?->b::c(...); f($a?->b)->c(...); $a?->b();", &[]),
+        ]);
+    }
+
+    #[test]
+    fn method_names_must_not_fold_to_other_values() {
+        let message = "Method name must be a string @1";
+        assert_cases(&[
+            ("$a->{1}();", &[message]),
+            ("$a->{1 + 1}();", &[message]),
+            ("A::{null}();", &[message]),
+            ("$this->{[]}();", &[message]),
+            ("$a?->{true}(...);", &[message]),
+            (
+                "$a->{'a' . 'b'}(); $a->{PHP_EOL}(); $a->$b(); A::{$b}();",
+                &[],
+            ),
+        ]);
+    }
 }

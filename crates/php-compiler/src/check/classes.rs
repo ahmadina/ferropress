@@ -1,7 +1,10 @@
 //! Class references: the class operand of ordinary expressions, `X::class`, the classes a
 //! declaration extends, implements or uses, and the classes a `catch` names.
 
-use php_parser::ast::{ClassKind, Expr, ExprKind, Name, NameKind, TraitUse};
+use php_parser::ast::{
+    ClassKind, Expr, ExprKind, MethodReference, Modifiers, Name, NameKind, TraitAdaptation,
+    TraitUse,
+};
 use php_value::Value;
 
 use super::constant::Fetch;
@@ -148,17 +151,50 @@ impl<'a> Checker<'a> {
             }
             self.declared_class(name, "trait name")?;
         }
+        for adaptation in trait_use.adaptations.iter().flatten() {
+            match adaptation {
+                TraitAdaptation::Precedence { method, instead_of } => {
+                    self.method_reference(method)?;
+                    for name in instead_of {
+                        self.declared_class(name, "trait name")?;
+                    }
+                }
+                TraitAdaptation::Alias {
+                    method, modifier, ..
+                } => {
+                    if modifier.contains(Modifiers::STATIC) {
+                        return self
+                            .fatal("Cannot use \"static\" as method modifier in trait alias");
+                    }
+                    if modifier.contains(Modifiers::ABSTRACT) {
+                        return self
+                            .fatal("Cannot use \"abstract\" as method modifier in trait alias");
+                    }
+                    self.method_reference(method)?;
+                }
+            }
+        }
         Ok(())
     }
 
+    /// Resolves the trait of `[Trait::]method` in a trait adaptation.
+    fn method_reference(&mut self, method: &MethodReference) -> Flow {
+        method.class.as_ref().map_or(Ok(()), |class| {
+            self.declared_class(class, "trait name").map(drop)
+        })
+    }
+
     /// Checks the classes a `catch` names, which must be class names rather than `self`,
-    /// `parent` or `static`.
-    pub(super) fn caught_classes(&mut self, classes: &[Name]) -> Flow {
+    /// `parent` or `static`, and the variable it stores the exception in.
+    pub(super) fn caught_classes(&mut self, classes: &[Name], variable: Option<&[u8]>) -> Flow {
         for class in classes {
             if class.kind != NameKind::FullyQualified && Fetch::named(&class.bytes).is_some() {
                 return self.fatal("Bad class name in the catch statement");
             }
             self.class_name(class)?;
+            if variable == Some(b"this") {
+                return self.fatal("Cannot re-assign $this");
+            }
         }
         Ok(())
     }
@@ -325,6 +361,45 @@ mod tests {
                 &["'\\Parent' is an invalid class name @1"],
             ),
             ("try {} catch (A|\\B $e) {} catch (C) {}", &[]),
+            (
+                "try {} catch (A | static $this) {}",
+                &["Cannot re-assign $this @1"],
+            ),
+            (
+                "try {} catch (static $this) {}",
+                &["Bad class name in the catch statement @1"],
+            ),
+            ("try {} catch (A $e) { $this->a; }", &[]),
+        ]);
+    }
+
+    #[test]
+    fn trait_adaptations_check_modifiers_and_trait_names() {
+        assert_cases(&[
+            (
+                "class A { use T { f as static g; } }",
+                &["Cannot use \"static\" as method modifier in trait alias @1"],
+            ),
+            (
+                "class A { use T { f as abstract; } }",
+                &["Cannot use \"abstract\" as method modifier in trait alias @1"],
+            ),
+            (
+                "class A { use T { self::f as g; } }",
+                &["Cannot use \"self\" as trait name, as it is reserved @1"],
+            ),
+            (
+                "class A { use T { T::f insteadof U, parent; } }",
+                &["Cannot use \"parent\" as trait name, as it is reserved @1"],
+            ),
+            (
+                "class A { use T { static::f insteadof U; } }",
+                &["Cannot use \"static\" as trait name, as it is reserved @1"],
+            ),
+            (
+                "class A { use T, U { T::f insteadof U; f as protected g; U::f as final; } }",
+                &[],
+            ),
         ]);
     }
 }

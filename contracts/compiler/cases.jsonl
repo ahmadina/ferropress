@@ -267,6 +267,93 @@
 {"name":"declare rules 40","source":"<?php declare(foo=1); declare(bar=2);","diagnostics":[["Warning","Unsupported declare 'foo'",1],["Warning","Unsupported declare 'bar'",1]]}
 {"name":"declare rules 41","source":"<?php class A { function f() { declare(ticks=1); declare(strict_types=1); } }","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
 {"name":"declare rules 42","source":"<?php declare(strict_types=true);","diagnostics":[["Fatal error","declare(strict_types) value must be a literal",1]]}
+{"name":"misc rules 1","source":"<?php $this?->b(...);","diagnostics":[]}
+{"name":"misc rules 2","source":"<?php $this?->a->b(...);","diagnostics":[]}
+{"name":"misc rules 3","source":"<?php $this?->a?->b(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}
+{"name":"misc rules 4","source":"<?php $a?->b::c(...);","diagnostics":[]}
+{"name":"misc rules 5","source":"<?php f($a?->b)->c(...);","diagnostics":[]}
+{"name":"misc rules 6","source":"<?php $a?->b()->c(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}
+{"name":"misc rules 7","source":"<?php $a?->b[0]->c(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}
+{"name":"misc rules 8","source":"<?php $a?->{1}(...);","diagnostics":[["Fatal error","Method name must be a string",1]]}
+{"name":"misc rules 9","source":"<?php ($a?->b)->c(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}
+{"name":"misc rules 10","source":"<?php new class(...) {};","diagnostics":[["Fatal error","Cannot create Closure for new expression",1]]}
+{"name":"misc rules 11","source":"<?php new (f())(...);","diagnostics":[["Fatal error","Cannot create Closure for new expression",1]]}
+{"name":"misc rules 12","source":"<?php const A = new B(...);","diagnostics":[["Fatal error","Cannot create Closure for new expression",1]]}
+{"name":"misc rules 13","source":"<?php function f($a = new B(...)) {}","diagnostics":[["Fatal error","Cannot create Closure for new expression",1]]}
+{"name":"misc rules 14","source":"<?php new static(...);","diagnostics":[["Fatal error","Cannot create Closure for new expression",1]]}
+{"name":"misc rules 15","source":"<?php class A { function f() { new static(...); } }","diagnostics":[["Fatal error","Cannot create Closure for new expression",1]]}
+{"name":"misc rules 16","source":"<?php try {} catch (static $this) {}","diagnostics":[["Fatal error","Bad class name in the catch statement",1]]}
+{"name":"misc rules 17","source":"<?php try {} catch (A | static $this) {}","diagnostics":[["Fatal error","Cannot re-assign $this",1]]}
+{"name":"misc rules 18","source":"<?php try {} catch (A $this) {} catch (B $this) {}","diagnostics":[["Fatal error","Cannot re-assign $this",1]]}
+{"name":"misc rules 19","source":"<?php class A { use T { f as static g; } }","diagnostics":[["Fatal error","Cannot use \"static\" as method modifier in trait alias",1]]}
+{"name":"misc rules 20","source":"<?php class A { use T { f as abstract static; } }","diagnostics":[["Fatal error","Cannot use \"abstract\" as method modifier in trait alias",1]]}
+{"name":"misc rules 21","source":"<?php class A { use T { f as final; } }","diagnostics":[]}
+{"name":"misc rules 22","source":"<?php class A { use T { f as readonly; } }","diagnostics":[["Fatal error","Cannot use the readonly modifier on a method",1]]}
+{"name":"misc rules 23","source":"<?php class A { use T { f as public static; } }","diagnostics":[]}
+{"name":"misc rules 24","source":"<?php class A { use T { f as public; f as static; } }","diagnostics":[["Fatal error","Cannot use \"static\" as method modifier in trait alias",1]]}
+{"name":"misc rules 25","source":"<?php class A { use T { X::f as static; } }","diagnostics":[["Fatal error","Cannot use \"static\" as method modifier in trait alias",1]]}
+{"name":"misc rules 26","source":"<?php $a?->b->c(...)[0] = 1;","diagnostics":[["Fatal error","Can't use nullsafe operator in write context",1]]}
+{"name":"misc rules 28","source":"<?php $a->b(...)[0] = 1;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 29","source":"<?php A::b(...)[0] = 1;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 30","source":"<?php f(...)->a = 1;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 31","source":"<?php f(...)[] = 1;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 32","source":"<?php $x = &f(...);","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 33","source":"<?php f(...)[0][1] = 1;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 34","source":"<?php f(...)[0]++;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 35","source":"<?php unset(f(...)[0]);","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 36","source":"<?php f(...)[0] .= 1;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 37","source":"<?php list(f(...)[0]) = [1];","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 38","source":"<?php foreach ($a as f(...)[0]) {}","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 39","source":"<?php $a[][0] ??= 1;","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"misc rules 40","source":"<?php $a[]->b ??= 1;","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"misc rules 41","source":"<?php $a[0] ??= $b[];","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"misc rules 42","source":"<?php f()[] ??= 1;","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"misc rules 43","source":"<?php f(...)[0] ??= 1;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 44","source":"<?php isset(f(...)[0]);","diagnostics":[]}
+{"name":"misc rules 45","source":"<?php f(...)[0];","diagnostics":[]}
+{"name":"misc rules 46","source":"<?php $x = &$a->b(...);","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 47","source":"<?php f(&f(...)[0]);","diagnostics":[["Parse error","syntax error, unexpected token \"&\"",1]]}
+{"name":"misc rules 48","source":"<?php $a?->b(...)[0];","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}
+{"name":"misc rules 49","source":"<?php new A(...)[0] = 1;","diagnostics":[["Fatal error","Cannot use temporary expression in write context",1]]}
+{"name":"misc rules 50","source":"<?php try {} catch (A $this) { $this = 1; }","diagnostics":[["Fatal error","Cannot re-assign $this",1]]}
+{"name":"misc rules 51","source":"<?php class A { use T { f as static; } use T { g as abstract; } }","diagnostics":[["Fatal error","Cannot use \"static\" as method modifier in trait alias",1]]}
+{"name":"misc rules 52","source":"<?php (1)[0] ??= 2;","diagnostics":[["Fatal error","Cannot use temporary expression in write context",1]]}
+{"name":"misc rules 53","source":"<?php $this->a ??= 1;","diagnostics":[]}
+{"name":"misc rules 54","source":"<?php $a::$b[0] ??= 1;","diagnostics":[]}
+{"name":"misc rules 55","source":"<?php f()[0] ??= 1;","diagnostics":[]}
+{"name":"misc rules 56","source":"<?php \"abc\"[0] ??= 1;","diagnostics":[["Fatal error","Cannot use temporary expression in write context",1]]}
+{"name":"misc rules 57","source":"<?php A::B[0] ??= 1;","diagnostics":[["Fatal error","Cannot use temporary expression in write context",1]]}
+{"name":"misc rules 58","source":"<?php $a->b(...)->c ??= 1;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 59","source":"<?php $this?->a ??= 1;","diagnostics":[["Fatal error","Can't use nullsafe operator in write context",1]]}
+{"name":"misc rules 61","source":"<?php f(...)[0] ??= $b[];","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"misc rules 62","source":"<?php (1)[0] ??= $b[];","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"misc rules 63","source":"<?php $a->{1}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
+{"name":"misc rules 64","source":"<?php $a->{true}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
+{"name":"misc rules 65","source":"<?php $a->{\"a\".\"b\"}();","diagnostics":[]}
+{"name":"misc rules 66","source":"<?php $a->{1+1}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
+{"name":"misc rules 67","source":"<?php A::{1}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
+{"name":"misc rules 68","source":"<?php $a->{null}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
+{"name":"misc rules 69","source":"<?php $a->{[]}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
+{"name":"misc rules 70","source":"<?php $a->{PHP_EOL}();","diagnostics":[]}
+{"name":"misc rules 71","source":"<?php $this->{1}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
+{"name":"misc rules 72","source":"<?php $a->{1}(...);","diagnostics":[["Fatal error","Method name must be a string",1]]}
+{"name":"misc rules 73","source":"<?php new\nA(...);","diagnostics":[["Fatal error","Cannot create Closure for new expression",2]]}
+{"name":"misc rules 74","source":"<?php new\nclass(...) {\n};","diagnostics":[["Fatal error","Cannot create Closure for new expression",2]]}
+{"name":"misc rules 75","source":"<?php $a\n?->b\n->c\n(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",3]]}
+{"name":"misc rules 76","source":"<?php class A { use T { static::f as g; } }","diagnostics":[["Fatal error","Cannot use \"static\" as trait name, as it is reserved",1]]}
+{"name":"misc rules 77","source":"<?php class A { use T { T::f insteadof self; } }","diagnostics":[["Fatal error","Cannot use \"self\" as trait name, as it is reserved",1]]}
+{"name":"misc rules 78","source":"<?php class A { use T { T::f insteadof U, parent; } }","diagnostics":[["Fatal error","Cannot use \"parent\" as trait name, as it is reserved",1]]}
+{"name":"misc rules 79","source":"<?php class A { use T { f as static; X::f as g; } }","diagnostics":[["Fatal error","Cannot use \"static\" as method modifier in trait alias",1]]}
+{"name":"misc rules 80","source":"<?php class A { use T {\nf as static;\n} }","diagnostics":[["Fatal error","Cannot use \"static\" as method modifier in trait alias",1]]}
+{"name":"misc rules 81","source":"<?php try {\n} catch (\nA\n$this) {}","diagnostics":[["Fatal error","Cannot re-assign $this",3]]}
+{"name":"misc rules 82","source":"<?php try {} catch (A $e) {} catch (B | self $this) {}","diagnostics":[["Fatal error","Cannot re-assign $this",1]]}
+{"name":"misc rules 83","source":"<?php $a = &$b->c(...)[0];","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 84","source":"<?php $a = &A::b(...);","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 85","source":"<?php f(...)::$a[0] = 1;","diagnostics":[]}
+{"name":"misc rules 86","source":"<?php f(...)->a->b = 1;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 87","source":"<?php [f(...)[0]] = [1];","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 88","source":"<?php [&f(...)[0]];","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 89","source":"<?php $x = fn() => f(...)[0] = 1;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
 {"name":"namespaces 1","source":"<?php namespace A; namespace B {}","diagnostics":[["Fatal error","Cannot mix bracketed namespace declarations with unbracketed namespace declarations",1]]}
 {"name":"namespaces 2","source":"<?php namespace A {} namespace B;","diagnostics":[["Fatal error","Cannot mix bracketed namespace declarations with unbracketed namespace declarations",1]]}
 {"name":"namespaces 3","source":"<?php namespace A { namespace B {} }","diagnostics":[["Fatal error","Namespace declarations cannot be nested",1]]}
@@ -1479,7 +1566,6 @@
 {"name":"attribute rules 74","source":"<?php #[\\NoDiscard] function &f(): never {}","diagnostics":[["Fatal error","A never returning function does not return a value, but #[\\NoDiscard] requires a return value",1]]}
 {"name":"traits 1","source":"<?php class A { use T { f as static; } }","diagnostics":[["Fatal error","Cannot use \"static\" as method modifier in trait alias",1]]}
 {"name":"traits 2","source":"<?php class A { use T { f as abstract; } }","diagnostics":[["Fatal error","Cannot use \"abstract\" as method modifier in trait alias",1]]}
-{"name":"traits 3","source":"<?php class A { use T { f as final; } }","diagnostics":[]}
 {"name":"traits 4","source":"<?php class A { use T { f as readonly g; } }","diagnostics":[["Fatal error","Cannot use the readonly modifier on a method",1]]}
 {"name":"traits 5","source":"<?php class A { use T { f as protected; } }","diagnostics":[]}
 {"name":"traits 6","source":"<?php class A { use T { T::f insteadof T; } }","diagnostics":[]}

@@ -428,7 +428,7 @@ impl<'a> Checker<'a> {
         self.stmts(&try_stmt.body)?;
         for catch in &try_stmt.catches {
             self.line = catch.line;
-            self.caught_classes(&catch.types)?;
+            self.caught_classes(&catch.types, catch.variable.as_deref())?;
             self.stmts(&catch.body)?;
         }
         let (Some(finally), Some(id)) = (&try_stmt.finally, finally_id) else {

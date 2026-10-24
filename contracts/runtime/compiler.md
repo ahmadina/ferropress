@@ -163,17 +163,171 @@ Compile order:
 
 - A class compiles its attributes first.
 - A function compiles its attributes after its `use` checks and before its parameters.
-- A parameter compiles its default, then its attributes.
-- A class constant or enum case compiles its value, then its attributes.
-- A property compiles its default, then its hooks, then its attributes.
+- A parameter compiles its default, then its attributes, then its type.
+- A class constant compiles its type, then its value, then its attributes. An enum case compiles its
+  value, then its attributes.
+- A property compiles its type, then its default, then its hooks, then its attributes.
 
 ### Not yet implemented
 
 The following stay unfolded, so their values do not take part in later checks:
 
-- Constants other than `true`, `false` and `null`. These need the built-in constant registry.
+- Constants other than `true`, `false` and `null`. These need the built-in constant registry. In
+  property defaults and class constants the reference substitutes built-in constants, so a mistyped
+  default such as `public int $a = PHP_EOL;` is not reported yet. Parameter defaults never substitute
+  them.
 - Class constants.
-- `X::class` for a class name, which needs import resolution, and for `parent`.
+- `X::class` for a class name and for `parent`.
 - `__FILE__` and `__DIR__`.
 - Names that hold the file path: closures and anonymous classes.
 - Folding in ordinary code other than array literals.
+
+## Class names
+
+A class name in a type or an `extends` clause is resolved like this:
+
+- A fully qualified name is taken as written.
+- `namespace\X` gets the current namespace prefixed.
+- Otherwise, a `use` import whose alias matches the name's first part, compared case-insensitively,
+  replaces that part.
+- Anything else gets the current namespace prefixed.
+
+Only class imports count (`use X`, and the class items of a group `use`). Each namespace starts with no
+imports. `self`, `parent` and `static` stay as written, and qualifying them is a fatal error:
+"'\self' is an invalid class name" or "'namespace\self' is an invalid class name".
+
+## Declared types
+
+Types are compiled for return types, parameters, properties and class constants.
+
+### Single types
+
+- `iterable` stands for `Traversable|array`.
+- A builtin name (`null`, `true`, `false`, `int`, `float`, `string`, `bool`, `void`, `never`,
+  `iterable`, `object`, `mixed`, `static`) matches in any case. Written qualified, it is a fatal error:
+  "Type declaration 'int' must be unqualified". The name is printed in lowercase, without the prefix.
+- `static` needs a class when the scope is known: "Cannot use "static" when no class scope is active".
+  Scope is known as described for `X::class`.
+- `self` and `parent` check the scope the same way as in `X::class`. When the scope is known and the
+  class has a name, they become the class name and the parent's name. Otherwise, in traits, closures
+  and anonymous classes, they stay as written.
+- Any other name is a resolved class name:
+  - A name whose last part is reserved (the builtin names, plus `parent`, `self`, `array` and
+    `callable`) is a fatal error: "Cannot use "A\int" as a type name as it is reserved".
+  - A name that resolves to exactly `_` is deprecated: "Using "_" as a type name is deprecated since
+    8.4".
+  - The unqualified names `boolean`, `integer`, `double` and `resource` (matched case-sensitively, and
+    not imported) raise a compile warning. For the first three it is ""integer" will be interpreted as a
+    class name. Did you mean "int"? Write "\integer" to suppress this warning". For `resource` it is
+    ""resource" is not a supported builtin type and will be interpreted as a class name. Write
+    "\resource" to suppress this warning". Inside a namespace, the written name is the resolved one and
+    ` or import the class with "use"` follows it.
+
+### Unions, intersections and nullability
+
+- **Union members** are checked left to right:
+  - `mixed` is not allowed: "Type mixed can only be used as a standalone type".
+  - A builtin kind already present is a fatal error: "Duplicate type int is redundant". `bool` overlaps
+    with `true` and `false`, and `iterable` overlaps with `array`.
+  - `true` with `false` is a fatal error: "Type contains both true and false, bool must be used instead".
+  - A class already present (compared case-insensitively) is a fatal error: "Duplicate type a is
+    redundant", naming the later spelling.
+  - A class that is also part of an intersection in the union is a fatal error: "Type A&B is redundant
+    as it is more restrictive than type A".
+  - Two intersections where one's classes include all of the other's are a fatal error. With equal
+    sizes it is "Type B&A is redundant with type A&B" (the later one first). Otherwise it is "Type
+    A&B&C is redundant as it is more restrictive than type A&B".
+  - After the members, `object` together with `static` or with a class (other than the one `iterable`
+    implies) is a fatal error: "Type A|object contains both object and a class type, which is
+    redundant".
+- **Intersection members** must be plain classes: "Type int cannot be part of an intersection type"
+  (also for `iterable`, printed `Traversable|array`). `self` and `parent` are also rejected when they
+  stayed as written. A repeated class is "Duplicate type a is redundant".
+- **Nullability.**
+  - `?mixed` is a fatal error: "Type mixed cannot be marked as nullable since mixed already includes
+    null".
+  - `?null` is a fatal error: "null cannot be marked as nullable".
+  - `void` and `never` must stand alone, including not with `?` or `null`: "Void can only be used as a
+    standalone type" and "never can only be used as a standalone type".
+
+### Printing
+
+Messages print a type in this order:
+
+1. Classes in the order written. A union's intersections are in parentheses; a type that is one
+   intersection has none.
+2. Builtin kinds in a fixed order: `static`, `callable`, `object`, `array`, `string`, `int`, `float`,
+   then `bool` (or `false` or `true` alone), `void`, `never`.
+3. `null`. A type with a single part is printed `?X`. Otherwise `|null` is appended.
+
+`mixed` prints as `mixed`. For example, `int|string` prints `string|int` and `iterable` prints
+`Traversable|array`.
+
+### Values against types
+
+A value (folded, see constant expressions) fits a type when its kind is part of the type. An integer
+also fits `float`. Objects are never folded values, so a class type only accepts `null` when nullable.
+Messages name a value's kind `null`, `bool`, `int`, `float`, `string` or `array`. Property messages
+instead say `true` or `false` for booleans.
+
+## Functions
+
+The return type and parameters compile after the function's attributes and before its body. Messages
+that name the function use `name()` for functions, `Class::name()` for methods, and
+`class@anonymous()` for methods of anonymous classes.
+
+- **Return type.** A method named `__toString` (any case) without a return type is treated as
+  returning `string`. A function returning by reference with a `void` return type is deprecated:
+  "f(): Returning by reference from a void function is deprecated".
+- **Parameters**, each on its own line, in this order:
+  1. The earlier checks: auto-globals, redefinition, `$this`.
+  2. A parameter after a variadic one: "Only the last parameter can be variadic".
+  3. A variadic parameter with a default: "Variadic parameter cannot have a default value".
+  4. The default, then the attributes.
+  5. The type. A `null` default on a typed parameter that is not a promoted property makes the type
+     nullable. If the type did not already allow `null`, this is deprecated: "f(): Implicitly marking
+     parameter $a as nullable is deprecated, the explicit nullable type must be used instead".
+  6. `void` and `never` are rejected: "void cannot be used as a parameter type".
+  7. Any other folded default must fit: "Cannot use float as default value for parameter $a of type
+     int".
+  8. A parameter with a default before the last required parameter (neither defaulted nor variadic) is
+     deprecated: "f(): Optional parameter $a declared before required parameter $c is implicitly
+     treated as a required parameter". Parameters made nullable by step 5 are exempt.
+- **Generators.** A function is a generator when its own body contains `yield` or `yield from`, not
+  counting nested functions. Its return type must admit generators, which `object`, `mixed`, `iterable`
+  and the classes `Traversable`, `Iterator` and `Generator` do. Otherwise it is a fatal error raised
+  before the body compiles: "Generator return type must be a supertype of Generator, int given".
+  `yield from` in a function that returns by reference is a fatal error: "Cannot use "yield from" inside
+  a by-reference generator".
+- **`return`** in a function with a return type, unless it is a generator, is checked after its value
+  compiles. Messages say `method` instead of `function` inside a class, including in closures there,
+  but not in functions declared in methods.
+  - With `void`, a value is not allowed: "A void function must not return a value". If the value is the
+    constant `null`, `(did you mean "return;" instead of "return null;"?)` is appended.
+  - With `never`, any `return` is a fatal error: "A never-returning function must not return".
+  - Any other type needs a value: "A function with return type must return a value". When the type
+    allows `null`, `(did you mean "return null;" instead of "return;"?)` is appended.
+  - An arrow function's body counts as a returned value, unless its return type is `never`.
+
+## Properties and class constants
+
+The type is compiled for each property or constant in a group.
+
+- **Property types.** `void`, `never` and `callable` (also within a union) are rejected: "Property
+  A::$a cannot have type ?callable".
+- **Property defaults.** A folded default must fit.
+  - `null` on a type that is not an intersection gives: "Default value for property of type int may
+    not be null. Use the nullable type ?int to allow null default value".
+  - Anything else gives: "Cannot use true as default value for property A::$a of type int".
+- **Class constant types.** Other than `mixed`, a type with `callable`, `void` or `never` is rejected:
+  "Class constant A::B cannot have type callable".
+- **Class constant values.** A folded value must fit: "Cannot use bool as value for class constant
+  A::B of type int".
+
+Anonymous classes are named `class@anonymous` in these messages.
+
+### Not yet implemented
+
+- Closures are named `{closure:FILE:LINE}` in the parameter deprecations. The checker does not know the
+  file path yet, so it does not report those deprecations for closures and arrow functions.
+- Promoted constructor parameters: their placement checks and the `callable` property type check.

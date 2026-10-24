@@ -180,14 +180,14 @@ fn cast(kind: CastKind, value: &Value, cx: &mut Collect) -> Option<Value> {
 
 /// `self`, `parent` or `static`, as a class reference names them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Fetch {
+pub(super) enum Fetch {
     SelfClass,
     Parent,
     Static,
 }
 
 impl Fetch {
-    const fn keyword(self) -> &'static str {
+    pub(super) const fn keyword(self) -> &'static str {
         match self {
             Self::SelfClass => "self",
             Self::Parent => "parent",
@@ -222,10 +222,11 @@ fn text(bytes: &[u8]) -> Value {
 
 impl<'a> Checker<'a> {
     /// Compiles `expr` as a constant expression; `allow_dynamic` permits `new` and object casts,
-    /// whose value may differ on each evaluation.
-    pub(super) fn constant(&mut self, expr: &'a Expr, allow_dynamic: bool) -> Flow {
-        self.fold(expr)?;
-        self.validate(expr, allow_dynamic)
+    /// whose value may differ on each evaluation. Returns the value it folded to, if any.
+    pub(super) fn constant(&mut self, expr: &'a Expr, allow_dynamic: bool) -> Flow<Option<Value>> {
+        let value = self.fold(expr)?;
+        self.validate(expr, allow_dynamic)?;
+        Ok(value)
     }
 
     /// Compiles the arguments of `groups`' attributes.
@@ -674,7 +675,7 @@ impl<'a> Checker<'a> {
         }
     }
 
-    fn ensure_valid_fetch(&self, fetch: Fetch) -> Flow {
+    pub(super) fn ensure_valid_fetch(&self, fetch: Fetch) -> Flow {
         if !self.is_scope_known() {
             return Ok(());
         }
@@ -683,7 +684,7 @@ impl<'a> Checker<'a> {
                 "Cannot use \"{}\" when no class scope is active",
                 fetch.keyword()
             )),
-            Some(class) if fetch == Fetch::Parent && !class.has_parent => {
+            Some(class) if fetch == Fetch::Parent && class.parent.is_none() => {
                 self.fatal("Cannot use \"parent\" when current class scope has no parent")
             }
             Some(_) => Ok(()),
@@ -692,7 +693,7 @@ impl<'a> Checker<'a> {
 
     /// `true`, `false` or `null`, which fold however they are cased, also unqualified in a
     /// namespace.
-    fn special_constant(&self, name: &Name) -> Option<Value> {
+    pub(super) fn special_constant(&self, name: &Name) -> Option<Value> {
         let candidate = match name.kind {
             NameKind::Unqualified | NameKind::FullyQualified => true,
             NameKind::Relative => self.namespace.is_none(),
@@ -1008,7 +1009,7 @@ mod tests {
         ClassScope {
             name: name.map(|name| name.as_bytes().to_vec()),
             is_trait,
-            has_parent,
+            parent: has_parent.then(|| b"P".to_vec()),
         }
     }
 

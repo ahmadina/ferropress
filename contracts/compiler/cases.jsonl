@@ -726,6 +726,88 @@
 {"name":"constant folding 84","source":"<?php const A = namespace\\f(...);","diagnostics":[]}
 {"name":"constant folding 85","source":"<?php const A = A::{\"f\"}(...);","diagnostics":[]}
 {"name":"constant folding 86","source":"<?php const A = [1, 2] + [3];","diagnostics":[]}
+{"name":"types 3","source":"<?php function f(): void|null {}","diagnostics":[["Fatal error","Void can only be used as a standalone type",1]]}
+{"name":"types 4","source":"<?php function f(): ?never {}","diagnostics":[["Fatal error","never can only be used as a standalone type",1]]}
+{"name":"types 9","source":"<?php function f(A|a $a) {}","diagnostics":[["Fatal error","Duplicate type a is redundant",1]]}
+{"name":"types 10","source":"<?php function f(iterable|Traversable $a) {}","diagnostics":[["Fatal error","Duplicate type Traversable is redundant",1]]}
+{"name":"types 11","source":"<?php function f(A|object $a) {}","diagnostics":[["Fatal error","Type A|object contains both object and a class type, which is redundant",1]]}
+{"name":"types 12","source":"<?php function f(iterable|object $a) {}","diagnostics":[]}
+{"name":"types 13","source":"<?php function f(false|null $a, ?false $b) {}","diagnostics":[]}
+{"name":"types 14","source":"<?php function f(iterable&A $a) {}","diagnostics":[["Fatal error","Type Traversable|array cannot be part of an intersection type",1]]}
+{"name":"types 15","source":"<?php function f(int&A $a) {}","diagnostics":[["Fatal error","Type int cannot be part of an intersection type",1]]}
+{"name":"types 16","source":"<?php function f(A&B&a $a) {}","diagnostics":[["Fatal error","Duplicate type a is redundant",1]]}
+{"name":"types 17","source":"<?php trait T { function f(A&self $a) {} }","diagnostics":[["Fatal error","Type self cannot be part of an intersection type",1]]}
+{"name":"types 18","source":"<?php class A { function f(A&self $a) {} }","diagnostics":[["Fatal error","Duplicate type A is redundant",1]]}
+{"name":"types 19","source":"<?php function f((A&B)|A $a) {}","diagnostics":[["Fatal error","Type A&B is redundant as it is more restrictive than type A",1]]}
+{"name":"types 20","source":"<?php function f(A|(A&B) $a) {}","diagnostics":[["Fatal error","Type A&B is redundant as it is more restrictive than type A",1]]}
+{"name":"types 21","source":"<?php function f((A&B)|(B&A) $a) {}","diagnostics":[["Fatal error","Type B&A is redundant with type A&B",1]]}
+{"name":"types 22","source":"<?php function f((A&B)|(A&B&C) $a) {}","diagnostics":[["Fatal error","Type A&B&C is redundant as it is more restrictive than type A&B",1]]}
+{"name":"types 23","source":"<?php function f((A&B&C)|(A&B) $a) {}","diagnostics":[["Fatal error","Type A&B&C is redundant as it is more restrictive than type A&B",1]]}
+{"name":"types 24","source":"<?php function f((A&B)|(C&D) $a) {}","diagnostics":[]}
+{"name":"types 25","source":"<?php function f(\\int $a) {}","diagnostics":[["Fatal error","Type declaration 'int' must be unqualified",1]]}
+{"name":"types 26","source":"<?php function f(namespace\\INT $a) {}","diagnostics":[["Fatal error","Type declaration 'int' must be unqualified",1]]}
+{"name":"types 27","source":"<?php function f(A\\int $a) {}","diagnostics":[["Fatal error","Cannot use \"A\\int\" as a type name as it is reserved",1]]}
+{"name":"types 30","source":"<?php class A { function f(parent $a) {} }","diagnostics":[["Fatal error","Cannot use \"parent\" when current class scope has no parent",1]]}
+{"name":"types 32","source":"<?php $f = function (): static {};","diagnostics":[]}
+{"name":"types 33","source":"<?php function f(_ $a) {}","diagnostics":[["Deprecated","Using \"_\" as a type name is deprecated since 8.4",1]]}
+{"name":"types 34","source":"<?php function f(boolean $a) {}","diagnostics":[["Warning","\"boolean\" will be interpreted as a class name. Did you mean \"bool\"? Write \"\\boolean\" to suppress this warning",1]]}
+{"name":"types 35","source":"<?php function f(double $a) {}","diagnostics":[["Warning","\"double\" will be interpreted as a class name. Did you mean \"float\"? Write \"\\double\" to suppress this warning",1]]}
+{"name":"types 36","source":"<?php namespace A; function f(resource $a) {}","diagnostics":[["Warning","\"resource\" is not a supported builtin type and will be interpreted as a class name. Write \"\\A\\resource\" or import the class with \"use\" to suppress this warning",1]]}
+{"name":"types 37","source":"<?php use A\\B as integer; function f(integer $a) {}","diagnostics":[]}
+{"name":"types 38","source":"<?php function f(Integer $a, \\integer $b) {}","diagnostics":[]}
+{"name":"types 39","source":"<?php use X\\Y as Z; function f(Z $a = 1) {}","diagnostics":[["Fatal error","Cannot use int as default value for parameter $a of type X\\Y",1]]}
+{"name":"types 40","source":"<?php use X\\Y as Z; function f(Z\\W $a = 1) {}","diagnostics":[["Fatal error","Cannot use int as default value for parameter $a of type X\\Y\\W",1]]}
+{"name":"types 41","source":"<?php use X\\{Y, function g}; function f(Y $a = 1) {}","diagnostics":[["Fatal error","Cannot use int as default value for parameter $a of type X\\Y",1]]}
+{"name":"types 42","source":"<?php namespace N; use X\\Y; function f(Y|y $a) {}","diagnostics":[["Fatal error","Duplicate type X\\Y is redundant",1]]}
+{"name":"types 43","source":"<?php namespace N { use X\\Y; } namespace { function f(Y $a = 1) {} }","diagnostics":[["Fatal error","Cannot use int as default value for parameter $a of type Y",1]]}
+{"name":"types 44","source":"<?php namespace N; function f(namespace\\A $a = 1) {}","diagnostics":[["Fatal error","Cannot use int as default value for parameter $a of type N\\A",1]]}
+{"name":"types 45","source":"<?php class A extends B { function m(parent $a = 1) {} }","diagnostics":[["Fatal error","Cannot use int as default value for parameter $a of type B",1]]}
+{"name":"types 46","source":"<?php trait T { function f(self $a = 1) {} }","diagnostics":[["Fatal error","Cannot use int as default value for parameter $a of type self",1]]}
+{"name":"types 47","source":"<?php function f(int $a = true) {}","diagnostics":[["Fatal error","Cannot use bool as default value for parameter $a of type int",1]]}
+{"name":"types 48","source":"<?php function f(callable $a = 'strlen') {}","diagnostics":[["Fatal error","Cannot use string as default value for parameter $a of type callable",1]]}
+{"name":"types 49","source":"<?php function f(iterable|null $a = 1) {}","diagnostics":[["Fatal error","Cannot use int as default value for parameter $a of type Traversable|array|null",1]]}
+{"name":"types 50","source":"<?php function f(A|B|null|int|false $a = 1.5) {}","diagnostics":[["Fatal error","Cannot use float as default value for parameter $a of type A|B|int|false|null",1]]}
+{"name":"types 51","source":"<?php function f((A&B)|null $a = 1) {}","diagnostics":[["Fatal error","Cannot use int as default value for parameter $a of type (A&B)|null",1]]}
+{"name":"types 52","source":"<?php function f(string $a = __LINE__) {}","diagnostics":[["Fatal error","Cannot use int as default value for parameter $a of type string",1]]}
+{"name":"types 53","source":"<?php function f(float $a = 1, int $b = FOO) {}","diagnostics":[]}
+{"name":"types 54","source":"<?php function f(int ...$a = 1) {}","diagnostics":[["Fatal error","Variadic parameter cannot have a default value",1]]}
+{"name":"types 58","source":"<?php function f(int $a = null, int $b = 1.5) {}","diagnostics":[["Deprecated","f(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",1],["Fatal error","Cannot use float as default value for parameter $b of type int",1]]}
+{"name":"types 59","source":"<?php namespace N; function f(A&B $a = null) {}","diagnostics":[["Deprecated","N\\f(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",1]]}
+{"name":"types 60","source":"<?php class A { function __construct(public int $a = null) {} }","diagnostics":[["Fatal error","Cannot use null as default value for parameter $a of type int",1]]}
+{"name":"types 61","source":"<?php new class { function m(int $a = null) {} };","diagnostics":[["Deprecated","class@anonymous(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",1]]}
+{"name":"types 62","source":"<?php function f(int $a = 1, $b = 2, $c, ...$d) {}","diagnostics":[["Deprecated","f(): Optional parameter $a declared before required parameter $c is implicitly treated as a required parameter",1],["Deprecated","f(): Optional parameter $b declared before required parameter $c is implicitly treated as a required parameter",1]]}
+{"name":"types 63","source":"<?php interface I { function f(int $a = null, $b); }","diagnostics":[["Deprecated","I::f(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",1]]}
+{"name":"types 65","source":"<?php class A { public int $a = true; }","diagnostics":[["Fatal error","Cannot use true as default value for property A::$a of type int",1]]}
+{"name":"types 66","source":"<?php class A { public int $a = 1, $b = false; }","diagnostics":[["Fatal error","Cannot use false as default value for property A::$b of type int",1]]}
+{"name":"types 67","source":"<?php class A { public int|string $a = null; }","diagnostics":[["Fatal error","Default value for property of type string|int may not be null. Use the nullable type string|int|null to allow null default value",1]]}
+{"name":"types 68","source":"<?php class A { public A&B $a = null; }","diagnostics":[["Fatal error","Cannot use null as default value for property A::$a of type A&B",1]]}
+{"name":"types 69","source":"<?php class A { public float $a = 1; public ?float $b = null; public $c = 'x'; }","diagnostics":[]}
+{"name":"types 70","source":"<?php new class { public callable $a; };","diagnostics":[["Fatal error","Property class@anonymous::$a cannot have type callable",1]]}
+{"name":"types 71","source":"<?php class A { public ?callable $a; }","diagnostics":[["Fatal error","Property A::$a cannot have type ?callable",1]]}
+{"name":"types 72","source":"<?php class A { const int B = true; }","diagnostics":[["Fatal error","Cannot use bool as value for class constant A::B of type int",1]]}
+{"name":"types 75","source":"<?php new class { const int B = 1.5; };","diagnostics":[["Fatal error","Cannot use float as value for class constant class@anonymous::B of type int",1]]}
+{"name":"types 76","source":"<?php class A { const mixed B = 1; const ?callable C = 1; }","diagnostics":[["Fatal error","Class constant A::C cannot have type ?callable",1]]}
+{"name":"types 77","source":"<?php class A { const float B = 1, C = self::B; }","diagnostics":[]}
+{"name":"types 79","source":"<?php function f(): void { return \\NULL; }","diagnostics":[["Fatal error","A void function must not return a value (did you mean \"return;\" instead of \"return null;\"?)",1]]}
+{"name":"types 80","source":"<?php function f(): void { if (1) { return; } return 2; }","diagnostics":[["Fatal error","A void function must not return a value",1]]}
+{"name":"types 81","source":"<?php class A { function f() { return function (): void { return 1; }; } }","diagnostics":[["Fatal error","A void method must not return a value",1]]}
+{"name":"types 82","source":"<?php class A { function f() { function g(): void { return 1; } } }","diagnostics":[["Fatal error","A void function must not return a value",1]]}
+{"name":"types 86","source":"<?php class A { function __TOSTRING() { return; } }","diagnostics":[["Fatal error","A method with return type must return a value",1]]}
+{"name":"types 87","source":"<?php function f(): int { $g = function () { return; }; return 1; }","diagnostics":[]}
+{"name":"types 88","source":"<?php $f = fn(): void => 1;","diagnostics":[["Fatal error","A void function must not return a value",1]]}
+{"name":"types 89","source":"<?php $f = fn(): void => null;","diagnostics":[["Fatal error","A void function must not return a value (did you mean \"return;\" instead of \"return null;\"?)",1]]}
+{"name":"types 90","source":"<?php $f = fn(): never => 1; return;","diagnostics":[]}
+{"name":"types 92","source":"<?php abstract class A { abstract function f(): void; }","diagnostics":[]}
+{"name":"types 93","source":"<?php function f(): void { return 1; yield; }","diagnostics":[["Fatal error","Generator return type must be a supertype of Generator, void given",1]]}
+{"name":"types 94","source":"<?php function f(): ?int { yield; }","diagnostics":[["Fatal error","Generator return type must be a supertype of Generator, ?int given",1]]}
+{"name":"types 95","source":"<?php class A { function f(): static { yield; } }","diagnostics":[["Fatal error","Generator return type must be a supertype of Generator, static given",1]]}
+{"name":"types 96","source":"<?php class A { function __toString() { yield; } }","diagnostics":[["Fatal error","Generator return type must be a supertype of Generator, string given",1]]}
+{"name":"types 97","source":"<?php function f(): Generator { return; yield; }","diagnostics":[]}
+{"name":"types 98","source":"<?php function f(): iterable { yield; } function g(): Traversable|int { yield; }","diagnostics":[]}
+{"name":"types 99","source":"<?php function f(): mixed { yield; } function g(): object { yield; }","diagnostics":[]}
+{"name":"types 101","source":"<?php function &f() { yield; }","diagnostics":[]}
+{"name":"types 102","source":"<?php function f(\n\tint $a = null,\n\t$b = 1,\n\t$c\n) {}","diagnostics":[["Deprecated","f(): Implicitly marking parameter $a as nullable is deprecated, the explicit nullable type must be used instead",2],["Deprecated","f(): Optional parameter $b declared before required parameter $c is implicitly treated as a required parameter",3]]}
+{"name":"types 103","source":"<?php function f(): void {\n\treturn\n\t\tnull;\n}","diagnostics":[["Fatal error","A void function must not return a value (did you mean \"return;\" instead of \"return null;\"?)",3]]}
 {"name":"class members 1","source":"<?php class A { function f() {} function f() {} }","diagnostics":[["Fatal error","Cannot redeclare A::f()",1]]}
 {"name":"class members 2","source":"<?php class A { function F() {} function f() {} }","diagnostics":[["Fatal error","Cannot redeclare A::f()",1]]}
 {"name":"class members 3","source":"<?php class A { public $a; public $a; }","diagnostics":[["Fatal error","Cannot redeclare A::$a",1]]}
@@ -782,7 +864,6 @@
 {"name":"class members 54","source":"<?php readonly class A { public $a; }","diagnostics":[["Fatal error","Readonly property A::$a must have type",1]]}
 {"name":"class members 55","source":"<?php readonly class A { public static int $a; }","diagnostics":[["Fatal error","Static property A::$a cannot be readonly",1]]}
 {"name":"class members 56","source":"<?php class A { public callable $a; }","diagnostics":[["Fatal error","Property A::$a cannot have type callable",1]]}
-{"name":"class members 57","source":"<?php class A { public ?callable $a; }","diagnostics":[["Fatal error","Property A::$a cannot have type ?callable",1]]}
 {"name":"class members 58","source":"<?php class A { public void $a; }","diagnostics":[["Fatal error","Property A::$a cannot have type void",1]]}
 {"name":"class members 59","source":"<?php class A { public never $a; }","diagnostics":[["Fatal error","Property A::$a cannot have type never",1]]}
 {"name":"class members 60","source":"<?php class A { public static function __construct() {} }","diagnostics":[["Fatal error","Method A::__construct() cannot be static",1]]}

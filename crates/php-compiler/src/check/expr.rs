@@ -185,6 +185,9 @@ impl<'a> Checker<'a> {
             }
             ExprKind::YieldFrom(operand) => {
                 self.mark_generator()?;
+                if self.frame.by_ref {
+                    return self.fatal("Cannot use \"yield from\" inside a by-reference generator");
+                }
                 self.expr(operand)
             }
             ExprKind::Closure(function) | ExprKind::ArrowFunction { function, .. } => {

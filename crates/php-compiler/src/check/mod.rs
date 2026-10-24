@@ -7,16 +7,20 @@
 
 mod constant;
 mod expr;
+mod types;
 
 use std::collections::HashMap;
 
 use php_parser::ast::{
-    Case, Catch, ClassKind, ClassLike, ClassMember, Expr, ExprKind, Function, FunctionBody,
-    HookBody, Program, Stmt, StmtKind, TopStatement, Try,
+    Case, Catch, ClassKind, ClassLike, ClassMember, ConstantGroup, Expr, ExprKind, Function,
+    FunctionBody, HookBody, Modifiers, Param, Program, Property, PropertyGroup, Stmt, StmtKind,
+    TopStatement, Try, UseItem, UseKind,
 };
+use php_value::Value;
 
 use crate::diagnostic::{Diagnostic, Diagnostics, Severity};
 use constant::Folded;
+use types::{ANONYMOUS_CLASS, DeclaredType, Mask};
 
 /// The result of a check; `Err` carries the fatal error that stops compilation.
 pub(crate) type Flow<T = ()> = Result<T, Box<Diagnostic>>;
@@ -32,6 +36,12 @@ const AUTO_GLOBALS: [&[u8]; 8] = [
     b"_REQUEST",
     b"_FILES",
 ];
+
+/// The modifiers that make a constructor parameter a promoted property.
+const PROMOTION: Modifiers = Modifiers::VISIBILITY
+    .union(Modifiers::SET_VISIBILITY)
+    .union(Modifiers::READONLY)
+    .union(Modifiers::FINAL);
 
 pub(crate) fn is_auto_global(name: &[u8]) -> bool {
     AUTO_GLOBALS.contains(&name)
@@ -72,6 +82,12 @@ struct Frame {
     jumpables: Vec<Jumpable>,
     /// Names of the `static` variables declared so far.
     statics: Vec<Vec<u8>>,
+    /// The declared return type, or the one implied by the function's name.
+    returns: Option<DeclaredType>,
+    /// Whether the function is a generator, whose `return` statements are not type-checked.
+    is_generator: bool,
+    /// Whether the function returns, or for a generator yields, by reference.
+    by_ref: bool,
 }
 
 impl Frame {
@@ -89,7 +105,15 @@ struct ClassScope {
     /// The namespaced name; `None` for an anonymous class, whose name holds the file path.
     name: Option<Vec<u8>>,
     is_trait: bool,
-    has_parent: bool,
+    /// The resolved name of the class a class extends.
+    parent: Option<Vec<u8>>,
+}
+
+impl ClassScope {
+    /// The name the reference prints in messages about the class.
+    fn label(&self) -> &[u8] {
+        self.name.as_deref().unwrap_or(ANONYMOUS_CLASS)
+    }
 }
 
 pub(crate) struct Checker<'a> {
@@ -97,6 +121,8 @@ pub(crate) struct Checker<'a> {
     warnings: Vec<Diagnostic>,
     frame: Frame,
     namespace: Option<Vec<u8>>,
+    /// The class imports of the current namespace, by lowercase alias.
+    imports: HashMap<Vec<u8>, Vec<u8>>,
     class: Option<ClassScope>,
     /// What constant folding made of the nodes it changed.
     folded: HashMap<*const Expr, Folded<'a>>,
@@ -109,6 +135,7 @@ impl<'a> Checker<'a> {
             warnings: Vec::new(),
             frame: Frame::default(),
             namespace: None,
+            imports: HashMap::new(),
             class: None,
             folded: HashMap::new(),
         }
@@ -165,8 +192,10 @@ impl<'a> Checker<'a> {
                 } => {
                     self.line = *line;
                     self.namespace.clone_from(name);
+                    self.imports.clear();
                     self.top_statements(body)?;
                     self.namespace = None;
+                    self.imports.clear();
                 }
                 TopStatement::Namespace {
                     name,
@@ -175,6 +204,24 @@ impl<'a> Checker<'a> {
                 } => {
                     self.line = *line;
                     self.namespace.clone_from(name);
+                    self.imports.clear();
+                }
+                TopStatement::Use { kind, items, line } => {
+                    self.line = *line;
+                    for item in items {
+                        self.import(*kind, &[], item);
+                    }
+                }
+                TopStatement::GroupUse {
+                    kind,
+                    prefix,
+                    items,
+                    line,
+                } => {
+                    self.line = *line;
+                    for item in items {
+                        self.import(*kind, prefix, item);
+                    }
                 }
                 TopStatement::Const {
                     items,
@@ -202,12 +249,29 @@ impl<'a> Checker<'a> {
                         self.attributes(attributes)?;
                     }
                 }
-                TopStatement::HaltCompiler { line }
-                | TopStatement::Use { line, .. }
-                | TopStatement::GroupUse { line, .. } => self.line = *line,
+                TopStatement::HaltCompiler { line } => self.line = *line,
             }
         }
         Ok(())
+    }
+
+    /// Records the class import `item`, which a group `use` writes after `prefix`.
+    fn import(&mut self, kind: UseKind, prefix: &[u8], item: &UseItem) {
+        if item.kind.unwrap_or(kind) != UseKind::Class {
+            return;
+        }
+        let mut name = prefix.to_vec();
+        if !name.is_empty() {
+            name.push(b'\\');
+        }
+        name.extend_from_slice(&item.name);
+        let alias = item.alias.as_deref().unwrap_or_else(|| {
+            item.name
+                .iter()
+                .rposition(|&byte| byte == b'\\')
+                .map_or(item.name.as_slice(), |slash| &item.name[slash + 1..])
+        });
+        self.imports.insert(alias.to_ascii_lowercase(), name);
     }
 
     fn stmts(&mut self, stmts: &'a [Stmt]) -> Flow {
@@ -248,7 +312,12 @@ impl<'a> Checker<'a> {
             StmtKind::Switch { subject, cases } => self.switch(subject, cases),
             StmtKind::Break(depth) => self.break_continue(true, depth.as_ref()),
             StmtKind::Continue(depth) => self.break_continue(false, depth.as_ref()),
-            StmtKind::Return(value) => value.as_ref().map_or(Ok(()), |value| self.expr(value)),
+            StmtKind::Return(value) => {
+                if let Some(value) = value {
+                    self.expr(value)?;
+                }
+                self.returned(value.as_ref())
+            }
             StmtKind::Global(variable) => self.global(variable),
             StmtKind::Static { name, default } => self.static_variable(name, default.as_ref()),
             StmtKind::Unset(variable) => self.unset(variable),
@@ -446,29 +515,7 @@ impl<'a> Checker<'a> {
     }
 
     fn function_inner(&mut self, function: &'a Function) -> Flow {
-        for (index, param) in function.params.iter().enumerate() {
-            self.line = param.line;
-            if is_auto_global(&param.name) {
-                let mut message = b"Cannot re-assign auto-global variable ".to_vec();
-                message.extend_from_slice(&param.name);
-                return self.fatal(message);
-            }
-            if function.params[..index]
-                .iter()
-                .any(|earlier| earlier.name == param.name)
-            {
-                let mut message = b"Redefinition of parameter $".to_vec();
-                message.extend_from_slice(&param.name);
-                return self.fatal(message);
-            }
-            if param.name == b"this" {
-                return self.fatal("Cannot use $this as parameter");
-            }
-            if let Some(default) = &param.default {
-                self.constant(default, true)?;
-            }
-            self.attributes(&param.attributes)?;
-        }
+        self.signature(function)?;
         for use_var in &function.uses {
             if function
                 .params
@@ -483,17 +530,213 @@ impl<'a> Checker<'a> {
         }
         match &function.body {
             FunctionBody::Block(stmts) => self.stmts(stmts),
-            FunctionBody::Expr(expr) => self.expr(expr),
+            FunctionBody::Expr(expr) => {
+                let line = self.line;
+                self.expr(expr)?;
+                let returns_never = self
+                    .frame
+                    .returns
+                    .as_ref()
+                    .is_some_and(|returns| returns.mask().intersects(Mask::NEVER));
+                if returns_never {
+                    return Ok(());
+                }
+                self.line = line;
+                self.returned(Some(expr))
+            }
             FunctionBody::Absent => Ok(()),
+        }
+    }
+
+    /// Compiles the return type and the parameters, which the reference does before the body.
+    fn signature(&mut self, function: &'a Function) -> Flow {
+        let returns = match &function.return_type {
+            Some(declared) => Some(self.declared_type(declared, false)?.0),
+            None => match &self.frame.code {
+                Code::Method { name, .. } if name.eq_ignore_ascii_case(b"__tostring") => {
+                    Some(DeclaredType::of(Mask::STRING))
+                }
+                _ => None,
+            },
+        };
+        let returns_void = returns
+            .as_ref()
+            .is_some_and(|returns| returns.mask().intersects(Mask::VOID));
+        if function.by_ref && returns_void {
+            self.deprecated_in_function(
+                b"Returning by reference from a void function is deprecated",
+            );
+        }
+        let last_required = function
+            .params
+            .iter()
+            .rposition(|param| param.default.is_none() && !param.variadic);
+        for (index, param) in function.params.iter().enumerate() {
+            let required = last_required
+                .filter(|&last| index < last)
+                .map(|last| function.params[last].name.as_slice());
+            self.param(&function.params[..index], param, required)?;
+        }
+        if let (true, Some(returns)) = (function.is_generator, &returns)
+            && !returns.admits_generators()
+        {
+            let mut message = b"Generator return type must be a supertype of Generator, ".to_vec();
+            message.extend(returns.display());
+            message.extend_from_slice(b" given");
+            return self.fatal(message);
+        }
+        self.frame.returns = returns;
+        self.frame.is_generator = function.is_generator;
+        self.frame.by_ref = function.by_ref;
+        Ok(())
+    }
+
+    /// Compiles `param`, which follows `earlier`; `required` names the last required parameter
+    /// when one follows it.
+    fn param(&mut self, earlier: &'a [Param], param: &'a Param, required: Option<&[u8]>) -> Flow {
+        self.line = param.line;
+        if is_auto_global(&param.name) {
+            let mut message = b"Cannot re-assign auto-global variable ".to_vec();
+            message.extend_from_slice(&param.name);
+            return self.fatal(message);
+        }
+        if earlier.iter().any(|other| other.name == param.name) {
+            let mut message = b"Redefinition of parameter $".to_vec();
+            message.extend_from_slice(&param.name);
+            return self.fatal(message);
+        }
+        if param.name == b"this" {
+            return self.fatal("Cannot use $this as parameter");
+        }
+        if earlier.iter().any(|other| other.variadic) {
+            return self.fatal("Only the last parameter can be variadic");
+        }
+        if param.variadic && param.default.is_some() {
+            return self.fatal("Variadic parameter cannot have a default value");
+        }
+        let default = match &param.default {
+            Some(default) => Some(self.constant(default, true)?),
+            None => None,
+        };
+        self.attributes(&param.attributes)?;
+        let mut forced = false;
+        if let Some(declared) = &param.declared_type {
+            let promoted = param.hooks.is_some() || param.modifiers.intersects(PROMOTION);
+            let force_null = !promoted && matches!(default, Some(Some(Value::Null)));
+            let (declared, was_forced) = self.declared_type(declared, force_null)?;
+            forced = was_forced;
+            if forced {
+                let mut message = b"Implicitly marking parameter $".to_vec();
+                message.extend_from_slice(&param.name);
+                message.extend_from_slice(
+                    b" as nullable is deprecated, the explicit nullable type must be used instead",
+                );
+                self.deprecated_in_function(&message);
+            }
+            if declared.mask().intersects(Mask::VOID) {
+                return self.fatal("void cannot be used as a parameter type");
+            }
+            if declared.mask().intersects(Mask::NEVER) {
+                return self.fatal("never cannot be used as a parameter type");
+            }
+            if let Some(Some(value)) = &default
+                && !force_null
+                && !declared.accepts(value)
+            {
+                let mut message = format!(
+                    "Cannot use {} as default value for parameter $",
+                    types::type_name(value)
+                )
+                .into_bytes();
+                message.extend_from_slice(&param.name);
+                message.extend_from_slice(b" of type ");
+                message.extend(declared.display());
+                return self.fatal(message);
+            }
+        }
+        if let (Some(required), Some(_), false) = (required, &default, forced) {
+            let mut message = b"Optional parameter $".to_vec();
+            message.extend_from_slice(&param.name);
+            message.extend_from_slice(b" declared before required parameter $");
+            message.extend_from_slice(required);
+            message.extend_from_slice(b" is implicitly treated as a required parameter");
+            self.deprecated_in_function(&message);
+        }
+        Ok(())
+    }
+
+    /// Reports `message` as a deprecation about the function being compiled, which the
+    /// reference prefixes with the function's name.
+    fn deprecated_in_function(&mut self, message: &[u8]) {
+        let mut text = match &self.frame.code {
+            Code::Function(name) => name.clone(),
+            Code::Method {
+                class: Some(class),
+                name,
+            } => {
+                let mut text = class.clone();
+                text.extend_from_slice(b"::");
+                text.extend_from_slice(name);
+                text
+            }
+            Code::Method { class: None, .. } => ANONYMOUS_CLASS.to_vec(),
+            Code::Closure | Code::File => return,
+        };
+        text.extend_from_slice(b"(): ");
+        text.extend_from_slice(message);
+        self.report(Severity::Deprecated, text);
+    }
+
+    /// Checks a `return` of `value` against the declared return type.
+    fn returned(&self, value: Option<&'a Expr>) -> Flow {
+        let (false, Some(returns)) = (self.frame.is_generator, &self.frame.returns) else {
+            return Ok(());
+        };
+        let kind = if self.class.is_some() {
+            "method"
+        } else {
+            "function"
+        };
+        let mask = returns.mask();
+        if mask.intersects(Mask::VOID) {
+            return match value {
+                None => Ok(()),
+                Some(value) if self.is_null_constant(value) => self.fatal(format!(
+                    "A void {kind} must not return a value (did you mean \"return;\" instead of \"return null;\"?)"
+                )),
+                Some(_) => self.fatal(format!("A void {kind} must not return a value")),
+            };
+        }
+        if mask.intersects(Mask::NEVER) {
+            return self.fatal(format!("A never-returning {kind} must not return"));
+        }
+        match value {
+            Some(_) => Ok(()),
+            None if mask.intersects(Mask::NULL) => self.fatal(format!(
+                "A {kind} with return type must return a value (did you mean \"return null;\" instead of \"return;\"?)"
+            )),
+            None => self.fatal(format!("A {kind} with return type must return a value")),
+        }
+    }
+
+    /// Whether `value` compiles to the constant `null`.
+    fn is_null_constant(&self, value: &'a Expr) -> bool {
+        match &self.resolve(value).kind {
+            ExprKind::Constant(name) => matches!(self.special_constant(name), Some(Value::Null)),
+            _ => false,
         }
     }
 
     fn class(&mut self, class: &'a ClassLike) -> Flow {
         self.line = class.line;
+        let parent = match (&class.kind, &class.extends) {
+            (ClassKind::Class, Some(parent)) => Some(self.resolve_class(parent)),
+            _ => None,
+        };
         let scope = ClassScope {
             name: class.name.as_deref().map(|name| self.qualify(name)),
             is_trait: class.kind == ClassKind::Trait,
-            has_parent: class.kind == ClassKind::Class && class.extends.is_some(),
+            parent,
         };
         let outer = self.class.replace(scope);
         let result = self.class_body(class);
@@ -516,17 +759,14 @@ impl<'a> Checker<'a> {
                     self.line = group.line;
                     for property in &group.properties {
                         let outer = self.frame.property.replace(property.name.clone());
-                        let result = self.property(property, &group.attributes);
+                        let result = self.property(group, property);
                         self.frame.property = outer;
                         result?;
                     }
                 }
                 ClassMember::Constant(group) => {
                     self.line = group.line;
-                    for item in &group.items {
-                        self.constant(&item.value, false)?;
-                        self.attributes(&group.attributes)?;
-                    }
+                    self.class_constants(group)?;
                 }
                 ClassMember::EnumCase(case) => {
                     self.line = case.line;
@@ -541,13 +781,96 @@ impl<'a> Checker<'a> {
         Ok(())
     }
 
-    fn property(
-        &mut self,
-        property: &'a php_parser::ast::Property,
-        attributes: &'a [php_parser::ast::AttributeGroup],
-    ) -> Flow {
+    /// The class being compiled, as messages name it.
+    fn class_label(&self) -> Vec<u8> {
+        self.class
+            .as_ref()
+            .map_or(ANONYMOUS_CLASS, ClassScope::label)
+            .to_vec()
+    }
+
+    fn class_constants(&mut self, group: &'a ConstantGroup) -> Flow {
+        for item in &group.items {
+            let declared = match &group.constant_type {
+                Some(declared) => Some(self.declared_type(declared, false)?.0),
+                None => None,
+            };
+            let mut subject = self.class_label();
+            subject.extend_from_slice(b"::");
+            subject.extend_from_slice(&item.name);
+            if let Some(declared) = &declared {
+                let mask = declared.mask();
+                let forbidden = Mask::CALLABLE.union(Mask::VOID).union(Mask::NEVER);
+                if mask != Mask::ANY && mask.intersects(forbidden) {
+                    let mut message = b"Class constant ".to_vec();
+                    message.extend_from_slice(&subject);
+                    message.extend_from_slice(b" cannot have type ");
+                    message.extend(declared.display());
+                    return self.fatal(message);
+                }
+            }
+            let value = self.constant(&item.value, false)?;
+            if let (Some(declared), Some(value)) = (&declared, &value)
+                && !declared.accepts(value)
+            {
+                let mut message = format!(
+                    "Cannot use {} as value for class constant ",
+                    types::type_name(value)
+                )
+                .into_bytes();
+                message.extend_from_slice(&subject);
+                message.extend_from_slice(b" of type ");
+                message.extend(declared.display());
+                return self.fatal(message);
+            }
+            self.attributes(&group.attributes)?;
+        }
+        Ok(())
+    }
+
+    fn property(&mut self, group: &'a PropertyGroup, property: &'a Property) -> Flow {
+        let declared = match &group.property_type {
+            Some(declared) => Some(self.declared_type(declared, false)?.0),
+            None => None,
+        };
+        let mut subject = self.class_label();
+        subject.extend_from_slice(b"::$");
+        subject.extend_from_slice(&property.name);
+        if let Some(declared) = &declared {
+            let forbidden = Mask::VOID.union(Mask::NEVER).union(Mask::CALLABLE);
+            if declared.mask().intersects(forbidden) {
+                let mut message = b"Property ".to_vec();
+                message.extend_from_slice(&subject);
+                message.extend_from_slice(b" cannot have type ");
+                message.extend(declared.display());
+                return self.fatal(message);
+            }
+        }
         if let Some(default) = &property.default {
-            self.constant(default, false)?;
+            let value = self.constant(default, false)?;
+            if let (Some(declared), Some(value)) = (&declared, &value)
+                && !declared.accepts(value)
+            {
+                let message = if matches!(value, Value::Null) && !declared.is_intersection() {
+                    let mut message = b"Default value for property of type ".to_vec();
+                    message.extend(declared.display());
+                    message.extend_from_slice(b" may not be null. Use the nullable type ");
+                    message.extend(declared.nullable().display());
+                    message.extend_from_slice(b" to allow null default value");
+                    message
+                } else {
+                    let mut message = format!(
+                        "Cannot use {} as default value for property ",
+                        types::value_name(value)
+                    )
+                    .into_bytes();
+                    message.extend_from_slice(&subject);
+                    message.extend_from_slice(b" of type ");
+                    message.extend(declared.display());
+                    message
+                };
+                return self.fatal(message);
+            }
         }
         for hook in property.hooks.iter().flatten() {
             let mut name = b"$".to_vec();
@@ -560,7 +883,7 @@ impl<'a> Checker<'a> {
             };
             self.hook_body(&hook.body, code)?;
         }
-        self.attributes(attributes)
+        self.attributes(&group.attributes)
     }
 
     fn hook_body(&mut self, body: &'a HookBody, code: Code) -> Flow {

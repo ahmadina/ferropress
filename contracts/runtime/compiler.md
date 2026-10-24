@@ -867,3 +867,10 @@ compiles the target for an `isset()`-style read, so `[]` without an index fails 
 reading". Then it compiles the value. Finally it checks the write: a container that is a temporary
 expression fails as "Cannot use temporary expression in write context", and a created closure fails
 as above.
+
+### Short-circuit operators
+
+`&&`, `||`, `and` and `or` compile their left operand first. If it folds to a constant that already
+decides the result (falsy for `&&` and `and`, truthy for `||` and `or`), the right operand is not
+compiled at all, so nothing in it is reported: `'s' or yield;` at the top level is accepted.
+Otherwise the right operand compiles as usual.

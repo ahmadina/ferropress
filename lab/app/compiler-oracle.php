@@ -149,6 +149,12 @@ function compiler_topic_cases(): array {
 			'try {} catch (A $e) {} catch (B | self $this) {}', '$a = &$b->c(...)[0];', '$a = &A::b(...);',
 			'f(...)::$a[0] = 1;', 'f(...)->a->b = 1;', '[f(...)[0]] = [1];',
 			'[&f(...)[0]];', '$x = fn() => f(...)[0] = 1;',
+			'0 and yield;', '1 and yield;', 'true || $this = 1;',
+			'null && f(...)[0] = 1;', 'false or yield;', '[] && yield;',
+			'\'0\' || yield;', '(1 or $x) and yield;', '1 + 1 || yield;',
+			'(0 and $x) or yield;', '$a or yield;', '__LINE__ || yield;',
+			'!1 && yield;', '"" or yield;', '0.0 && $a[];',
+			'1 and 0 and yield;', '1 or yield or yield;',
 		),
 		'namespaces'         => array(
 			'echo 1; namespace A;', 'namespace A; namespace B;', 'namespace A {} namespace B;', 'namespace A; namespace B {}',

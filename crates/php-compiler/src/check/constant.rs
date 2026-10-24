@@ -278,7 +278,7 @@ impl<'a> Checker<'a> {
         Some(result)
     }
 
-    fn truthy(&mut self, value: &Value) -> bool {
+    pub(super) fn truthy(&mut self, value: &Value) -> bool {
         self.evaluate(|cx| value.to_bool(cx)).unwrap_or_default()
     }
 

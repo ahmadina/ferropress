@@ -254,6 +254,12 @@ impl<'a> Checker<'a> {
                 .fatal("Arrow functions on the right hand side of |> must be parenthesized");
         }
         self.expr(left)?;
+        if let BinaryOp::And | BinaryOp::Or = op
+            && let Some(value) = self.fold(left)?
+            && self.truthy(&value) == (op == BinaryOp::Or)
+        {
+            return Ok(());
+        }
         self.expr(right)
     }
 
@@ -811,6 +817,22 @@ mod tests {
                 "$a->{'a' . 'b'}(); $a->{PHP_EOL}(); $a->$b(); A::{$b}();",
                 &[],
             ),
+        ]);
+    }
+
+    #[test]
+    fn decided_short_circuits_skip_their_right_operand() {
+        let yield_outside = "The \"yield\" expression can only be used inside a function @1";
+        assert_cases(&[
+            (
+                "0 and yield; 's' or yield; [] && $a[]; 1 + 1 || yield;",
+                &[],
+            ),
+            ("1 and 0 and yield; 1 or yield or yield;", &[]),
+            ("1 and yield;", &[yield_outside]),
+            ("'0' || yield;", &[yield_outside]),
+            ("(1 or $x) and yield;", &[yield_outside]),
+            ("$a or yield;", &[yield_outside]),
         ]);
     }
 }

@@ -354,6 +354,23 @@
 {"name":"misc rules 87","source":"<?php [f(...)[0]] = [1];","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
 {"name":"misc rules 88","source":"<?php [&f(...)[0]];","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
 {"name":"misc rules 89","source":"<?php $x = fn() => f(...)[0] = 1;","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"misc rules 90","source":"<?php 0 and yield;","diagnostics":[]}
+{"name":"misc rules 91","source":"<?php 1 and yield;","diagnostics":[["Fatal error","The \"yield\" expression can only be used inside a function",1]]}
+{"name":"misc rules 92","source":"<?php true || $this = 1;","diagnostics":[]}
+{"name":"misc rules 93","source":"<?php null && f(...)[0] = 1;","diagnostics":[]}
+{"name":"misc rules 94","source":"<?php false or yield;","diagnostics":[["Fatal error","The \"yield\" expression can only be used inside a function",1]]}
+{"name":"misc rules 95","source":"<?php [] && yield;","diagnostics":[]}
+{"name":"misc rules 96","source":"<?php '0' || yield;","diagnostics":[["Fatal error","The \"yield\" expression can only be used inside a function",1]]}
+{"name":"misc rules 97","source":"<?php (1 or $x) and yield;","diagnostics":[["Fatal error","The \"yield\" expression can only be used inside a function",1]]}
+{"name":"misc rules 98","source":"<?php 1 + 1 || yield;","diagnostics":[]}
+{"name":"misc rules 99","source":"<?php (0 and $x) or yield;","diagnostics":[["Fatal error","The \"yield\" expression can only be used inside a function",1]]}
+{"name":"misc rules 100","source":"<?php $a or yield;","diagnostics":[["Fatal error","The \"yield\" expression can only be used inside a function",1]]}
+{"name":"misc rules 101","source":"<?php __LINE__ || yield;","diagnostics":[]}
+{"name":"misc rules 102","source":"<?php !1 && yield;","diagnostics":[]}
+{"name":"misc rules 103","source":"<?php \"\" or yield;","diagnostics":[["Fatal error","The \"yield\" expression can only be used inside a function",1]]}
+{"name":"misc rules 104","source":"<?php 0.0 && $a[];","diagnostics":[]}
+{"name":"misc rules 105","source":"<?php 1 and 0 and yield;","diagnostics":[]}
+{"name":"misc rules 106","source":"<?php 1 or yield or yield;","diagnostics":[]}
 {"name":"namespaces 1","source":"<?php namespace A; namespace B {}","diagnostics":[["Fatal error","Cannot mix bracketed namespace declarations with unbracketed namespace declarations",1]]}
 {"name":"namespaces 2","source":"<?php namespace A {} namespace B;","diagnostics":[["Fatal error","Cannot mix bracketed namespace declarations with unbracketed namespace declarations",1]]}
 {"name":"namespaces 3","source":"<?php namespace A { namespace B {} }","diagnostics":[["Fatal error","Namespace declarations cannot be nested",1]]}

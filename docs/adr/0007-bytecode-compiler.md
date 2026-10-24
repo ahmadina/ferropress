@@ -1,6 +1,6 @@
 # ADR-0007: Bytecode compiler — compiled units, instruction format and the linking boundary
 
-- **Status:** Accepted
+- **Status:** Accepted (amended 2026-10-23: constant folding, decisions 1 and 6)
 - **Date:** 2026-10-23
 
 ## Context
@@ -29,9 +29,9 @@ structure, and evidence from the reference for every behavior.
 
 ## Decision
 
-1. **Crate.** `php-compiler` (PHP runtime layer) depends on `php-parser` only. It owns the bytecode types,
-   the compiler and a disassembler for tests. The VM depends on it, because `include` and `eval` compile at
-   run time.
+1. **Crate.** `php-compiler` (PHP runtime layer) depends on `php-parser` and `php-value`. It owns the
+   bytecode types, the compiler and a disassembler for tests. The VM depends on it, because `include` and
+   `eval` compile at run time.
 2. **Compiled unit.** Compiling one file gives either a `Unit` or one fatal error (message and line, as the
    reference prints them), plus the warnings raised in order. Errors visible to PHP are data, never Rust
    `Err`; Rust errors are kept for platform failures. A `Unit` holds the file's main code, its function
@@ -58,8 +58,14 @@ structure, and evidence from the reference for every behavior.
    name, for the run-time fallback. Lowercased lookup keys are computed once at compile time.
 6. **Constant expressions.** Initializers for constants, parameter defaults, properties, static variables,
    enum cases and attribute arguments are checked at compile time for operations the reference rejects. They
-   are stored as constant-expression trees that the VM evaluates when the reference does. Folding is an
-   optimization only, applied where it cannot change a result, a diagnostic or its timing.
+   are stored as constant-expression trees that the VM evaluates when the reference does.
+   The reference folds constant operands while compiling, and folding is observable: `true or yield` at
+   the top level compiles without error because the right side is never compiled, and a folded
+   constant expression is validated after folding. The compiler therefore folds exactly where the
+   reference folds, with the reference's results. The operator semantics folding needs (conversions,
+   arithmetic, comparison, string conversion of numbers) are VM-neutral operations in `php-value`,
+   proven against the reference there, so compile-time folding and the VM compute every operator
+   the same way.
 7. **Linking boundary.** Class linking is one component, owned by the class-model work in roadmap step 18,
    and is used both for compile-time links and for declarations run later. The compiler does every check
    that needs only the file itself, including abstract-method checks of a single class. It leaves the

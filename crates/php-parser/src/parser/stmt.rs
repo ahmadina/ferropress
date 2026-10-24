@@ -785,6 +785,7 @@ impl Parser<'_> {
         let mut catches = Vec::new();
         while self.eat(K::Catch)?.is_some() {
             self.expect(OPEN_PAREN)?;
+            let line = self.stream.peek()?.line;
             let mut types = vec![self.class_name()?];
             while self.eat(K::Char(b'|'))?.is_some() {
                 types.push(self.class_name()?);
@@ -799,6 +800,7 @@ impl Parser<'_> {
                 types,
                 variable,
                 body,
+                line,
             });
         }
         let finally = if self.eat(K::Finally)?.is_some() {
@@ -818,7 +820,8 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
     use super::one_or_block;
-    use crate::ast::{Stmt, StmtKind};
+    use crate::ast::{Stmt, StmtKind, TopStatement};
+    use crate::{ParseOptions, parse};
 
     #[test]
     fn single_statements_are_not_wrapped() {
@@ -829,5 +832,22 @@ mod tests {
         assert_eq!(one_or_block(vec![nop.clone()]), StmtKind::Nop);
         let kind = one_or_block(vec![nop.clone(), nop]);
         assert!(matches!(kind, StmtKind::Block(ref list) if list.len() == 2));
+    }
+
+    #[test]
+    fn catches_record_the_line_of_their_first_class() {
+        let source = b"<?php try {\n} catch (\nA\n| B $e) {\n} catch (C) {}";
+        let program = parse(source, ParseOptions::default())
+            .unwrap()
+            .result
+            .unwrap();
+        let [TopStatement::Statement(stmt)] = program.statements.as_slice() else {
+            panic!("one statement expected");
+        };
+        let StmtKind::Try(parts) = &stmt.kind else {
+            panic!("a try statement expected");
+        };
+        let lines: Vec<u32> = parts.catches.iter().map(|catch| catch.line).collect();
+        assert_eq!(lines, [3, 5]);
     }
 }

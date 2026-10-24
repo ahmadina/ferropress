@@ -238,6 +238,8 @@ pub struct Catch {
     pub variable: Option<Vec<u8>>,
     /// The handler.
     pub body: Vec<Stmt>,
+    /// Line of the first caught class.
+    pub line: u32,
 }
 
 /// `name = value` in a constant declaration or a `declare`.

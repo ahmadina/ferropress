@@ -625,7 +625,6 @@ impl Parser<'_> {
             return self.trait_use();
         }
         let attributes = self.attributes()?;
-        let line = self.stream.peek()?.line;
         match self.peek()? {
             K::Case => return self.enum_case(attributes),
             K::Var => {
@@ -644,7 +643,7 @@ impl Parser<'_> {
             }
             K::Function => {
                 let flags = self.modifiers(Target::Method, &tokens)?;
-                self.method(attributes, with_default_visibility(flags), line)
+                self.method(attributes, with_default_visibility(flags))
             }
             _ => {
                 let flags = self.modifiers(Target::Property, &tokens)?;
@@ -762,13 +761,13 @@ impl Parser<'_> {
         })
     }
 
+    /// A method's line is that of `function`.
     fn method(
         &mut self,
         attributes: Vec<AttributeGroup>,
         modifiers: Modifiers,
-        line: u32,
     ) -> PResult<ClassMember> {
-        self.bump()?;
+        let line = self.bump()?.line;
         let by_ref = self.eat_ampersand()?;
         if !is_identifier(self.peek()?) {
             return self.unexpected(&[]);
@@ -1156,7 +1155,7 @@ mod tests {
 
     #[test]
     fn member_groups_record_the_reference_lines() {
-        let source = b"<?php enum E {\n public\n int\n $a,\n $b;\n var\n $c { get; }\n const\n int\n A = 1,\n B = 2;\n case\n C;\n function\n f() {}\n}";
+        let source = b"<?php enum E {\n public\n int\n $a,\n $b;\n var\n $c { get; }\n const\n int\n A = 1,\n B = 2;\n case\n C;\n public\n function\n f() {}\n}";
         let Ok(parsed) = crate::parse(source, crate::ParseOptions::default()) else {
             panic!("source fits");
         };
@@ -1180,7 +1179,7 @@ mod tests {
                 ClassMember::TraitUse(trait_use) => trait_use.line,
             })
             .collect();
-        assert_eq!(lines, [3, 7, 10, 13, 14]);
+        assert_eq!(lines, [3, 7, 10, 13, 15]);
     }
 
     #[test]

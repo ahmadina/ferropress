@@ -10,6 +10,4 @@ property hooks 51
 hook rules 18
 attribute rules 10
 attribute rules 65
-lines 4
-lines 8
 parser expression 2630

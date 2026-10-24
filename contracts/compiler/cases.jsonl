@@ -1599,6 +1599,18 @@
 {"name":"lines 21","source":"<?php declare(\n  strict_types=2\n);","diagnostics":[["Fatal error","strict_types declaration must have 0 or 1 as its value",2]]}
 {"name":"lines 22","source":"<?php namespace A;\necho 1;\nnamespace B {\n}","diagnostics":[["Fatal error","Cannot mix bracketed namespace declarations with unbracketed namespace declarations",3]]}
 {"name":"lines 23","source":"<?php class A {\n  public $a {\n    get {}\n    get {}\n  }\n}","diagnostics":[["Fatal error","Cannot redeclare property hook \"get\"",4]]}
+{"name":"lines 24","source":"<?php break\n1;","diagnostics":[["Fatal error","'break' not in the 'loop' or 'switch' context",2]]}
+{"name":"lines 25","source":"<?php while(1) { break\n0; }","diagnostics":[["Fatal error","'break' operator accepts only positive integers",2]]}
+{"name":"lines 26","source":"<?php function f(): void { return\nnull; }","diagnostics":[["Fatal error","A void function must not return a value (did you mean \"return;\" instead of \"return null;\"?)",2]]}
+{"name":"lines 27","source":"<?php function f(): int { return\n; }","diagnostics":[["Fatal error","A function with return type must return a value",2]]}
+{"name":"lines 28","source":"<?php while (1) { continue\n2; }","diagnostics":[["Fatal error","Cannot 'continue' 2 levels",2]]}
+{"name":"lines 29","source":"<?php class A {\n  public\n  abstract\n  function\n  f();\n}","diagnostics":[["Fatal error","Class A declares abstract method f() and must therefore be declared abstract",4]]}
+{"name":"lines 30","source":"<?php interface I {\n  private\n  function f();\n}","diagnostics":[["Fatal error","Access type for interface method I::f() must be public",3]]}
+{"name":"lines 31","source":"<?php class A {\n final\n private\n function f() {}\n}","diagnostics":[["Warning","Private methods cannot be final as they are never overridden by other classes",4]]}
+{"name":"lines 32","source":"<?php class A {\n #[X]\n function\n __construct(): int {}\n}","diagnostics":[["Fatal error","Method A::__construct() cannot declare a return type",3]]}
+{"name":"lines 33","source":"<?php function f(): int { return\n(\n1 + 1); }","diagnostics":[]}
+{"name":"lines 34","source":"<?php break\n;","diagnostics":[["Fatal error","'break' not in the 'loop' or 'switch' context",2]]}
+{"name":"lines 35","source":"<?php goto\n\na;","diagnostics":[["Fatal error","'goto' to undefined label 'a'",3]]}
 {"name":"parser int literals","source":"<?php 1; 0x1F; 0b11; 0o17; 017; 1_000; 9223372036854775807; 9223372036854775808; 0x8000000000000000;","diagnostics":[]}
 {"name":"parser float literals","source":"<?php 1.5; .5; 1.; 1e3; 1E-7; 0.1; 1e100; 123456789012345678; 1.0e15; 1e15; 1e14; 0.0001; 0.00001; 1.5e-5; 7E+20;","diagnostics":[]}
 {"name":"parser float precision","source":"<?php 0.1 + 0.2; 3.14159265358979; 2.718281828459045; 1.23456789012345678; 100000000000000000000.0; 1e-10;","diagnostics":[]}

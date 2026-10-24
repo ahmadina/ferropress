@@ -10,6 +10,10 @@ Provenance: `Zend/zend_compile.c` in the pinned PHP source.
 Diagnostics are reported on the compiler's current line: the line of the statement or expression it
 last started compiling. That line is not restored when a child finishes.
 
+A node's line is usually its first token's line. A few nodes take their first child's line instead:
+`break`, `continue` and `return` take the line of their operand, or of the `;` when there is none;
+`goto` takes its label's line; a method takes the line of `function`, not of its modifiers.
+
 ## Constant expressions
 
 Constant expressions are the values of top-level `const` declarations, class constants, property

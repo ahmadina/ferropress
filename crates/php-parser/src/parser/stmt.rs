@@ -323,9 +323,11 @@ impl Parser<'_> {
         self.nested(Self::unnested_statement)
     }
 
+    /// A statement's line is that of its first token, except for `break`, `continue`, `return`
+    /// and `goto`, which take the line of the token after the keyword.
     fn unnested_statement(&mut self) -> PResult<Stmt> {
         let kind = self.peek()?;
-        let line = self.stream.peek()?.line;
+        let mut line = self.stream.peek()?.line;
         let kind = match kind {
             OPEN_BRACE => {
                 self.bump()?;
@@ -339,6 +341,7 @@ impl Parser<'_> {
             K::Switch => self.switch_statement()?,
             K::Break | K::Continue | K::Return => {
                 self.bump()?;
+                line = self.stream.peek()?.line;
                 let value = if starts_expression(self.peek()?) {
                     Some(self.expr()?)
                 } else {
@@ -371,6 +374,7 @@ impl Parser<'_> {
             K::Goto => {
                 self.bump()?;
                 let label = self.expect(K::Identifier)?;
+                line = label.line;
                 let label = self.text(&label).to_vec();
                 self.expect(SEMICOLON)?;
                 StmtKind::Goto(label)
@@ -882,5 +886,23 @@ mod tests {
             .map(|item| item.line)
             .collect();
         assert_eq!(lines, [2, 3, 5, 7]);
+    }
+
+    #[test]
+    fn jump_statements_take_the_line_after_their_keyword() {
+        let source = b"<?php return\n1; break\n\n; goto\na; continue 2;";
+        let program = parse(source, ParseOptions::default())
+            .unwrap()
+            .result
+            .unwrap();
+        let lines: Vec<u32> = program
+            .statements
+            .iter()
+            .map(|statement| match statement {
+                TopStatement::Statement(stmt) => stmt.line,
+                _ => panic!("statement expected"),
+            })
+            .collect();
+        assert_eq!(lines, [2, 4, 5, 5]);
     }
 }

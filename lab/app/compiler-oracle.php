@@ -568,6 +568,10 @@ function compiler_topic_cases(): array {
 			"class A {\n  function __get(\n    \$a,\n    \$b\n  ) {}\n}", "switch (1) {\n  case 1;\n  case 2;\n}", "match (1) {\n  default => 1,\n  default => 2,\n};",
 			"f(\n  a: 1,\n  2\n);", "abstract class A {\n  abstract function f() {\n  }\n}", "class A {\n  readonly\n  \$a;\n}",
 			"try {\n}\n\n", "declare(\n  strict_types=2\n);", "namespace A;\necho 1;\nnamespace B {\n}", "class A {\n  public \$a {\n    get {}\n    get {}\n  }\n}",
+			"break\n1;", "while(1) { break\n0; }", "function f(): void { return\nnull; }",
+			"function f(): int { return\n; }", "while (1) { continue\n2; }", "class A {\n  public\n  abstract\n  function\n  f();\n}",
+			"interface I {\n  private\n  function f();\n}", "class A {\n final\n private\n function f() {}\n}", "class A {\n #[X]\n function\n __construct(): int {}\n}",
+			"function f(): int { return\n(\n1 + 1); }", "break\n;", "goto\n\na;",
 		),
 	);
 }

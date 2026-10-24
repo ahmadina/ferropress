@@ -19,9 +19,10 @@ declare(strict_types=1);
 
 require __DIR__ . '/parser-oracle.php';
 
-const COMPILER_SCHEMA = 1;
-const COMPILER_BATCH  = 250;
-const COMPILER_FILE   = '%file%';
+const COMPILER_SCHEMA  = 1;
+const COMPILER_BATCH   = 250;
+const COMPILER_FILE    = '%file%';
+const COMPILER_NO_FILE = '[no active file]';
 
 /** Hand-written cases: topic => list of code following "<?php ". */
 function compiler_topic_cases(): array {
@@ -631,8 +632,30 @@ function compiler_lint( array $sources ): array {
 	return $results;
 }
 
-/** Lints $files (names relative to $dir) in one process; returns file => diagnostics. */
+/**
+ * Lints $files (names relative to $dir); returns file => diagnostics. Some errors name no file
+ * ("[no active file]"): a batch reporting one is linted again one file per process, where such a
+ * diagnostic can only belong to the single file.
+ */
 function compiler_lint_files( string $dir, array $files ): array {
+	$reported = compiler_lint_process( $dir, $files );
+	$unnamed  = in_array( COMPILER_NO_FILE, array_column( $reported, 0 ), true );
+	if ( $unnamed && count( $files ) > 1 ) {
+		$found = array();
+		foreach ( $files as $file ) {
+			$found += compiler_lint_files( $dir, array( $file ) );
+		}
+		return $found;
+	}
+	$found = array();
+	foreach ( $reported as list( $file, $diagnostic ) ) {
+		$found[ COMPILER_NO_FILE === $file ? $files[0] : $file ][] = $diagnostic;
+	}
+	return $found;
+}
+
+/** Lints $files in one process; returns the reported [file, diagnostic] pairs in order. */
+function compiler_lint_process( string $dir, array $files ): array {
 	$command = array_merge(
 		array( PHP_BINARY, '-d', 'display_errors=stderr', '-d', 'log_errors=0', '-d', 'html_errors=0', '-d', 'error_reporting=-1', '-d', 'fatal_error_backtraces=0', '-l' ),
 		$files
@@ -644,16 +667,20 @@ function compiler_lint_files( string $dir, array $files ): array {
 	$output = stream_get_contents( $pipes[2] );
 	fclose( $pipes[2] );
 	proc_close( $process );
-	$pattern = '/^(Fatal error|Parse error|Warning|Deprecated|Notice): (.*) in (case-\d{5}\.php) on line (\d+)$/m';
+	$pattern = '/^(Fatal error|Parse error|Warning|Deprecated|Notice): (.*) in (case-\d{5}\.php|\[no active file\]) on line (\d+)$/m';
 	preg_match_all( $pattern, $output, $matches, PREG_SET_ORDER );
 	if ( '' !== trim( preg_replace( $pattern, '', $output ) ) ) {
 		throw new RuntimeException( 'unexpected linter output: ' . $output );
 	}
-	$found = array();
+	$reported = array();
 	foreach ( $matches as list( , $severity, $message, $file, $line ) ) {
-		$found[ $file ][] = array( $severity, oracle_bytes( str_replace( $file, COMPILER_FILE, $message ) ), (int) $line );
+		$reported[] = array( $file, array( $severity, oracle_bytes( str_replace( $file, COMPILER_FILE, $message ) ), (int) $line ) );
 	}
-	return $found;
+	return $reported;
+}
+
+if ( realpath( (string) ( $_SERVER['SCRIPT_FILENAME'] ?? '' ) ) !== __FILE__ ) {
+	return;
 }
 
 $cases       = compiler_cases();

@@ -214,6 +214,10 @@ mod tests {
             xtask.dependencies,
             [
                 Dependency {
+                    name: "php-compiler".to_owned(),
+                    kind: DependencyKind::Normal,
+                },
+                Dependency {
                     name: "php-lexer".to_owned(),
                     kind: DependencyKind::Normal,
                 },

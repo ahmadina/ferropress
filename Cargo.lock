@@ -872,6 +872,7 @@ dependencies = [
  "anyhow",
  "cargo_metadata",
  "clap",
+ "php-compiler",
  "php-lexer",
  "php-parser",
  "serde",

@@ -66,6 +66,8 @@ pub(crate) enum LabCommand {
     ParserCorpus,
     /// Record what the reference PHP reports while compiling source text into contracts/compiler
     Compiler,
+    /// Compare php-compiler's diagnostics with the reference PHP on every upstream source file (needs lab/upstream)
+    CompilerCorpus,
     /// Record what the reference PHP's operators and conversions return into contracts/operators
     Operators,
     /// Run contracts/scenarios/SCENARIO.toml twice from fresh installs and require identical results
@@ -112,6 +114,7 @@ mod tests {
             ("parser", LabCommand::Parser),
             ("parser-corpus", LabCommand::ParserCorpus),
             ("compiler", LabCommand::Compiler),
+            ("compiler-corpus", LabCommand::CompilerCorpus),
             ("operators", LabCommand::Operators),
         ];
         for (name, command) in lab {

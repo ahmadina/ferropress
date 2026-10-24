@@ -4,6 +4,7 @@ mod capture;
 mod check;
 mod cli;
 mod compiler;
+mod compiler_corpus;
 mod dashboard;
 mod dbdiff;
 mod fetch;
@@ -574,6 +575,50 @@ fn run_lab_parser_corpus(repo_root: &Path, runner: &mut impl Runner) -> anyhow::
     })
 }
 
+fn run_lab_compiler_corpus(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let env = lab::lab_env(&manifest)?;
+    let output = process::capture_checked(
+        runner,
+        &lab::compose(
+            &env,
+            [
+                "exec",
+                "-T",
+                "--user",
+                "www-data",
+                "app",
+                "php",
+                compiler_corpus::SCRIPT,
+            ],
+        ),
+    )
+    .context("running the compiler corpus script")?;
+    let entries = compiler_corpus::parse(&output)?;
+    let upstream = repo_root.join(lexer_corpus::UPSTREAM_DIR);
+    let summary = compiler_corpus::check(&entries, |path| fs::read(upstream.join(path)))?;
+    let report_path = repo_root.join(compiler_corpus::REPORT);
+    if let Some(parent) = report_path.parent() {
+        fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
+    }
+    fs::write(&report_path, summary.render())
+        .with_context(|| format!("writing {}", report_path.display()))?;
+    Ok(Report {
+        text: format!(
+            "lab compiler-corpus: {} files, {} rejected, {} differ, {} more only by linking (listed in {})",
+            summary.files,
+            summary.rejected,
+            summary.differences.len(),
+            summary.linking.len(),
+            compiler_corpus::REPORT
+        ),
+        success: summary.differences.is_empty(),
+    })
+}
+
 fn run_lab_lifecycle(
     repo_root: &Path,
     runner: &mut impl Runner,
@@ -704,6 +749,9 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                 }
                 LabCommand::ParserCorpus => {
                     return run_lab_parser_corpus(repo_root(), &mut system_runner());
+                }
+                LabCommand::CompilerCorpus => {
+                    return run_lab_compiler_corpus(repo_root(), &mut system_runner());
                 }
                 LabCommand::Lifecycle => {
                     return run_lab_lifecycle(
@@ -1974,6 +2022,89 @@ path = "/"
         let output = parser_corpus_output("null");
         let error =
             run_lab_parser_corpus(&blocked.0, &mut parser_corpus_runner(output)).unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    /// Compiler corpus output for `lab/upstream/platform/a.php` holding `<?php ;`.
+    fn compiler_corpus_output(diagnostics: &str) -> String {
+        format!(
+            r#"{{"path":"platform/a.php","sha256":"{}","diagnostics":{diagnostics}}}"#,
+            manifest::bytes_sha256(b"<?php ;")
+        )
+    }
+
+    fn compiler_corpus_runner(
+        output: String,
+    ) -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        script_runner(compiler_corpus::SCRIPT, output)
+    }
+
+    #[test]
+    fn lab_compiler_corpus_compares_every_file_and_writes_the_report() {
+        let repo = corpus_repo("compiler-corpus-ok");
+        let mut runner = compiler_corpus_runner(compiler_corpus_output("[]"));
+        let report = run_lab_compiler_corpus(&repo.0, &mut runner).unwrap();
+        assert_eq!(
+            report,
+            Report {
+                text: "lab compiler-corpus: 1 files, 0 rejected, 0 differ, 0 more only by linking (listed in lab/captures/compiler-corpus.txt)"
+                    .to_owned(),
+                success: true,
+            }
+        );
+        assert!(
+            runner.seen[0]
+                .ends_with("exec -T --user www-data app php /opt/ferropress/compiler-corpus.php"),
+            "{:?}",
+            runner.seen
+        );
+        assert_eq!(
+            fs::read_to_string(repo.0.join(compiler_corpus::REPORT)).unwrap(),
+            ""
+        );
+
+        let differing = corpus_repo("compiler-corpus-differs");
+        let output = compiler_corpus_output(r#"[["Fatal error","m",1]]"#);
+        let report =
+            run_lab_compiler_corpus(&differing.0, &mut compiler_corpus_runner(output)).unwrap();
+        assert!(!report.success);
+        assert_eq!(
+            report.text,
+            "lab compiler-corpus: 1 files, 1 rejected, 1 differ, 0 more only by linking (listed in lab/captures/compiler-corpus.txt)"
+        );
+        assert_eq!(
+            fs::read_to_string(differing.0.join(compiler_corpus::REPORT)).unwrap(),
+            "platform/a.php: diagnostics [], reference [(\"Fatal error\", \"m\", 1)]\n"
+        );
+    }
+
+    #[test]
+    fn lab_compiler_corpus_refuses_invalid_input_and_propagates_failures() {
+        let invalid = TempRepo::new("compiler-corpus-invalid", Some(&manifest_text(5)));
+        let mut runner = compiler_corpus_runner(String::new());
+        let report = run_lab_compiler_corpus(&invalid.0, &mut runner).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let repo = corpus_repo("compiler-corpus-fail");
+        let error = run_lab_compiler_corpus(&repo.0, &mut recording(false)).unwrap_err();
+        assert_eq!(error.to_string(), "running the compiler corpus script");
+
+        let error = run_lab_compiler_corpus(&repo.0, &mut compiler_corpus_runner(String::new()))
+            .unwrap_err();
+        assert_eq!(error.to_string(), "the corpus script reported no files");
+
+        let missing = TempRepo::new("compiler-corpus-missing", Some(&lab_manifest_text()));
+        let output = compiler_corpus_output("[]");
+        let error =
+            run_lab_compiler_corpus(&missing.0, &mut compiler_corpus_runner(output)).unwrap_err();
+        assert_eq!(error.to_string(), "reading platform/a.php");
+
+        let blocked = corpus_repo("compiler-corpus-blocked");
+        fs::write(blocked.0.join("lab/captures"), b"not a directory").unwrap();
+        let output = compiler_corpus_output("[]");
+        let error =
+            run_lab_compiler_corpus(&blocked.0, &mut compiler_corpus_runner(output)).unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

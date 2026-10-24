@@ -25,6 +25,7 @@ cargo xtask lab lexer-corpus              # compare our lexer with the reference
 cargo xtask lab parser                    # record parser cases into contracts/parser/
 cargo xtask lab parser-corpus             # compare our parser with the reference on the upstream sources
 cargo xtask lab compiler                  # record compile-time diagnostics into contracts/compiler/
+cargo xtask lab compiler-corpus           # compare our compile-time diagnostics on the upstream sources
 cargo xtask lab operators                 # record operator and conversion results into contracts/operators/
 ```
 
@@ -227,7 +228,18 @@ area they probe, followed by every parser oracle case that parses.
 
 The result is written to `contracts/compiler/cases.jsonl` (a header line recording the PHP version,
 `short_open_tag` and `zend.assertions`, then one case per line, byte strings encoded as above). A second
-run produces a byte-identical file.
+run produces a byte-identical file. A few errors name no file (`[no active file]`); a batch that reports
+one is compiled again one file per process, where the error can only belong to that file.
+
+## Compiler corpus
+
+`lab compiler-corpus` compiles the same upstream files as `lab lexer-corpus` in lint mode, exactly as
+`lab compiler` compiles its cases (`app/compiler-corpus.php`), recording per file its SHA-256 and the
+diagnostics compiling it reported. xtask parses and checks the same files with `crates/php-parser` and
+`crates/php-compiler` and writes every difference to `captures/compiler-corpus.txt`. A file whose first
+missing diagnostic comes from linking a class to its parent, interfaces or traits is listed apart, with
+a `linking:` prefix, until the class linker exists (ADR-0007); the command fails when any other file
+differs. Nothing from the corpus is committed.
 
 ## Operators
 

@@ -84,17 +84,11 @@ impl<'a> Checker<'a> {
                     self.line = *line;
                     continue;
                 }
-                TopStatement::Statement(stmt) => match &stmt.kind {
-                    StmtKind::Function(function) => {
-                        self.line = stmt.line;
-                        self.function_declaration(function, true)?;
-                    }
-                    StmtKind::Declare { directives, body } => {
-                        let preceding = file_level.then(|| &statements[..index]);
-                        self.declare(directives, body.as_deref(), preceding)?;
-                    }
-                    _ => self.stmt(stmt)?,
-                },
+                TopStatement::Statement(stmt) => {
+                    let preceding = file_level.then(|| &statements[..index]);
+                    self.top_stmt(stmt, preceding)?;
+                    continue;
+                }
                 TopStatement::Use { kind, items, line } => {
                     self.line = *line;
                     for item in items {
@@ -121,9 +115,35 @@ impl<'a> Checker<'a> {
                     self.constant_declaration(items, attributes)?;
                 }
             }
-            if self.names.bracketed && !self.names.in_namespace {
-                return self.fatal("No code may exist outside of namespace {}");
+            self.verify_namespace()?;
+        }
+        Ok(())
+    }
+
+    /// Compiles a statement at the top level, directly or in blocks there: an empty statement
+    /// compiles to nothing and a block to its statements, each at the top level.
+    fn top_stmt(&mut self, stmt: &'a Stmt, preceding: Option<&'a [TopStatement]>) -> Flow {
+        match &stmt.kind {
+            StmtKind::Nop => return Ok(()),
+            StmtKind::Block(stmts) => {
+                return stmts.iter().try_for_each(|stmt| self.top_stmt(stmt, None));
             }
+            StmtKind::Function(function) => {
+                self.line = stmt.line;
+                self.function_declaration(function, true)?;
+            }
+            StmtKind::Declare { directives, body } => {
+                self.declare(directives, body.as_deref(), preceding)?;
+            }
+            _ => self.stmt(stmt)?,
+        }
+        self.verify_namespace()
+    }
+
+    /// Code at the top level of a file with braced namespaces must be inside one.
+    fn verify_namespace(&mut self) -> Flow {
+        if self.names.bracketed && !self.names.in_namespace {
+            return self.fatal("No code may exist outside of namespace {}");
         }
         Ok(())
     }
@@ -538,6 +558,9 @@ mod tests {
             ("namespace A {} use B\\C;", &[outside]),
             ("namespace A {} const C = 1;", &[outside]),
             ("namespace A {} __halt_compiler();", &[]),
+            ("namespace A {} ; { { ; } }", &[]),
+            ("namespace A {} { echo 1; }", &[outside]),
+            ("namespace A {} ?> x", &[outside]),
         ]);
     }
 
@@ -646,6 +669,12 @@ mod tests {
             ),
             ("function f() { function g() {} function g() {} }", &[]),
             ("if (1) { function f() {} } function f() {}", &[]),
+            (
+                "{ { function f() {} } } function f() {}",
+                &[
+                    "Fatal error: Cannot redeclare function f() (previously declared in /s/a.php:1) @1",
+                ],
+            ),
         ]);
     }
 

@@ -119,6 +119,14 @@ function compiler_topic_cases(): array {
 			'const A = 1; declare(strict_types=1);', 'function f() {} declare(strict_types=1);', 'declare(foo=1) { $this = 1; }',
 			'declare(foo=1); declare(bar=2);', 'class A { function f() { declare(ticks=1); declare(strict_types=1); } }', 'declare(strict_types=true);',
 		),
+		'top-level blocks'   => array(
+			'namespace a {} ;', 'namespace a {} {}', "namespace a {} ?>\n",
+			'namespace a {} ?> x', 'namespace a {} { ; }', 'namespace a {} { {} }',
+			'namespace a {} { echo 1; }', 'namespace a {} if (1) {}', 'function f() {} { function f() {} }',
+			'if (1) { function f() {} } function f() {}', '{ function f() {} } function f() {}', '{ { function f() {} } } { function F() {} }',
+			'{ declare(strict_types=1); }', '{ declare(ticks=1); } namespace a;', '{ class A {} } class A {}',
+			"{\n;\n}\n\$this = 1;", 'namespace a {} { namespace\\f(); }', 'namespace a {} {} namespace b {}',
+		),
 		'misc rules'         => array(
 			'$this?->b(...);', '$this?->a->b(...);', '$this?->a?->b(...);',
 			'$a?->b::c(...);', 'f($a?->b)->c(...);', '$a?->b()->c(...);',

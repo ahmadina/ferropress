@@ -257,7 +257,9 @@ parent ("Cannot use "parent" when current class scope has no parent").
   call in the script". Later unbraced declarations may follow any code.
 - Once a braced namespace exists, every top-level statement other than a namespace or
   `__halt_compiler()` must be inside one: "No code may exist outside of namespace {}". The check runs
-  after the statement compiles.
+  after the statement compiles. Empty statements (`;` and a `?>` that ends the file) compile to nothing
+  and are not checked, and a braced block at the top level is not checked itself: each statement in it
+  counts as a top-level statement, so `{ }` and `{ ; }` pass while `{ echo 1; }` fails.
 - Each namespace start and end clears the imports.
 
 ### Imports
@@ -289,8 +291,9 @@ namespaced name, constants by namespaced name as written.
 
   A function declared directly at the top level of the file or of a namespace that was already declared
   there is a fatal error after its body compiles: "Cannot redeclare function f() (previously declared in
-  FILE:LINE)", reported on the second declaration's first line. Functions declared inside blocks or
-  other functions are bound at run time and are not checked.
+  FILE:LINE)", reported on the second declaration's first line. A braced block at the top level does
+  not change this: functions in it, however deeply, count as top-level ones. Functions declared inside
+  control structures or other functions are bound at run time and are not checked.
 - **Classes, interfaces, traits and enums.** A named one is checked before anything else of it compiles:
   - declaring it while another class body is being compiled (in a method, for example) is a fatal error:
     "Class declarations may not be nested";

@@ -267,6 +267,24 @@
 {"name":"declare rules 40","source":"<?php declare(foo=1); declare(bar=2);","diagnostics":[["Warning","Unsupported declare 'foo'",1],["Warning","Unsupported declare 'bar'",1]]}
 {"name":"declare rules 41","source":"<?php class A { function f() { declare(ticks=1); declare(strict_types=1); } }","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
 {"name":"declare rules 42","source":"<?php declare(strict_types=true);","diagnostics":[["Fatal error","declare(strict_types) value must be a literal",1]]}
+{"name":"top-level blocks 1","source":"<?php namespace a {} ;","diagnostics":[]}
+{"name":"top-level blocks 2","source":"<?php namespace a {} {}","diagnostics":[]}
+{"name":"top-level blocks 3","source":"<?php namespace a {} ?>\n","diagnostics":[]}
+{"name":"top-level blocks 4","source":"<?php namespace a {} ?> x","diagnostics":[["Fatal error","No code may exist outside of namespace {}",1]]}
+{"name":"top-level blocks 5","source":"<?php namespace a {} { ; }","diagnostics":[]}
+{"name":"top-level blocks 6","source":"<?php namespace a {} { {} }","diagnostics":[]}
+{"name":"top-level blocks 7","source":"<?php namespace a {} { echo 1; }","diagnostics":[["Fatal error","No code may exist outside of namespace {}",1]]}
+{"name":"top-level blocks 8","source":"<?php namespace a {} if (1) {}","diagnostics":[["Fatal error","No code may exist outside of namespace {}",1]]}
+{"name":"top-level blocks 9","source":"<?php function f() {} { function f() {} }","diagnostics":[["Fatal error","Cannot redeclare function f() (previously declared in %file%:1)",1]]}
+{"name":"top-level blocks 10","source":"<?php if (1) { function f() {} } function f() {}","diagnostics":[]}
+{"name":"top-level blocks 11","source":"<?php { function f() {} } function f() {}","diagnostics":[["Fatal error","Cannot redeclare function f() (previously declared in %file%:1)",1]]}
+{"name":"top-level blocks 12","source":"<?php { { function f() {} } } { function F() {} }","diagnostics":[["Fatal error","Cannot redeclare function F() (previously declared in %file%:1)",1]]}
+{"name":"top-level blocks 13","source":"<?php { declare(strict_types=1); }","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
+{"name":"top-level blocks 14","source":"<?php { declare(ticks=1); } namespace a;","diagnostics":[["Fatal error","Namespace declaration statement has to be the very first statement or after any declare call in the script",1]]}
+{"name":"top-level blocks 15","source":"<?php { class A {} } class A {}","diagnostics":[]}
+{"name":"top-level blocks 16","source":"<?php {\n;\n}\n$this = 1;","diagnostics":[["Fatal error","Cannot re-assign $this",4]]}
+{"name":"top-level blocks 17","source":"<?php namespace a {} { namespace\\f(); }","diagnostics":[["Fatal error","No code may exist outside of namespace {}",1]]}
+{"name":"top-level blocks 18","source":"<?php namespace a {} {} namespace b {}","diagnostics":[]}
 {"name":"misc rules 1","source":"<?php $this?->b(...);","diagnostics":[]}
 {"name":"misc rules 2","source":"<?php $this?->a->b(...);","diagnostics":[]}
 {"name":"misc rules 3","source":"<?php $this?->a?->b(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}
@@ -421,7 +439,6 @@
 {"name":"namespaces 48","source":"<?php function f() {} function F() {}","diagnostics":[["Fatal error","Cannot redeclare function F() (previously declared in %file%:1)",1]]}
 {"name":"namespaces 49","source":"<?php namespace N; function f() {} function f() {}","diagnostics":[["Fatal error","Cannot redeclare function N\\f() (previously declared in %file%:1)",1]]}
 {"name":"namespaces 50","source":"<?php function f() { function g() {} function g() {} }","diagnostics":[]}
-{"name":"namespaces 51","source":"<?php if (1) { function f() {} } function f() {}","diagnostics":[]}
 {"name":"namespaces 52","source":"<?php function f() {}\n\nfunction f() {\n}","diagnostics":[["Fatal error","Cannot redeclare function f() (previously declared in %file%:1)",3]]}
 {"name":"namespaces 53","source":"<?php class A { function f() { class B {} } }","diagnostics":[["Fatal error","Class declarations may not be nested",1]]}
 {"name":"namespaces 54","source":"<?php class A { function f() { function g() { class B {} } } }","diagnostics":[]}

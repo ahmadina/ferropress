@@ -225,6 +225,48 @@
 {"name":"declare 21","source":"<?php function f() { declare(strict_types=1); }","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
 {"name":"declare 22","source":"<?php declare(ticks=1); declare(strict_types=1);","diagnostics":[]}
 {"name":"declare 23","source":"<?php declare(strict_types=0); declare(strict_types=1);","diagnostics":[]}
+{"name":"declare rules 1","source":"<?php declare(ticks=-1);","diagnostics":[["Fatal error","declare(ticks) value must be a literal",1]]}
+{"name":"declare rules 2","source":"<?php declare(ticks=true);","diagnostics":[["Fatal error","declare(ticks) value must be a literal",1]]}
+{"name":"declare rules 3","source":"<?php declare(ticks=1+1);","diagnostics":[["Fatal error","declare(ticks) value must be a literal",1]]}
+{"name":"declare rules 4","source":"<?php declare(ticks=__LINE__);","diagnostics":[["Fatal error","declare(ticks) value must be a literal",1]]}
+{"name":"declare rules 5","source":"<?php declare(ticks=<<<A\nx\nA);","diagnostics":[]}
+{"name":"declare rules 6","source":"<?php declare(ticks=\"a$b\");","diagnostics":[["Fatal error","declare(ticks) value must be a literal",1]]}
+{"name":"declare rules 7","source":"<?php declare(ticks=PHP_EOL);","diagnostics":[["Fatal error","declare(ticks) value must be a literal",1]]}
+{"name":"declare rules 8","source":"<?php ; declare(strict_types=1);","diagnostics":[]}
+{"name":"declare rules 9","source":"<?php ; declare(encoding=\"x\");","diagnostics":[["Warning","declare(encoding=...) ignored because Zend multibyte feature is turned off by settings",1],["Fatal error","Encoding declaration pragma must be the very first statement in the script",1]]}
+{"name":"declare rules 10","source":"<?php namespace A { declare(strict_types=1); }","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
+{"name":"declare rules 11","source":"<?php declare(ticks=1) { declare(strict_types=1); }","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
+{"name":"declare rules 12","source":"<?php declare(Foo=1, strict_types=2);","diagnostics":[["Warning","Unsupported declare 'Foo'",1],["Fatal error","strict_types declaration must have 0 or 1 as its value",1]]}
+{"name":"declare rules 13","source":"<?php declare(strict_types=2, Foo=1);","diagnostics":[["Fatal error","strict_types declaration must have 0 or 1 as its value",1]]}
+{"name":"declare rules 14","source":"<?php declare(encoding=1);","diagnostics":[["Warning","declare(encoding=...) ignored because Zend multibyte feature is turned off by settings",1]]}
+{"name":"declare rules 15","source":"<?php declare(strict_types=-1);","diagnostics":[["Fatal error","declare(strict_types) value must be a literal",1]]}
+{"name":"declare rules 16","source":"<?php declare(strict_types=0x1);","diagnostics":[]}
+{"name":"declare rules 17","source":"<?php use A; declare(strict_types=1);","diagnostics":[["Warning","The use statement with non-compound name 'A' has no effect",1],["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
+{"name":"declare rules 18","source":"<?php declare(strict_types=1) { echo 1; } echo 2;","diagnostics":[["Fatal error","strict_types declaration must not use block mode",1]]}
+{"name":"declare rules 19","source":"<?php declare(ticks=[]);","diagnostics":[["Fatal error","declare(ticks) value must be a literal",1]]}
+{"name":"declare rules 20","source":"<?php declare(ticks=1.5);","diagnostics":[]}
+{"name":"declare rules 21","source":"<?php ?>x<?php declare(strict_types=1);","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
+{"name":"declare rules 22","source":"<?php declare(ticks=1, strict_types=1) {}","diagnostics":[["Fatal error","strict_types declaration must not use block mode",1]]}
+{"name":"declare rules 23","source":"<?php declare(ticks=1): declare(foo=2); enddeclare;","diagnostics":[["Warning","Unsupported declare 'foo'",1]]}
+{"name":"declare rules 24","source":"<?php declare(strict_types=1);;","diagnostics":[]}
+{"name":"declare rules 25","source":"<?php function f() { declare(encoding=\"a\"); }","diagnostics":[["Warning","declare(encoding=...) ignored because Zend multibyte feature is turned off by settings",1],["Fatal error","Encoding declaration pragma must be the very first statement in the script",1]]}
+{"name":"declare rules 26","source":"<?php declare(STRICT_TYPES=2);","diagnostics":[["Fatal error","strict_types declaration must have 0 or 1 as its value",1]]}
+{"name":"declare rules 27","source":"<?php if (1) declare(foo=1);","diagnostics":[["Warning","Unsupported declare 'foo'",1]]}
+{"name":"declare rules 28","source":"<?php declare(strict_types=1, strict_types=0);","diagnostics":[]}
+{"name":"declare rules 29","source":"<?php declare(ticks=\"abc\");","diagnostics":[]}
+{"name":"declare rules 30","source":"<?php declare(strict_types=__LINE__);","diagnostics":[["Fatal error","declare(strict_types) value must be a literal",1]]}
+{"name":"declare rules 31","source":"<?php declare(\nfoo=1\n);","diagnostics":[["Warning","Unsupported declare 'foo'",2]]}
+{"name":"declare rules 32","source":"<?php declare(\nticks=1,\nstrict_types=2\n);","diagnostics":[["Fatal error","strict_types declaration must have 0 or 1 as its value",2]]}
+{"name":"declare rules 33","source":"<?php echo 1;\ndeclare(ticks=1,\nfoo=$a);","diagnostics":[["Fatal error","declare(foo) value must be a literal",2]]}
+{"name":"declare rules 34","source":"<?php declare(ticks=1,\nfoo=1\n)\n{\n}","diagnostics":[["Warning","Unsupported declare 'foo'",1]]}
+{"name":"declare rules 35","source":"<?php ?>\n<?php declare(strict_types=1);","diagnostics":[]}
+{"name":"declare rules 36","source":"<?php ?>\n<?php declare(encoding=\"a\");","diagnostics":[["Warning","declare(encoding=...) ignored because Zend multibyte feature is turned off by settings",2],["Fatal error","Encoding declaration pragma must be the very first statement in the script",2]]}
+{"name":"declare rules 37","source":"<?php const A = 1; declare(strict_types=1);","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
+{"name":"declare rules 38","source":"<?php function f() {} declare(strict_types=1);","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
+{"name":"declare rules 39","source":"<?php declare(foo=1) { $this = 1; }","diagnostics":[["Warning","Unsupported declare 'foo'",1],["Fatal error","Cannot re-assign $this",1]]}
+{"name":"declare rules 40","source":"<?php declare(foo=1); declare(bar=2);","diagnostics":[["Warning","Unsupported declare 'foo'",1],["Warning","Unsupported declare 'bar'",1]]}
+{"name":"declare rules 41","source":"<?php class A { function f() { declare(ticks=1); declare(strict_types=1); } }","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
+{"name":"declare rules 42","source":"<?php declare(strict_types=true);","diagnostics":[["Fatal error","declare(strict_types) value must be a literal",1]]}
 {"name":"namespaces 1","source":"<?php namespace A; namespace B {}","diagnostics":[["Fatal error","Cannot mix bracketed namespace declarations with unbracketed namespace declarations",1]]}
 {"name":"namespaces 2","source":"<?php namespace A {} namespace B;","diagnostics":[["Fatal error","Cannot mix bracketed namespace declarations with unbracketed namespace declarations",1]]}
 {"name":"namespaces 3","source":"<?php namespace A { namespace B {} }","diagnostics":[["Fatal error","Namespace declarations cannot be nested",1]]}

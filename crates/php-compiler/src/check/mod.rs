@@ -281,10 +281,7 @@ impl<'a> Checker<'a> {
             StmtKind::Unset(variable) => self.unset(variable),
             StmtKind::Try(try_stmt) => self.try_stmt(try_stmt),
             StmtKind::Declare { directives, body } => {
-                for directive in directives {
-                    self.expr(&directive.value)?;
-                }
-                body.as_ref().map_or(Ok(()), |body| self.stmt(body))
+                self.declare(directives, body.as_deref(), None)
             }
             StmtKind::Function(function) => self.function_declaration(function, false),
             StmtKind::Class(class) => self.class(class),

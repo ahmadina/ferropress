@@ -1,10 +1,11 @@
-//! The names a file declares and imports: namespaces, `use` imports, the symbols declared at the
-//! top of the file, and the generated names of closures.
+//! The names a file declares and imports: namespaces, `use` imports, `declare` directives, the
+//! symbols declared at the top of the file, and the generated names of closures.
 
 use std::collections::HashMap;
 
 use php_parser::ast::{
-    AttributeGroup, ClassKind, ConstItem, Function, StmtKind, TopStatement, UseItem, UseKind,
+    AttributeGroup, ClassKind, ConstItem, ExprKind, Function, Stmt, StmtKind, TopStatement,
+    UseItem, UseKind,
 };
 
 use super::attributes::Target;
@@ -87,6 +88,10 @@ impl<'a> Checker<'a> {
                     StmtKind::Function(function) => {
                         self.line = stmt.line;
                         self.function_declaration(function, true)?;
+                    }
+                    StmtKind::Declare { directives, body } => {
+                        let preceding = file_level.then(|| &statements[..index]);
+                        self.declare(directives, body.as_deref(), preceding)?;
                     }
                     _ => self.stmt(stmt)?,
                 },
@@ -288,6 +293,73 @@ impl<'a> Checker<'a> {
         }
         self.names.functions.insert(lower, function.line);
         self.resolve_jumps(&frame.jumps)
+    }
+
+    /// Compiles `declare(directives) body`; `preceding` holds the statements before it when it is
+    /// a statement of the file itself rather than of a block, a function or a namespace body.
+    pub(super) fn declare(
+        &mut self,
+        directives: &'a [ConstItem],
+        body: Option<&'a Stmt>,
+        preceding: Option<&[TopStatement]>,
+    ) -> Flow {
+        if let Some(first) = directives.first() {
+            self.line = first.line;
+        }
+        let only_declares_before = |allow_empty: bool| {
+            preceding.is_some_and(|preceding| {
+                preceding.iter().all(|statement| match statement {
+                    TopStatement::Statement(stmt) => match stmt.kind {
+                        StmtKind::Declare { .. } => true,
+                        StmtKind::Nop => allow_empty,
+                        _ => false,
+                    },
+                    _ => false,
+                })
+            })
+        };
+        for directive in directives {
+            let name = directive.name.as_slice();
+            if !matches!(
+                directive.value.kind,
+                ExprKind::Int(_) | ExprKind::Float(_) | ExprKind::String(_)
+            ) {
+                let mut message = b"declare(".to_vec();
+                message.extend_from_slice(name);
+                message.extend_from_slice(b") value must be a literal");
+                return self.fatal(message);
+            }
+            if name.eq_ignore_ascii_case(b"ticks") {
+                continue;
+            }
+            if name.eq_ignore_ascii_case(b"encoding") {
+                if !only_declares_before(false) {
+                    return self.fatal(
+                        "Encoding declaration pragma must be the very first statement in the script",
+                    );
+                }
+                continue;
+            }
+            if name.eq_ignore_ascii_case(b"strict_types") {
+                if !only_declares_before(true) {
+                    return self.fatal(
+                        "strict_types declaration must be the very first statement in the script",
+                    );
+                }
+                if body.is_some() {
+                    return self.fatal("strict_types declaration must not use block mode");
+                }
+                if !matches!(directive.value.kind, ExprKind::Int(0 | 1)) {
+                    return self.fatal("strict_types declaration must have 0 or 1 as its value");
+                }
+                continue;
+            }
+            let mut message = b"Unsupported declare '".to_vec();
+            message.extend_from_slice(name);
+            message.push(b'\'');
+            self.report(Severity::Warning, message);
+        }
+        body.map_or(Ok(()), |body| self.stmt(body))
     }
 
     /// The checks the reference makes on a named class-like declaration before compiling it.
@@ -643,6 +715,76 @@ mod tests {
             (
                 "function f() { return function () { static $a = __FUNCTION__ . __METHOD__; }; }",
                 &[],
+            ),
+        ]);
+    }
+
+    #[test]
+    fn declare_directives_follow_the_reference_rules() {
+        assert_cases(&[
+            ("declare(strict_types=1); declare(ticks=1.5);", &[]),
+            ("; declare(strict_types=0x1);", &[]),
+            ("declare(STRICT_TYPES=1, Ticks=\"a\") ;", &[]),
+            (
+                "declare(\nfoo=1, Bar=2);",
+                &[
+                    "Warning: Unsupported declare 'foo' @2",
+                    "Warning: Unsupported declare 'Bar' @2",
+                ],
+            ),
+            (
+                "declare(ticks=1,\nfoo=-1);",
+                &["Fatal error: declare(foo) value must be a literal @1"],
+            ),
+            (
+                "declare(Ticks=\"a$b\");",
+                &["Fatal error: declare(Ticks) value must be a literal @1"],
+            ),
+            (
+                "; declare(encoding=\"a\");",
+                &[
+                    "Fatal error: Encoding declaration pragma must be the very first statement in the script @1",
+                ],
+            ),
+            (
+                "const A = 1; declare(strict_types=1);",
+                &[
+                    "Fatal error: strict_types declaration must be the very first statement in the script @1",
+                ],
+            ),
+            (
+                "namespace A { declare(strict_types=1); }",
+                &[
+                    "Fatal error: strict_types declaration must be the very first statement in the script @1",
+                ],
+            ),
+            (
+                "function f() { declare(strict_types=1); }",
+                &[
+                    "Fatal error: strict_types declaration must be the very first statement in the script @1",
+                ],
+            ),
+            (
+                "declare(ticks=1, strict_types=1) {}",
+                &["Fatal error: strict_types declaration must not use block mode @1"],
+            ),
+            (
+                "declare(Foo=1, strict_types=1.0);",
+                &[
+                    "Warning: Unsupported declare 'Foo' @1",
+                    "Fatal error: strict_types declaration must have 0 or 1 as its value @1",
+                ],
+            ),
+            (
+                "declare(strict_types=2, foo=1);",
+                &["Fatal error: strict_types declaration must have 0 or 1 as its value @1"],
+            ),
+            (
+                "declare(foo=1) { $this = 1; }",
+                &[
+                    "Warning: Unsupported declare 'foo' @1",
+                    "Fatal error: Cannot re-assign $this @1",
+                ],
             ),
         ]);
     }

@@ -292,6 +292,30 @@ namespaced name, constants by namespaced name as written.
   a constant import naming a different constant is a fatal error: "Cannot declare const N\C because
   the name is already in use".
 
+### Declare directives
+
+Source: `zend_compile_declare` and `zend_is_first_statement` in `Zend/zend_compile.c`.
+
+`declare(...)` reports its diagnostics on the line of its first directive name. Each directive, in
+order:
+
+1. The value must be an integer, float or string literal, with no interpolation. A sign, a constant,
+   a magic constant or an array is not one: "declare(NAME) value must be a literal", with the name as
+   written.
+2. Then by name, compared case-insensitively:
+   - `ticks`: no further check.
+   - `encoding`: every statement before it in the file must be a `declare`: "Encoding declaration
+     pragma must be the very first statement in the script". The parser already warned that the
+     directive is ignored.
+   - `strict_types`: every statement before it in the file must be a `declare` or an empty statement
+     (`;` or a closing tag): "strict_types declaration must be the very first statement in the
+     script". A `declare` inside a block, a function or a braced namespace body never qualifies. Then
+     "strict_types declaration must not use block mode" if it has a body, and "strict_types
+     declaration must have 0 or 1 as its value" unless the literal is the integer 0 or 1.
+   - Any other name: the warning "Unsupported declare 'NAME'", and compilation continues.
+
+The body, if any, compiles after all directives.
+
 ### Closure names
 
 A closure or arrow function is named `{closure:PARENT:LINE}`, where `LINE` is the line it starts on and

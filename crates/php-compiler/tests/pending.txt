@@ -1,18 +1,6 @@
 write context 15
 write context 40
 this 17
-declare 2
-declare 3
-declare 4
-declare 5
-declare 8
-declare 10
-declare 11
-declare 12
-declare 13
-declare 19
-declare 20
-declare 21
 functions 96
 functions 97
 functions 98
@@ -31,7 +19,6 @@ traits 1
 traits 2
 lines 4
 lines 8
-lines 21
 parser expression 14
 parser expression 1935
 parser expression 2630

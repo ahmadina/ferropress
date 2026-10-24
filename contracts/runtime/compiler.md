@@ -762,3 +762,33 @@ Magic methods that return nothing (`__construct`, `__destruct`, `__clone`, and `
   #[\Override] attribute, but no matching parent property exists".
 - User attribute classes and their own `Attribute::TARGET_*` flags. The reference checks them at run
   time, when the attribute is instantiated.
+
+## Jumps
+
+Source: `zend_compile_label`, `zend_compile_goto` and `zend_resolve_goto_label` in `Zend/zend_compile.c`;
+`pass_two` and `zend_check_finally_breakout` in `Zend/zend_opcode.c`.
+
+Each function, method, closure and property hook has its own labels; the file's top level is one more,
+shared by all of its namespace blocks. Label names are case-sensitive.
+
+While compiling:
+
+- A label defined twice in the same function: "Label 'a' already defined", on the second label's line.
+
+After the function has compiled, and after the checks that follow its body (the magic-method checks
+of a method, the redeclaration check of a top-level function), its jumps are checked in source order.
+The top level's jumps are checked after the whole file has compiled, so any other compile error in
+the file wins. Each error is reported on the line of the jump.
+
+- `goto a` with no label `a` in the same function: "'goto' to undefined label 'a'".
+- A label inside a loop or `switch` that does not also enclose the `goto`: "'goto' into loop or switch
+  statement is disallowed". `try`, `catch`, `if` and `declare` blocks do not count.
+- A `goto` that crosses the edge of a `finally` block. The `try` statements with a `finally` block are
+  considered in the order of their `try` keywords. The first one whose `finally` block holds exactly
+  one of the two ends decides the message: "jump into a finally block is disallowed" when it holds
+  the label, "jump out of a finally block is disallowed" when it holds the `goto`.
+- A `break` or `continue` inside a `finally` block whose target loop or `switch` lies outside that
+  block: "jump out of a finally block is disallowed". The compile-time `break` and `continue` checks
+  and warnings come first.
+
+Jumps out of `try` and `catch` blocks, and into `catch` blocks, are allowed.

@@ -126,7 +126,8 @@ impl<'a> Checker<'a> {
         };
         let frame = self.function_frame(method, code)?;
         self.line = method.line;
-        self.magic_method(method, &frame)
+        self.magic_method(method, &frame)?;
+        self.resolve_jumps(&frame.jumps)
     }
 
     /// The checks the reference makes before compiling a method.

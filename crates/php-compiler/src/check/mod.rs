@@ -10,6 +10,7 @@ mod classes;
 mod constant;
 mod expr;
 mod hooks;
+mod jumps;
 mod members;
 mod methods;
 mod names;
@@ -26,6 +27,7 @@ use php_value::Value;
 use crate::diagnostic::{Diagnostic, Diagnostics, Severity};
 use attributes::Target;
 use constant::Folded;
+use jumps::{Jumpable, Jumps};
 use types::{ANONYMOUS_CLASS, DeclaredType, Mask};
 
 /// The result of a check; `Err` carries the fatal error that stops compilation.
@@ -51,13 +53,6 @@ const PROMOTION: Modifiers = Modifiers::VISIBILITY
 
 pub(crate) fn is_auto_global(name: &[u8]) -> bool {
     AUTO_GLOBALS.contains(&name)
-}
-
-/// A loop or `switch` that `break` and `continue` can target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Jumpable {
-    Loop,
-    Switch,
 }
 
 /// The code a frame compiles, which names `__FUNCTION__` and `__METHOD__`.
@@ -99,8 +94,8 @@ struct Frame {
     hook: Option<hooks::HookKind>,
     /// Whether `#[\NoDiscard]` applies to the function.
     no_discard: bool,
-    /// The enclosing loops and switches, innermost last.
-    jumpables: Vec<Jumpable>,
+    /// The enclosing loops, switches and `finally` blocks, the labels and the pending jumps.
+    jumps: Jumps,
     /// Names of the `static` variables declared so far.
     statics: Vec<Vec<u8>>,
     /// The declared return type, or the one implied by the function's name.
@@ -180,7 +175,13 @@ impl<'a> Checker<'a> {
 
     pub(crate) fn run(program: &'a Program, file: &'a [u8]) -> Diagnostics {
         let mut checker = Self::new(file);
-        let fatal = checker.top_statements(&program.statements, true).err();
+        let fatal = checker
+            .top_statements(&program.statements, true)
+            .and_then(|()| {
+                let jumps = std::mem::take(&mut checker.frame.jumps);
+                checker.resolve_jumps(&jumps)
+            })
+            .err();
         Diagnostics {
             warnings: checker.warnings,
             fatal: fatal.map(|fatal| *fatal),
@@ -225,7 +226,20 @@ impl<'a> Checker<'a> {
     fn stmt(&mut self, stmt: &'a Stmt) -> Flow {
         self.line = stmt.line;
         match &stmt.kind {
-            StmtKind::Nop | StmtKind::Label(_) | StmtKind::Goto(_) => Ok(()),
+            StmtKind::Nop => Ok(()),
+            StmtKind::Label(name) => {
+                if self.frame.jumps.define(name) {
+                    return Ok(());
+                }
+                let mut message = b"Label '".to_vec();
+                message.extend_from_slice(name);
+                message.extend_from_slice(b"' already defined");
+                self.fatal(message)
+            }
+            StmtKind::Goto(label) => {
+                self.frame.jumps.goto(label, self.line);
+                Ok(())
+            }
             StmtKind::Block(stmts) => self.stmts(stmts),
             StmtKind::Expr(expr) | StmtKind::Echo(expr) => self.expr(expr),
             StmtKind::If(branches) => {
@@ -282,9 +296,9 @@ impl<'a> Checker<'a> {
     }
 
     fn in_jumpable(&mut self, kind: Jumpable, body: impl FnOnce(&mut Self) -> Flow) -> Flow {
-        self.frame.jumpables.push(kind);
+        self.frame.jumps.enter(kind);
         let result = body(self);
-        self.frame.jumpables.pop();
+        self.frame.jumps.leave();
         result
     }
 
@@ -353,7 +367,7 @@ impl<'a> Checker<'a> {
                 ));
             }
         };
-        let available = self.frame.jumpables.len();
+        let available = self.frame.jumps.depth();
         if available == 0 {
             return self.fatal(format!("'{keyword}' not in the 'loop' or 'switch' context"));
         }
@@ -364,7 +378,8 @@ impl<'a> Checker<'a> {
             let plural = if depth == 1 { "" } else { "s" };
             return self.fatal(format!("Cannot '{keyword}' {depth} level{plural}"));
         };
-        if !is_break && self.frame.jumpables[target] == Jumpable::Switch {
+        self.frame.jumps.break_continue(target, self.line);
+        if !is_break && self.frame.jumps.kind(target) == Some(Jumpable::Switch) {
             let suggestion = if target == 0 {
                 String::new()
             } else {
@@ -409,24 +424,32 @@ impl<'a> Checker<'a> {
         if try_stmt.catches.is_empty() && try_stmt.finally.is_none() {
             return self.fatal("Cannot use try without catch or finally");
         }
+        let finally_id = try_stmt
+            .finally
+            .is_some()
+            .then(|| self.frame.jumps.try_with_finally());
         self.stmts(&try_stmt.body)?;
         for catch in &try_stmt.catches {
             self.line = catch.line;
             self.caught_classes(&catch.types)?;
             self.stmts(&catch.body)?;
         }
-        try_stmt
-            .finally
-            .as_ref()
-            .map_or(Ok(()), |finally| self.stmts(finally))
+        let (Some(finally), Some(id)) = (&try_stmt.finally, finally_id) else {
+            return Ok(());
+        };
+        self.frame.jumps.enter_finally(id);
+        let result = self.stmts(finally);
+        self.frame.jumps.leave_finally();
+        result
     }
 
-    /// Compiles `function`, which is `code`, in a frame of its own.
+    /// Compiles `function`, which is `code`, in a frame of its own, then resolves its jumps.
     fn function(&mut self, function: &'a Function, code: Code) -> Flow {
-        self.function_frame(function, code).map(drop)
+        let frame = self.function_frame(function, code)?;
+        self.resolve_jumps(&frame.jumps)
     }
 
-    /// Compiles `function` like [`Self::function`] and returns its finished frame.
+    /// Compiles `function` like [`Self::function`] up to its jumps, and returns its frame.
     fn function_frame(&mut self, function: &'a Function, code: Code) -> Flow<Frame> {
         self.line = function.line;
         for use_var in &function.uses {

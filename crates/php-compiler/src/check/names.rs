@@ -273,9 +273,9 @@ impl<'a> Checker<'a> {
             );
         }
         self.register(lower.clone(), FUNCTION);
-        self.function(function, Code::Function(name.clone()))?;
+        let frame = self.function_frame(function, Code::Function(name.clone()))?;
         if !top_level {
-            return Ok(());
+            return self.resolve_jumps(&frame.jumps);
         }
         if let Some(&first) = self.names.functions.get(&lower) {
             self.line = function.line;
@@ -287,7 +287,7 @@ impl<'a> Checker<'a> {
             return self.fatal(message);
         }
         self.names.functions.insert(lower, function.line);
-        Ok(())
+        self.resolve_jumps(&frame.jumps)
     }
 
     /// The checks the reference makes on a named class-like declaration before compiling it.

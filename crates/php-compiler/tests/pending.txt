@@ -1,19 +1,6 @@
 write context 15
 write context 40
 this 17
-jumps 18
-jumps 19
-jumps 20
-jumps 21
-jumps 22
-jumps 23
-jumps 24
-jumps 25
-jumps 26
-jumps 29
-jumps 30
-jumps 34
-jumps 35
 declare 2
 declare 3
 declare 4

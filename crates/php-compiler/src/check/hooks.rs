@@ -262,7 +262,9 @@ impl<'a> Checker<'a> {
         );
         let result = self.hook_inner(property, hook, kind);
         let frame = std::mem::replace(&mut self.frame, outer);
-        result.map(|()| frame.params)
+        result?;
+        self.resolve_jumps(&frame.jumps)?;
+        Ok(frame.params)
     }
 
     fn hook_inner(

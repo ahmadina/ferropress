@@ -161,6 +161,47 @@
 {"name":"jumps 35","source":"<?php a: function f() { goto a; }","diagnostics":[["Fatal error","'goto' to undefined label 'a'",1]]}
 {"name":"jumps 36","source":"<?php do { break; } while (0);","diagnostics":[]}
 {"name":"jumps 37","source":"<?php for (;;) { continue 2; }","diagnostics":[["Fatal error","Cannot 'continue' 2 levels",1]]}
+{"name":"jump rules 1","source":"<?php goto a;\nfunction __autoload() {}","diagnostics":[["Fatal error","__autoload() is no longer supported, use spl_autoload_register() instead",2]]}
+{"name":"jump rules 2","source":"<?php function f() { goto a; }\nfunction f() {}","diagnostics":[["Fatal error","'goto' to undefined label 'a'",1]]}
+{"name":"jump rules 3","source":"<?php function f() {}\nfunction f() { goto a; }","diagnostics":[["Fatal error","Cannot redeclare function f() (previously declared in %file%:1)",2]]}
+{"name":"jump rules 4","source":"<?php class A { function __construct(): int { goto a; } }","diagnostics":[["Fatal error","Method A::__construct() cannot declare a return type",1]]}
+{"name":"jump rules 5","source":"<?php class A { function f() { goto a; } function f() {} }","diagnostics":[["Fatal error","'goto' to undefined label 'a'",1]]}
+{"name":"jump rules 6","source":"<?php class A { public $a { get { goto b; } get {} } }","diagnostics":[["Fatal error","'goto' to undefined label 'b'",1]]}
+{"name":"jump rules 7","source":"<?php a: A: goto a;","diagnostics":[]}
+{"name":"jump rules 8","source":"<?php a: function f() { a: }","diagnostics":[]}
+{"name":"jump rules 9","source":"<?php $f = function () { goto a; }; a:","diagnostics":[["Fatal error","'goto' to undefined label 'a'",1]]}
+{"name":"jump rules 10","source":"<?php goto a; try {} catch (E $e) { a: }","diagnostics":[]}
+{"name":"jump rules 12","source":"<?php try {} catch (E $e) { goto a; } finally {} a:","diagnostics":[]}
+{"name":"jump rules 13","source":"<?php try {} finally { a: goto a; }","diagnostics":[]}
+{"name":"jump rules 15","source":"<?php while (1) { try {} finally { while (1) { break 2; } } }","diagnostics":[["Fatal error","jump out of a finally block is disallowed",1]]}
+{"name":"jump rules 16","source":"<?php while (1) { try {} finally { while (1) { continue 2; } } }","diagnostics":[["Fatal error","jump out of a finally block is disallowed",1]]}
+{"name":"jump rules 17","source":"<?php switch (1) { case 1: try {} finally { continue; } }","diagnostics":[["Warning","\"continue\" targeting switch is equivalent to \"break\"",1],["Fatal error","jump out of a finally block is disallowed",1]]}
+{"name":"jump rules 18","source":"<?php while (1) { try { break; } finally {} }","diagnostics":[]}
+{"name":"jump rules 19","source":"<?php while (1) {\ntry {} finally {\nbreak;\n}\n}\ngoto a;","diagnostics":[["Fatal error","jump out of a finally block is disallowed",3]]}
+{"name":"jump rules 20","source":"<?php goto a;\nwhile (1) { try {} finally { break; } }","diagnostics":[["Fatal error","'goto' to undefined label 'a'",1]]}
+{"name":"jump rules 21","source":"<?php try {} finally { goto a; } try {} finally { a: }","diagnostics":[["Fatal error","jump out of a finally block is disallowed",1]]}
+{"name":"jump rules 22","source":"<?php try {} finally { a: } try {} finally { goto a; }","diagnostics":[["Fatal error","jump into a finally block is disallowed",1]]}
+{"name":"jump rules 23","source":"<?php try {} finally { try {} finally { goto a; } a: }","diagnostics":[["Fatal error","jump out of a finally block is disallowed",1]]}
+{"name":"jump rules 24","source":"<?php try {} finally { try {} finally { a: } goto a; }","diagnostics":[["Fatal error","jump into a finally block is disallowed",1]]}
+{"name":"jump rules 25","source":"<?php a: switch (1) { case 1: goto a; }","diagnostics":[]}
+{"name":"jump rules 26","source":"<?php while (1) { goto a; } while (1) { a: }","diagnostics":[["Fatal error","'goto' into loop or switch statement is disallowed",1]]}
+{"name":"jump rules 27","source":"<?php while (1) { a: goto a; }","diagnostics":[]}
+{"name":"jump rules 28","source":"<?php goto a; if (1) { a: }","diagnostics":[]}
+{"name":"jump rules 29","source":"<?php a:\n$x = 1;\na:","diagnostics":[["Fatal error","Label 'a' already defined",3]]}
+{"name":"jump rules 30","source":"<?php goto a; function f($a = 1, $b) {}","diagnostics":[["Deprecated","f(): Optional parameter $a declared before required parameter $b is implicitly treated as a required parameter",1],["Fatal error","'goto' to undefined label 'a'",1]]}
+{"name":"jump rules 31","source":"<?php declare(ticks=1) { a: } goto a;","diagnostics":[]}
+{"name":"jump rules 32","source":"<?php foreach ($a as $b) { goto a; } a:","diagnostics":[]}
+{"name":"jump rules 33","source":"<?php do { a: } while (0); goto a;","diagnostics":[["Fatal error","'goto' into loop or switch statement is disallowed",1]]}
+{"name":"jump rules 34","source":"<?php namespace A { goto a; } namespace B { a: }","diagnostics":[]}
+{"name":"jump rules 35","source":"<?php function f() { a: } goto a;","diagnostics":[["Fatal error","'goto' to undefined label 'a'",1]]}
+{"name":"jump rules 36","source":"<?php goto a; goto b;","diagnostics":[["Fatal error","'goto' to undefined label 'a'",1]]}
+{"name":"jump rules 37","source":"<?php goto b; a: goto a;","diagnostics":[["Fatal error","'goto' to undefined label 'b'",1]]}
+{"name":"jump rules 38","source":"<?php class A { function f() { a: a: } }","diagnostics":[["Fatal error","Label 'a' already defined",1]]}
+{"name":"jump rules 39","source":"<?php $f = fn() => function () { goto a; };","diagnostics":[["Fatal error","'goto' to undefined label 'a'",1]]}
+{"name":"jump rules 40","source":"<?php goto a;\n$this = 1;","diagnostics":[["Fatal error","Cannot re-assign $this",2]]}
+{"name":"jump rules 41","source":"<?php for (;;) { a: } goto a;","diagnostics":[["Fatal error","'goto' into loop or switch statement is disallowed",1]]}
+{"name":"jump rules 42","source":"<?php for (;;) { try {} finally { break; } }","diagnostics":[["Fatal error","jump out of a finally block is disallowed",1]]}
+{"name":"jump rules 43","source":"<?php try {} finally { foreach ($a as $b) { continue; } }","diagnostics":[]}
 {"name":"declare 1","source":"<?php declare(strict_types=1);","diagnostics":[]}
 {"name":"declare 2","source":"<?php echo 1; declare(strict_types=1);","diagnostics":[["Fatal error","strict_types declaration must be the very first statement in the script",1]]}
 {"name":"declare 3","source":"<?php declare(strict_types=2);","diagnostics":[["Fatal error","strict_types declaration must have 0 or 1 as its value",1]]}

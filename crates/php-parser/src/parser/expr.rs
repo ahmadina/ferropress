@@ -704,6 +704,7 @@ impl Parser<'_> {
                 K::ObjectOperator | K::NullsafeObjectOperator if shape.can_index() => {
                     self.bump()?;
                     let nullsafe = kind == K::NullsafeObjectOperator;
+                    let name_line = self.stream.peek()?.line;
                     let name = self.property_name()?;
                     if self.at(K::Char(b'('))? {
                         let args = self.arguments()?;
@@ -712,6 +713,7 @@ impl Parser<'_> {
                                 ExprKind::MethodCall {
                                     object: Box::new(value),
                                     name,
+                                    name_line,
                                     args,
                                     nullsafe,
                                 },

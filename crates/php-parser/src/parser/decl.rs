@@ -1182,4 +1182,28 @@ mod tests {
             .collect();
         assert_eq!(lines, [3, 7, 10, 13, 14]);
     }
+
+    #[test]
+    fn method_calls_record_the_line_of_their_name() {
+        let Ok(parsed) = crate::parse(b"<?php $a\n?->b\n->\nc();", crate::ParseOptions::default())
+        else {
+            panic!("source fits");
+        };
+        let Ok(program) = parsed.result else {
+            panic!("call parses");
+        };
+        let [TopStatement::Statement(stmt)] = program.statements.as_slice() else {
+            panic!("one statement");
+        };
+        let StmtKind::Expr(call) = &stmt.kind else {
+            panic!("expression statement");
+        };
+        let ExprKind::MethodCall {
+            name_line, object, ..
+        } = &call.kind
+        else {
+            panic!("method call");
+        };
+        assert_eq!((call.line, *name_line, object.line), (1, 4, 1));
+    }
 }

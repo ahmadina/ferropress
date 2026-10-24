@@ -348,6 +348,8 @@ pub enum ExprKind {
         object: Box<Expr>,
         /// The method.
         name: Member,
+        /// The line the method name starts on.
+        name_line: u32,
         /// The arguments.
         args: Args,
         /// Whether `?->` was used.

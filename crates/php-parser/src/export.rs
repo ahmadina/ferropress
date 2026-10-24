@@ -468,6 +468,7 @@ impl Printer {
                 name,
                 args,
                 nullsafe,
+                ..
             } => {
                 self.expr(object, 0, indent);
                 self.text(if *nullsafe { "?->" } else { "->" });

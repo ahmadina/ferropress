@@ -40,6 +40,14 @@ impl<O: Output> Machine<'_, '_, O> {
                 table.assign(PhpString::new(&prop), default);
             });
         }
+        if crate::exceptions::is_throwable(&class_name) {
+            object.with_properties_mut(|table| {
+                table.assign(
+                    PhpString::new(b"message"),
+                    Value::String(PhpString::new(&[])),
+                );
+            });
+        }
         self.write(ins.result, Value::Object(object))
     }
 
@@ -136,6 +144,29 @@ impl<O: Output> Machine<'_, '_, O> {
         message.extend_from_slice(written.as_bytes());
         message.extend_from_slice(b"()");
         Err(self.throw("Error", message))
+    }
+}
+
+/// Registers the built-in throwable classes so `new Exception` and `new Error` resolve.
+pub(crate) fn register_throwables(table: &mut HashMap<Box<[u8]>, Class>) {
+    for name in [
+        &b"Exception"[..],
+        b"Error",
+        b"TypeError",
+        b"ArgumentCountError",
+        b"ArithmeticError",
+        b"DivisionByZeroError",
+    ] {
+        table
+            .entry(name.to_ascii_lowercase().into())
+            .or_insert(Class {
+                name: name.into(),
+                properties: vec![(
+                    b"message".to_vec().into_boxed_slice(),
+                    Value::String(PhpString::new(&[])),
+                )],
+                methods: HashMap::new(),
+            });
     }
 }
 

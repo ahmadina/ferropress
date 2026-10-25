@@ -125,7 +125,8 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             }
             codes.push(load(&function.code));
         }
-        let classes = crate::classes::bind_classes(&unit.classes, &mut codes);
+        let mut classes = crate::classes::bind_classes(&unit.classes, &mut codes);
+        crate::classes::register_throwables(&mut classes);
         Self {
             codes,
             functions,
@@ -149,9 +150,20 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
                 Ok(Flow::Finished) => return Ok(0),
                 Err(Stop::Thrown(thrown)) => {
                     self.flush();
-                    let text = thrown.uncaught(self.cx.precision);
-                    self.output.write(&text);
-                    return Ok(255);
+                    match self.catch_thrown(&thrown) {
+                        Ok(true) => {}
+                        Ok(false) => {
+                            let text = thrown.uncaught(self.cx.precision);
+                            self.output.write(&text);
+                            return Ok(255);
+                        }
+                        Err(Stop::Thrown(again)) => {
+                            let text = again.uncaught(self.cx.precision);
+                            self.output.write(&text);
+                            return Ok(255);
+                        }
+                        Err(Stop::Vm(error)) => return Err(error),
+                    }
                 }
                 Err(Stop::Vm(error)) => return Err(error),
             }
@@ -210,6 +222,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::LoadProp => self.load_prop(ins),
             Opcode::StoreProp => self.store_prop(ins),
             Opcode::InitMethodCall => self.init_method_call(ins),
+            Opcode::Throw => return self.throw_value(ins),
             Opcode::Return => return self.return_from(ins.a),
             _ => self.operator(ins),
         };
@@ -450,6 +463,22 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
 
     /// A thrown error of `class` with `message`, raised on the current line.
     pub(crate) fn throw(&self, class: &'static str, message: Vec<u8>) -> Stop {
+        match self.objects.create(PhpString::new(class.as_bytes())) {
+            Ok(object) => {
+                object.with_properties_mut(|properties| {
+                    properties.assign(
+                        PhpString::new(b"message"),
+                        Value::String(PhpString::new(&message)),
+                    );
+                });
+                self.thrown(class.as_bytes(), message, object)
+            }
+            Err(_full) => VmError::Unsupported("this many objects").into(),
+        }
+    }
+
+    /// A thrown error already materialised as `object`.
+    pub(crate) fn thrown(&self, class: &[u8], message: Vec<u8>, object: php_value::Object) -> Stop {
         let trace = self
             .frames
             .iter()
@@ -463,8 +492,9 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             })
             .collect();
         Stop::Thrown(Box::new(Thrown {
-            class,
+            class: class.into(),
             message,
+            object,
             file: self.file.clone(),
             line: self.line,
             trace,

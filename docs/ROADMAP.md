@@ -65,7 +65,8 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] Closures and arrow functions, including `use` captures and computed callees
   - [x] Classes: public instance properties, methods, `new` and `$this`
   - [ ] Interfaces, traits and enums
-  - [ ] Exceptions
+  - [x] Exceptions: `throw`, `try`/`catch`, built-in `Exception`/`Error`
+  - [ ] `finally`
   - [ ] Generators and fibers
   - [ ] include/require and autoloading
 - [ ] 19. Built-in function families: strings, arrays, math, JSON, PCRE, mbstring, date/time, streams,

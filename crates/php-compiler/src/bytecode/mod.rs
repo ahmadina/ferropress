@@ -9,7 +9,9 @@ mod instruction;
 mod literal;
 mod operand;
 
-pub use code::{ClassDecl, Code, FunctionDecl, MethodDecl, Parameter, PropertyDecl, Unit};
+pub use code::{
+    CatchHandler, ClassDecl, Code, FunctionDecl, MethodDecl, Parameter, PropertyDecl, Unit,
+};
 pub use instruction::{Instruction, Opcode};
 pub use literal::Literal;
 pub use operand::{Operand, OperandKind};

@@ -92,5 +92,19 @@ Interfaces, traits, enums, anonymous, abstract and readonly classes, inheritance
 and protected members, typed and hooked properties, class constants and computed names are not
 compiled yet.
 
+## Exceptions
+
+`throw` raises the value as an error. Only objects of the built-in throwable classes may be thrown
+(`Exception`, `Error`, `TypeError`, `ArgumentCountError`, `ArithmeticError`, `DivisionByZeroError`).
+Any other object throws `Error` with `Cannot throw objects that do not implement Throwable`. A
+non-object throws `Error` with `Can only throw objects`. `new Exception("message")` and `new Error("message")` store
+the first argument as the public `message` property.
+
+`try { … } catch (Class $e) { … }` runs the first arm whose class matches the thrown class, including
+the built-in hierarchy (`Throwable` matches every throwable, `Error` matches the `Error` family,
+`ArithmeticError` matches `DivisionByZeroError`). The optional catch variable receives the thrown
+object. A throw inside a called function unwinds to a matching `catch` in a caller. `finally` is not
+compiled yet.
+
 Operator errors (`DivisionByZeroError`, `ArithmeticError`, `TypeError`) and the warnings and deprecations
 of conversions follow `contracts/runtime/operators.md`.

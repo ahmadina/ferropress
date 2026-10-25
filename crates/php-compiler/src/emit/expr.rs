@@ -163,6 +163,7 @@ impl Emitter<'_> {
             ExprKind::ArrowFunction { function, .. } => self.arrow(function, used),
             ExprKind::New { class, args } => self.new_object(class, args, used),
             ExprKind::NewAnonymous { .. } => self.unsupported("anonymous classes"),
+            ExprKind::Throw(value) => self.throw_value(value),
             ExprKind::Property {
                 object,
                 name,
@@ -437,6 +438,13 @@ impl Emitter<'_> {
         self.builder
             .op(Opcode::Call, Operand::UNUSED, Operand::UNUSED, result)?;
         Ok(result)
+    }
+
+    fn throw_value(&mut self, value: &Expr) -> Emit<Operand> {
+        let value = self.expr(value)?;
+        self.builder
+            .op(Opcode::Throw, value, Operand::UNUSED, Operand::UNUSED)?;
+        Ok(Operand::UNUSED)
     }
 
     pub(crate) fn send_args(&mut self, args: &[Arg]) -> Emit {

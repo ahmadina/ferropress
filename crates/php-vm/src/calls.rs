@@ -1,7 +1,7 @@
 //! Calls between PHP functions: preparing arguments, binding parameters and returning.
 
 use php_compiler::bytecode::{Instruction, Operand, OperandKind};
-use php_value::{Object, PhpArray, Slot, Value};
+use php_value::{Object, PhpArray, PhpString, Slot, Value};
 
 use crate::machine::{Exec, Flow, Frame, Machine};
 use crate::{Output, VmError};
@@ -106,8 +106,8 @@ impl<O: Output> Machine<'_, '_, O> {
             .pending
             .pop()
             .ok_or(VmError::Malformed("call without a prepared function"))?;
-        if implicit_ctor.is_some() {
-            return Ok(());
+        if let Some(class) = implicit_ctor {
+            return self.finish_implicit(&class, this, &args);
         }
         let mut frame = Frame::new(code, &self.codes[code]);
         if let Some(env) = env {
@@ -209,6 +209,21 @@ impl<O: Output> Machine<'_, '_, O> {
         }
         self.write(frame.result, value)?;
         Ok(Flow::Continue)
+    }
+
+    fn finish_implicit(&mut self, class: &[u8], this: Option<Object>, args: &[Argument]) -> Exec {
+        if crate::exceptions::is_throwable(class)
+            && let Some(this) = this
+        {
+            let message = match args.first() {
+                Some(arg) => self.stringify(&arg.slot.value())?,
+                None => PhpString::new(&[]),
+            };
+            this.with_properties_mut(|properties| {
+                properties.assign(PhpString::new(b"message"), Value::String(message));
+            });
+        }
+        Ok(())
     }
 }
 

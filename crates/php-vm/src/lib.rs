@@ -11,6 +11,7 @@ mod calls;
 mod classes;
 mod closures;
 mod error;
+mod exceptions;
 mod machine;
 mod thrown;
 

@@ -1,10 +1,10 @@
 //! Statements: control flow, `echo` and `return`.
 
-use php_parser::ast::{Expr, ExprKind, Stmt, StmtKind};
+use php_parser::ast::{Expr, ExprKind, NameKind, Stmt, StmtKind, Try};
 
 use super::builder::Field;
 use super::{Emit, Emitter, Loop};
-use crate::bytecode::{Opcode, Operand};
+use crate::bytecode::{CatchHandler, Opcode, Operand};
 
 impl Emitter<'_> {
     pub(super) fn stmts(&mut self, stmts: &[Stmt]) -> Emit {
@@ -98,7 +98,7 @@ impl Emitter<'_> {
             StmtKind::Static { .. } => self.unsupported("static variables"),
             StmtKind::Unset(_) => self.unsupported("unset"),
             StmtKind::Label(_) | StmtKind::Goto(_) => self.unsupported("goto"),
-            StmtKind::Try(_) => self.unsupported("try"),
+            StmtKind::Try(parts) => self.try_statement(parts),
             StmtKind::Declare { .. } => self.unsupported("declare"),
             StmtKind::Class(class) if self.conditional == 0 => self.class_declaration(class),
             StmtKind::Class(_) => self.unsupported("conditional class declarations"),
@@ -111,6 +111,44 @@ impl Emitter<'_> {
         let result = body(self);
         self.conditional -= 1;
         result
+    }
+
+    fn try_statement(&mut self, parts: &Try) -> Emit {
+        if parts.finally.is_some() {
+            return self.unsupported("finally");
+        }
+        if parts.catches.is_empty() {
+            return self.unsupported("finally");
+        }
+        let start = self.builder.here()?;
+        self.stmts(&parts.body)?;
+        let end = self.builder.here()?;
+        let mut exits = vec![self.jump()?];
+        for catch in &parts.catches {
+            self.builder.line = catch.line;
+            let target = self.builder.here()?;
+            let slot = match &catch.variable {
+                Some(name) => Some(self.builder.slot(name)?.index()),
+                None => None,
+            };
+            for name in &catch.types {
+                if name.kind == NameKind::Relative {
+                    return self.unsupported("namespace-relative names");
+                }
+                self.builder.code_mut().handlers.push(CatchHandler {
+                    start,
+                    end,
+                    target,
+                    class: name.bytes.to_ascii_lowercase().into(),
+                    slot,
+                });
+            }
+            self.stmts(&catch.body)?;
+            exits.push(self.jump()?);
+        }
+        exits
+            .into_iter()
+            .try_for_each(|exit| self.builder.patch_here(exit, Field::A))
     }
 
     /// Emits a jump to be patched.

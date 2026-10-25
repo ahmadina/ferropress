@@ -19,6 +19,21 @@ pub struct Parameter {
     pub line: u32,
 }
 
+/// One `catch` arm covering a range of instructions.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CatchHandler {
+    /// First instruction of the `try` body.
+    pub start: u32,
+    /// First instruction after the `try` body.
+    pub end: u32,
+    /// First instruction of this `catch` body.
+    pub target: u32,
+    /// The class this arm catches, stored lowercase.
+    pub class: Box<[u8]>,
+    /// The local slot the thrown object is stored in, when the catch names a variable.
+    pub slot: Option<u32>,
+}
+
 /// The compiled body of a function, method, closure or file.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Code {
@@ -38,6 +53,8 @@ pub struct Code {
     pub params: Vec<Parameter>,
     /// Whether the function returns by reference.
     pub by_ref: bool,
+    /// `catch` arms, inner ranges first.
+    pub handlers: Vec<CatchHandler>,
 }
 
 /// A function the file declares.

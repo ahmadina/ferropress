@@ -334,7 +334,7 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
         ("<?php function f() { static $a; }", "static variables"),
         ("<?php unset($a);", "unset"),
         ("<?php a: goto a;", "goto"),
-        ("<?php try {} finally {}", "try"),
+        ("<?php try {} finally {}", "finally"),
         ("<?php declare(ticks=1);", "declare"),
         ("<?php interface A {}", "interfaces"),
         ("<?php trait A {}", "traits"),
@@ -453,6 +453,29 @@ fn classes_emit_new_properties_and_methods() -> Result<(), String> {
             "   1    4  Add T1 = $x, T0",
             "   2    4  Return T1",
             "   3    4  Return",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn try_catch_and_throw_use_a_handler_table() -> Result<(), String> {
+    assert_eq!(
+        disassemble(
+            "<?php try { echo 1; throw new Exception(\"x\"); } catch (Exception $e) { echo \"c\"; }"
+        )?,
+        listing(&[
+            "code {main} temporaries=1",
+            "   0    1  Echo 1",
+            "   1    1  New T0 = \"Exception\"",
+            "   2    1  InitMethodCall/1 T0, \"__construct\", \"__construct\"",
+            "   3    1  Send \"x\"",
+            "   4    1  Call",
+            "   5    1  Throw T0",
+            "   6    1  Jump @9",
+            "   7    1  Echo \"c\"",
+            "   8    1  Jump @9",
+            "   9    1  Return 1",
         ])
     );
     Ok(())

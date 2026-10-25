@@ -106,6 +106,8 @@ pub enum Opcode {
     /// Starts a call of method `b` (lowercase) on the object `a`; `c` is the name as written.
     /// Flag bit 0 is set for the implicit constructor of a class that declares none.
     InitMethodCall,
+    /// Throws the object `a`.
+    Throw,
 }
 
 impl Opcode {
@@ -160,6 +162,7 @@ impl Opcode {
             Self::LoadProp => "LoadProp",
             Self::StoreProp => "StoreProp",
             Self::InitMethodCall => "InitMethodCall",
+            Self::Throw => "Throw",
         }
     }
 }
@@ -252,6 +255,7 @@ mod tests {
             Opcode::LoadProp,
             Opcode::StoreProp,
             Opcode::InitMethodCall,
+            Opcode::Throw,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

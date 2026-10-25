@@ -18,11 +18,12 @@ pub(crate) struct TraceEntry {
     pub(crate) args: Vec<Value>,
 }
 
-/// A thrown error. Until classes exist (roadmap step 18) it carries its class by name.
+/// A thrown error, as an object of its class plus the location it was raised.
 #[derive(Debug, Clone)]
 pub(crate) struct Thrown {
-    pub(crate) class: &'static str,
+    pub(crate) class: Box<[u8]>,
     pub(crate) message: Vec<u8>,
+    pub(crate) object: php_value::Object,
     pub(crate) file: Box<[u8]>,
     pub(crate) line: u32,
     /// The calls active when it was thrown, innermost first.
@@ -33,7 +34,7 @@ impl Thrown {
     /// What the reference displays when this error is not caught.
     pub(crate) fn uncaught(&self, precision: Precision) -> Vec<u8> {
         let mut out = b"\nFatal error: Uncaught ".to_vec();
-        out.extend_from_slice(self.class.as_bytes());
+        out.extend_from_slice(&self.class);
         out.extend_from_slice(b": ");
         out.extend_from_slice(&self.message);
         out.extend_from_slice(b" in ");
@@ -175,9 +176,11 @@ mod tests {
 
     #[test]
     fn uncaught_errors_show_message_trace_and_location() {
+        let store = ObjectStore::new();
         let thrown = Thrown {
-            class: "DivisionByZeroError",
+            class: b"DivisionByZeroError".to_vec().into(),
             message: b"Modulo by zero".to_vec(),
+            object: store.create("DivisionByZeroError".into()).unwrap(),
             file: b"/t.php".to_vec().into(),
             line: 3,
             trace: vec![TraceEntry {

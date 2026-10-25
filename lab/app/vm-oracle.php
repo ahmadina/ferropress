@@ -129,6 +129,16 @@ function vm_topic_cases(): array {
 			'$a = 1; $a->m();',
 			'$a = true; $a->p = 1;',
 		),
+		'exceptions'    => array(
+			'try { echo 1; throw new Exception("x"); echo 2; } catch (Exception $e) { echo "c"; }',
+			'throw new Exception("x");',
+			'try { echo 1 % 0; } catch (Error $e) { echo "z"; }',
+			'throw 1;',
+			'class E {} throw new E;',
+			'function f() { throw new Exception("in"); } try { f(); echo "n"; } catch (Exception $e) { echo "c"; }',
+			'try { throw new Exception("x"); } catch (Error $e) { echo "e"; } catch (Exception $e) { echo "x"; }',
+			'try { throw new Exception("x"); } catch (Throwable $e) { echo "t"; }',
+		),
 		'errors'        => array(
 			"echo 1;\necho 1 % 0;\necho 2;",
 			'function f($x) { return $x / 0; } echo "before"; f("1");',

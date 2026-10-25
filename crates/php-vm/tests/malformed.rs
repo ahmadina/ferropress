@@ -40,12 +40,11 @@ fn failure(unit: &Unit) -> Result<VmError, String> {
     }
 }
 
-#[test]
-fn malformed_operands_are_errors() -> Result<(), String> {
+fn malformed_cases() -> Vec<(Vec<Instruction>, &'static str)> {
     let slot = |index| Operand::slot(index);
     let temp = |index| Operand::temp(index);
     let literal = |index| Operand::literal(index);
-    let cases: Vec<(Vec<Instruction>, &str)> = vec![
+    vec![
         (vec![], "ran past the last instruction"),
         (vec![op(Opcode::Echo, slot(5), None, None)], "no such slot"),
         (
@@ -132,8 +131,16 @@ fn malformed_operands_are_errors() -> Result<(), String> {
             }],
             "method name is not a string",
         ),
-    ];
-    for (instructions, reason) in cases {
+        (
+            vec![op(Opcode::Throw, None, None, None)],
+            "operand holds no value",
+        ),
+    ]
+}
+
+#[test]
+fn malformed_operands_are_errors() -> Result<(), String> {
+    for (instructions, reason) in malformed_cases() {
         let unit = main_code(
             instructions,
             vec![Literal::Int(1), Literal::from(&b"f"[..])],

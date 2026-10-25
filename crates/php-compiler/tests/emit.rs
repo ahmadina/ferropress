@@ -281,6 +281,23 @@ fn functions_and_calls() -> Result<(), String> {
 }
 
 #[test]
+fn a_call_argument_is_marked_on_send() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php f(g());")?,
+        listing(&[
+            "code {main} temporaries=1",
+            "   0    1  InitCall \"f\", \"f\"",
+            "   1    1  InitCall \"g\", \"g\"",
+            "   2    1  Call T0 =",
+            "   3    1  Send/1 T0",
+            "   4    1  Call",
+            "   5    1  Return 1",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
 fn fatal_programs_have_no_unit() {
     assert!(disassemble("<?php break;").is_err());
 }

@@ -6,6 +6,14 @@ use php_value::{PhpArray, Slot, Value};
 use crate::machine::{Exec, Flow, Frame, Machine};
 use crate::{Output, VmError};
 
+/// An argument prepared for a call.
+#[derive(Debug)]
+pub(crate) struct Argument {
+    slot: Slot,
+    /// Whether the value is a call's result, which a by-reference parameter accepts with a notice.
+    from_call: bool,
+}
+
 impl<O: Output> Machine<'_, '_, O> {
     /// Starts a call of the function named by the literal `a`; an undefined function throws
     /// before any argument is evaluated.
@@ -28,12 +36,15 @@ impl<O: Output> Machine<'_, '_, O> {
         Err(self.throw("Error", message))
     }
 
-    pub(crate) fn send(&mut self, arg: Slot) -> Exec {
+    pub(crate) fn send(&mut self, arg: Slot, from_call: bool) -> Exec {
         let (_, args) = self
             .pending
             .last_mut()
             .ok_or(VmError::Malformed("argument sent outside a call"))?;
-        args.push(arg);
+        args.push(Argument {
+            slot: arg,
+            from_call,
+        });
         Ok(())
     }
 
@@ -51,7 +62,7 @@ impl<O: Output> Machine<'_, '_, O> {
             .is_some_and(|param| param.by_ref && !param.variadic);
         if !by_ref {
             let value = self.read(operand)?;
-            return self.send(Slot::Value(value));
+            return self.send(Slot::Value(value), false);
         }
         if operand.kind() != OperandKind::Slot {
             return Err(VmError::Malformed("variable argument is not a slot").into());
@@ -63,7 +74,7 @@ impl<O: Output> Machine<'_, '_, O> {
             .ok_or(VmError::Malformed("no such slot"))?
             .get_or_insert_with(|| Slot::Value(Value::Null));
         let reference = slot.make_reference();
-        self.send(Slot::Reference(reference))
+        self.send(Slot::Reference(reference), false)
     }
 
     /// Calls the prepared function, binding its parameters; too few arguments throw
@@ -73,15 +84,16 @@ impl<O: Output> Machine<'_, '_, O> {
             .pending
             .pop()
             .ok_or(VmError::Malformed("call without a prepared function"))?;
-        let loaded = &self.codes[code];
-        let mut frame = Frame::new(code, loaded);
+        let mut frame = Frame::new(code, &self.codes[code]);
         frame.result = result;
         frame.call_line = self.line;
         frame.passed = args.len();
-        let params = &loaded.code.params;
+        let params = self.codes[code].code.params.clone();
+        let slot_names = self.codes[code].code.slots.clone();
+        let name = self.codes[code].code.name.clone();
         let mut args = args.into_iter();
         let mut missing = None;
-        for param in params {
+        for (index, param) in params.iter().enumerate() {
             let slot = frame
                 .slots
                 .get_mut(param.slot as usize)
@@ -89,21 +101,31 @@ impl<O: Output> Machine<'_, '_, O> {
             if param.variadic {
                 let mut rest = PhpArray::new();
                 for arg in args.by_ref() {
-                    let value = arg.value();
+                    let value = arg.slot.value();
                     frame.extra.push(value.clone());
                     rest.append(value)
                         .map_err(|_full| VmError::Unsupported("arrays this large"))?;
                 }
                 *slot = Some(Slot::Value(Value::Array(rest)));
             } else if let Some(arg) = args.next() {
-                *slot = Some(arg);
+                if param.by_ref && !matches!(arg.slot, Slot::Reference(_)) {
+                    if arg.from_call {
+                        self.display(b"Notice", b"Only variables should be passed by reference");
+                    } else {
+                        let param_name = slot_names
+                            .get(param.slot as usize)
+                            .cloned()
+                            .unwrap_or_default();
+                        return self.not_by_reference(&name, index, &param_name);
+                    }
+                }
+                *slot = Some(arg.slot);
             } else if missing.is_none() {
                 missing = Some(param.line);
             }
         }
-        frame.extra.extend(args.map(|arg| arg.value()));
+        frame.extra.extend(args.map(|arg| arg.slot.value()));
         let required = params.iter().filter(|param| !param.variadic).count();
-        let name = loaded.code.name.clone();
         let call_line = self.line;
         self.frames.push(frame);
         let Some(line) = missing else {
@@ -122,6 +144,17 @@ impl<O: Output> Machine<'_, '_, O> {
         message.extend_from_slice(required.to_string().as_bytes());
         message.extend_from_slice(b" expected");
         Err(self.throw("ArgumentCountError", message))
+    }
+
+    /// A by-reference parameter received a value, not a variable.
+    fn not_by_reference(&self, name: &[u8], index: usize, param: &[u8]) -> Exec {
+        let mut message = name.to_vec();
+        message.extend_from_slice(b"(): Argument #");
+        message.extend_from_slice((index + 1).to_string().as_bytes());
+        message.extend_from_slice(b" ($");
+        message.extend_from_slice(param);
+        message.extend_from_slice(b") could not be passed by reference");
+        Err(self.throw("Error", message))
     }
 
     /// Returns `a` (or `null` when unused) to the caller; returning from the main code ends the

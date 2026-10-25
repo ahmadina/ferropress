@@ -388,9 +388,19 @@ impl Emitter {
                 self.builder
                     .op(Opcode::SendVar, slot, Operand::UNUSED, Operand::UNUSED)?;
             } else {
-                let value = self.expr(value)?;
-                self.builder
-                    .op(Opcode::Send, value, Operand::UNUSED, Operand::UNUSED)?;
+                let from_call = matches!(
+                    value.kind,
+                    ExprKind::Call { .. }
+                        | ExprKind::Binary {
+                            op: BinaryOp::Pipe,
+                            ..
+                        }
+                );
+                let operand = self.expr(value)?;
+                let mut send = Instruction::new(Opcode::Send);
+                send.a = operand;
+                send.flags = u8::from(from_call);
+                self.builder.emit(send)?;
             }
         }
         let result = self.result(used)?;

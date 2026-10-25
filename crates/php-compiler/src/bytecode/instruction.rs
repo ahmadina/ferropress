@@ -70,7 +70,8 @@ pub enum Opcode {
     /// Starts a call of the function named by the literal `a` (lowercase); `b`, when used, is the
     /// global name tried when no function `a` exists; `c` is the name as written, for messages.
     InitCall,
-    /// Passes `a` by value as the next argument of the call being prepared.
+    /// Passes `a` by value as the next argument of the call being prepared. Flag bit 0 is set when
+    /// `a` is a call's result, which a by-reference parameter accepts with a notice.
     Send,
     /// Passes the variable `a` as the next argument: by reference when the parameter takes one,
     /// by value otherwise.

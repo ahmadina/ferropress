@@ -81,7 +81,7 @@ pub(crate) struct Machine<'u, 'o, O: Output> {
     output: &'o mut O,
     pub(crate) frames: Vec<Frame>,
     /// Calls being prepared: the function and the arguments sent so far.
-    pub(crate) pending: Vec<(usize, Vec<Slot>)>,
+    pub(crate) pending: Vec<(usize, Vec<crate::calls::Argument>)>,
     pub(crate) cx: Collect,
     /// The line of the instruction running.
     pub(crate) line: u32,
@@ -193,7 +193,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::InitCall => self.init_call(ins),
             Opcode::Send => self
                 .read(ins.a)
-                .and_then(|value| self.send(Slot::Value(value))),
+                .and_then(|value| self.send(Slot::Value(value), ins.flags & 1 != 0)),
             Opcode::SendVar => self.send_variable(ins.a),
             Opcode::Call => self.call(ins.result),
             Opcode::Return => return self.return_from(ins.a),
@@ -418,7 +418,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
     }
 
     /// Displays a diagnostic on the current line.
-    fn display(&mut self, label: &[u8], message: &[u8]) {
+    pub(crate) fn display(&mut self, label: &[u8], message: &[u8]) {
         let mut text = Vec::with_capacity(message.len() + self.file.len() + 32);
         text.push(b'\n');
         text.extend_from_slice(label);

@@ -87,6 +87,31 @@ fn a_computed_callee_finds_a_builtin() -> Result<(), String> {
 }
 
 #[test]
+fn count_of_an_array_literal() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo count([1, 2, 3]);")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"3");
+    Ok(())
+}
+
+#[test]
+fn implode_joins_and_explode_splits() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo implode(\"-\", explode(\",\", \"a,b,c\"));")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"a-b-c");
+    Ok(())
+}
+
+#[test]
+fn explode_rejects_an_empty_separator() -> Result<(), String> {
+    let (output, status) = run(b"<?php explode(\"\", \"ab\");")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("must not be empty"), "{text}");
+    Ok(())
+}
+
+#[test]
 fn math_builtins_compute_scalars() -> Result<(), String> {
     let (output, status) =
         run(b"<?php echo abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);")?;

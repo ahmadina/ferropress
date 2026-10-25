@@ -125,6 +125,10 @@ pub enum Opcode {
     InitStaticCall,
     /// Registers the class at unit index `a` that was compiled as deferred.
     BindClass,
+    /// `result` is a new empty array.
+    NewArray,
+    /// Stores `b` in the array `a`: appended when `c` is unused, otherwise under the key `c`.
+    ArrayItem,
 }
 
 impl Opcode {
@@ -187,6 +191,8 @@ impl Opcode {
             Self::Yield => "Yield",
             Self::InitStaticCall => "InitStaticCall",
             Self::BindClass => "BindClass",
+            Self::NewArray => "NewArray",
+            Self::ArrayItem => "ArrayItem",
         }
     }
 }
@@ -287,6 +293,8 @@ mod tests {
             Opcode::Yield,
             Opcode::InitStaticCall,
             Opcode::BindClass,
+            Opcode::NewArray,
+            Opcode::ArrayItem,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

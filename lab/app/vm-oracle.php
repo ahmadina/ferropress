@@ -164,6 +164,13 @@ function vm_topic_cases(): array {
 			'echo is_null(null) ? "y" : "n", is_bool(false) ? "y" : "n", is_float(1.5) ? "y" : "n";',
 			'$n = "strlen"; echo $n("ab");',
 		),
+		'arrays'        => array(
+			'echo count([1, 2, 3]);',
+			'echo implode("-", explode(",", "a,b,c"));',
+			'echo implode(["x", "y"]);',
+			'explode("", "ab");',
+			'echo [1];',
+		),
 		'math'          => array(
 			'echo abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);',
 			'echo intdiv(7, 2), intval(floor(1.5)), intval(ceil(1.2)), intval(round(1.5));',

@@ -7,6 +7,7 @@
 //! Every behavior is proven against the reference: `contracts/vm/cases.jsonl` holds scripts with the
 //! output and exit status the reference produced, recorded by `cargo xtask lab vm`.
 
+mod arrays;
 mod autoload;
 mod builtins;
 mod calls;

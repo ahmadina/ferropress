@@ -121,6 +121,11 @@
 {"name":"builtins 08","source":"<?php\necho strlen(12);","output":"2","status":0}
 {"name":"builtins 09","source":"<?php\necho is_null(null) ? \"y\" : \"n\", is_bool(false) ? \"y\" : \"n\", is_float(1.5) ? \"y\" : \"n\";","output":"yyy","status":0}
 {"name":"builtins 10","source":"<?php\n$n = \"strlen\"; echo $n(\"ab\");","output":"2","status":0}
+{"name":"arrays 01","source":"<?php\necho count([1, 2, 3]);","output":"3","status":0}
+{"name":"arrays 02","source":"<?php\necho implode(\"-\", explode(\",\", \"a,b,c\"));","output":"a-b-c","status":0}
+{"name":"arrays 03","source":"<?php\necho implode([\"x\", \"y\"]);","output":"xy","status":0}
+{"name":"arrays 04","source":"<?php\nexplode(\"\", \"ab\");","output":"\nFatal error: Uncaught ValueError: explode(): Argument #1 ($separator) must not be empty in %file%:2\nStack trace:\n#0 %file%(2): explode('', 'ab')\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"arrays 05","source":"<?php\necho [1];","output":"\nWarning: Array to string conversion in %file% on line 2\nArray","status":0}
 {"name":"math 01","source":"<?php\necho abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);","output":"31312","status":0}
 {"name":"math 02","source":"<?php\necho intdiv(7, 2), intval(floor(1.5)), intval(ceil(1.2)), intval(round(1.5));","output":"3122","status":0}
 {"name":"math 03","source":"<?php\necho intval(sqrt(9));","output":"3","status":0}

@@ -371,6 +371,7 @@ pub(crate) fn register_throwables(table: &mut HashMap<Box<[u8]>, Class>) {
         b"DivisionByZeroError",
         b"ParseError",
         b"FiberError",
+        b"ValueError",
     ] {
         table
             .entry(name.to_ascii_lowercase().into())

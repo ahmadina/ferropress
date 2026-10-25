@@ -150,6 +150,13 @@ the fiber has returned each throw `FiberError` (`Cannot get fiber return value: 
 returned`). A non-callable constructor argument throws `TypeError` (`no array or string given`
 unless the value is a string naming a missing function).
 
+## Arrays
+
+`[1, "a" => 2]` and `array(1, "a" => 2)` compile to an array value. Items are appended in order;
+a key is converted as an array offset (`null` is the empty string, with a deprecation). `list()`,
+holes, unpacking and items by reference are not compiled yet. Echoing an array warns
+`Array to string conversion` and prints `Array`.
+
 ## Autoloading
 
 `spl_autoload_register($callback)` stores a `Closure` or a string naming a function and returns
@@ -165,7 +172,7 @@ These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, 
 `is_null`, `is_bool`, `is_int` / `is_integer`, `is_float` / `is_double` / `is_real`, `is_string`,
 `is_array`, `is_object`, `is_numeric`, `function_exists`, `class_exists`, `spl_autoload_register`,
 `abs`, `min`, `max`, `floor`, `ceil`, `round`, `intval`, `floatval` / `doubleval`, `strval`,
-`intdiv`, `sqrt`. Too few arguments throw
+`intdiv`, `sqrt`, `implode` / `join`, `explode`. Too few arguments throw
 `ArgumentCountError` from the function (`name() expects exactly N argument(s), M given`). `strlen`
 and the case mappers take a string (other scalars are converted; an array or object throws
 `TypeError`). `count` of a non-array throws `TypeError`. `function_exists` sees user functions and

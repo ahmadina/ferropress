@@ -4,8 +4,8 @@
 //! changed by a later operand of the same instruction is read after the change.
 
 use php_parser::ast::{
-    Arg, Args, AssignOp, BinaryOp, Expr, ExprKind, IncDecOp, IncludeKind, Name, NameKind,
-    StringPart, UnaryOp, VarName,
+    Arg, Args, ArrayItem, ArraySyntax, AssignOp, BinaryOp, Expr, ExprKind, IncDecOp, IncludeKind,
+    Name, NameKind, StringPart, UnaryOp, VarName,
 };
 
 use super::{Emit, Emitter};
@@ -194,6 +194,7 @@ impl Emitter<'_> {
                 self.method_call(object, name, args, used)
             }
             ExprKind::StaticCall { class, name, args } => self.static_call(class, name, args, used),
+            ExprKind::Array { items, syntax } => self.array_literal(items, *syntax, used),
             _ => self.unsupported("this expression"),
         }
     }
@@ -491,6 +492,44 @@ impl Emitter<'_> {
         let dest = self.result(used)?;
         self.builder.op(Opcode::Yield, value, key, dest)?;
         Ok(dest)
+    }
+
+    fn array_literal(
+        &mut self,
+        items: &[Option<ArrayItem>],
+        syntax: ArraySyntax,
+        used: bool,
+    ) -> Emit<Operand> {
+        if syntax == ArraySyntax::List {
+            return self.unsupported("list()");
+        }
+        let dest = self.builder.temp()?;
+        self.builder
+            .op(Opcode::NewArray, Operand::UNUSED, Operand::UNUSED, dest)?;
+        for item in items {
+            let Some(item) = item else {
+                return self.unsupported("empty array elements");
+            };
+            match item {
+                ArrayItem::Spread(_) => return self.unsupported("unpacked array items"),
+                ArrayItem::Value { key, value, by_ref } => {
+                    if *by_ref {
+                        return self.unsupported("array items by reference");
+                    }
+                    let value = self.expr(value)?;
+                    let key = match key {
+                        Some(key) => self.expr(key)?,
+                        None => Operand::UNUSED,
+                    };
+                    let mut item = Instruction::new(Opcode::ArrayItem);
+                    item.a = dest;
+                    item.b = value;
+                    item.c = key;
+                    self.builder.emit(item)?;
+                }
+            }
+        }
+        if used { Ok(dest) } else { Ok(Operand::UNUSED) }
     }
 
     pub(crate) fn send_args(&mut self, args: &[Arg]) -> Emit {

@@ -26,6 +26,7 @@ const THROWABLE: &[&[u8]] = &[
     b"divisionbyzeroerror",
     b"parseerror",
     b"fibererror",
+    b"valueerror",
 ];
 
 impl<O: Output> Machine<'_, '_, O> {
@@ -113,6 +114,7 @@ pub(crate) fn catch_matches(handler: &[u8], thrown: &[u8]) -> bool {
                 | b"divisionbyzeroerror"
                 | b"parseerror"
                 | b"fibererror"
+                | b"valueerror"
         ),
         b"exception" => thrown == b"exception",
         b"arithmeticerror" => matches!(
@@ -170,6 +172,7 @@ mod tests {
         assert!(is_throwable(b"Exception"));
         assert!(is_throwable(b"DivisionByZeroError"));
         assert!(is_throwable(b"FiberError"));
+        assert!(is_throwable(b"ValueError"));
         assert!(!is_throwable(b"C"));
     }
 

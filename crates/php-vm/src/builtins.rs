@@ -37,6 +37,8 @@ pub(crate) enum Native {
     Strval,
     Intdiv,
     Sqrt,
+    Implode,
+    Explode,
 }
 
 /// The built-in named by `key`, compared lowercase.
@@ -69,6 +71,8 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"strval" => Native::Strval,
         b"intdiv" => Native::Intdiv,
         b"sqrt" => Native::Sqrt,
+        b"implode" | b"join" => Native::Implode,
+        b"explode" => Native::Explode,
         _ => return None,
     })
 }
@@ -128,6 +132,8 @@ impl<O: Output> Machine<'_, '_, O> {
             Native::Strval => self.native_strval(args, result),
             Native::Intdiv => self.native_intdiv(args, result),
             Native::Sqrt => self.native_sqrt(args, result),
+            Native::Implode => self.native_implode(args, result),
+            Native::Explode => self.native_explode(args, result),
         }
     }
 }
@@ -245,7 +251,7 @@ impl<O: Output> Machine<'_, '_, O> {
         )
     }
 
-    fn string_arg(&mut self, name: &str, value: &Value) -> Exec<Vec<u8>> {
+    pub(crate) fn string_arg(&mut self, name: &str, value: &Value) -> Exec<Vec<u8>> {
         match value {
             Value::Array(_) | Value::Object(_) => {
                 let mut message = name.as_bytes().to_vec();

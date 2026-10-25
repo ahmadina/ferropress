@@ -75,6 +75,7 @@ Status legend: `[x]` done · `[ ]` not started
       mysqli/PDO, and the rest required by the certified plugin set
   - [x] Core strings, types, `count`, `function_exists`, `class_exists`
   - [x] Math: `abs`, `min`/`max`, rounding, `intval`/`floatval`/`strval`, `intdiv`, `sqrt`
+  - [x] Array literals, `count` of arrays, `implode`/`join`, `explode`
 - [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
       classes extend Rust-owned classes
 

@@ -18,6 +18,7 @@ mod fibers;
 mod generators;
 mod includes;
 mod machine;
+mod math;
 mod thrown;
 
 pub use error::VmError;

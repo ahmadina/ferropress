@@ -163,8 +163,9 @@ visible to the caller. A class already being loaded is not asked for again.
 
 These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, `gettype`,
 `is_null`, `is_bool`, `is_int` / `is_integer`, `is_float` / `is_double` / `is_real`, `is_string`,
-`is_array`, `is_object`, `is_numeric`, `function_exists`, `class_exists`, `spl_autoload_register`.
-Too few arguments throw
+`is_array`, `is_object`, `is_numeric`, `function_exists`, `class_exists`, `spl_autoload_register`,
+`abs`, `min`, `max`, `floor`, `ceil`, `round`, `intval`, `floatval` / `doubleval`, `strval`,
+`intdiv`, `sqrt`. Too few arguments throw
 `ArgumentCountError` from the function (`name() expects exactly N argument(s), M given`). `strlen`
 and the case mappers take a string (other scalars are converted; an array or object throws
 `TypeError`). `count` of a non-array throws `TypeError`. `function_exists` sees user functions and

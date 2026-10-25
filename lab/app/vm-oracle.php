@@ -164,6 +164,14 @@ function vm_topic_cases(): array {
 			'echo is_null(null) ? "y" : "n", is_bool(false) ? "y" : "n", is_float(1.5) ? "y" : "n";',
 			'$n = "strlen"; echo $n("ab");',
 		),
+		'math'          => array(
+			'echo abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);',
+			'echo intdiv(7, 2), intval(floor(1.5)), intval(ceil(1.2)), intval(round(1.5));',
+			'echo intval(sqrt(9));',
+			'intdiv(1, 0);',
+			'min();',
+			'echo floatval("2.5");',
+		),
 		'generators'    => array(
 			'function g() { yield 1; yield 2; } $g = g(); echo $g->current(); $g->next(); echo $g->current(); echo $g->valid() ? "y" : "n"; $g->next(); echo $g->valid() ? "y" : "n";',
 			'function g() { yield 1; return 9; } $g = g(); echo $g->current(); $g->next(); echo $g->getReturn();',

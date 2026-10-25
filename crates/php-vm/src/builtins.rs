@@ -26,6 +26,17 @@ pub(crate) enum Native {
     FunctionExists,
     ClassExists,
     SplAutoloadRegister,
+    Abs,
+    Min,
+    Max,
+    Floor,
+    Ceil,
+    Round,
+    Intval,
+    Floatval,
+    Strval,
+    Intdiv,
+    Sqrt,
 }
 
 /// The built-in named by `key`, compared lowercase.
@@ -47,6 +58,17 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"function_exists" => Native::FunctionExists,
         b"class_exists" => Native::ClassExists,
         b"spl_autoload_register" => Native::SplAutoloadRegister,
+        b"abs" => Native::Abs,
+        b"min" => Native::Min,
+        b"max" => Native::Max,
+        b"floor" => Native::Floor,
+        b"ceil" => Native::Ceil,
+        b"round" => Native::Round,
+        b"intval" => Native::Intval,
+        b"floatval" | b"doubleval" => Native::Floatval,
+        b"strval" => Native::Strval,
+        b"intdiv" => Native::Intdiv,
+        b"sqrt" => Native::Sqrt,
         _ => return None,
     })
 }
@@ -95,19 +117,35 @@ impl<O: Output> Machine<'_, '_, O> {
             Native::FunctionExists => self.native_function_exists(args, result),
             Native::ClassExists => self.native_class_exists(args, result),
             Native::SplAutoloadRegister => self.native_spl_autoload_register(args, result),
+            Native::Abs => self.native_abs(args, result),
+            Native::Min => self.native_minmax(args, result, true),
+            Native::Max => self.native_minmax(args, result, false),
+            Native::Floor => self.native_floor_ceil(args, result, true),
+            Native::Ceil => self.native_floor_ceil(args, result, false),
+            Native::Round => self.native_round(args, result),
+            Native::Intval => self.native_intval(args, result),
+            Native::Floatval => self.native_floatval(args, result),
+            Native::Strval => self.native_strval(args, result),
+            Native::Intdiv => self.native_intdiv(args, result),
+            Native::Sqrt => self.native_sqrt(args, result),
         }
     }
 }
 
 impl<O: Output> Machine<'_, '_, O> {
-    fn native_one(&mut self, name: &'static str, args: &[Argument]) -> Exec<Value> {
+    pub(crate) fn native_one(&mut self, name: &'static str, args: &[Argument]) -> Exec<Value> {
         let Some(arg) = args.first() else {
             return Err(self.too_few(name, 0, 1));
         };
         Ok(arg.slot.value())
     }
 
-    fn too_few(&self, name: &str, passed: usize, expected: usize) -> crate::machine::Stop {
+    pub(crate) fn too_few(
+        &self,
+        name: &str,
+        passed: usize,
+        expected: usize,
+    ) -> crate::machine::Stop {
         let mut message = name.as_bytes().to_vec();
         message.extend_from_slice(b"() expects exactly ");
         message.extend_from_slice(expected.to_string().as_bytes());

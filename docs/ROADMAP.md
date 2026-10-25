@@ -74,6 +74,7 @@ Status legend: `[x]` done · `[ ]` not started
 - [ ] 19. Built-in function families: strings, arrays, math, JSON, PCRE, mbstring, date/time, streams,
       mysqli/PDO, and the rest required by the certified plugin set
   - [x] Core strings, types, `count`, `function_exists`, `class_exists`
+  - [x] Math: `abs`, `min`/`max`, rounding, `intval`/`floatval`/`strval`, `intdiv`, `sqrt`
 - [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
       classes extend Rust-owned classes
 

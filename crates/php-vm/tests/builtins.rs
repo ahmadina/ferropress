@@ -87,6 +87,43 @@ fn a_computed_callee_finds_a_builtin() -> Result<(), String> {
 }
 
 #[test]
+fn math_builtins_compute_scalars() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php echo abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"31312");
+    Ok(())
+}
+
+#[test]
+fn intdiv_and_rounding() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo intdiv(7, 2), intval(floor(1.5)), intval(ceil(1.2)), intval(round(1.5));",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"3122");
+    Ok(())
+}
+
+#[test]
+fn intdiv_by_zero_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php intdiv(1, 0);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("Division by zero"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn min_without_arguments_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php min();")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("expects at least 1 argument"), "{text}");
+    Ok(())
+}
+
+#[test]
 fn strlen_without_arguments_throws() -> Result<(), String> {
     let (output, status) = run(b"<?php strlen();")?;
     let text = String::from_utf8_lossy(&output);

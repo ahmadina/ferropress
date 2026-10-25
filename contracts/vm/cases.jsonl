@@ -121,6 +121,12 @@
 {"name":"builtins 08","source":"<?php\necho strlen(12);","output":"2","status":0}
 {"name":"builtins 09","source":"<?php\necho is_null(null) ? \"y\" : \"n\", is_bool(false) ? \"y\" : \"n\", is_float(1.5) ? \"y\" : \"n\";","output":"yyy","status":0}
 {"name":"builtins 10","source":"<?php\n$n = \"strlen\"; echo $n(\"ab\");","output":"2","status":0}
+{"name":"math 01","source":"<?php\necho abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);","output":"31312","status":0}
+{"name":"math 02","source":"<?php\necho intdiv(7, 2), intval(floor(1.5)), intval(ceil(1.2)), intval(round(1.5));","output":"3122","status":0}
+{"name":"math 03","source":"<?php\necho intval(sqrt(9));","output":"3","status":0}
+{"name":"math 04","source":"<?php\nintdiv(1, 0);","output":"\nFatal error: Uncaught DivisionByZeroError: Division by zero in %file%:2\nStack trace:\n#0 %file%(2): intdiv(1, 0)\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"math 05","source":"<?php\nmin();","output":"\nFatal error: Uncaught ArgumentCountError: min() expects at least 1 argument, 0 given in %file%:2\nStack trace:\n#0 %file%(2): min()\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"math 06","source":"<?php\necho floatval(\"2.5\");","output":"2.5","status":0}
 {"name":"generators 01","source":"<?php\nfunction g() { yield 1; yield 2; } $g = g(); echo $g->current(); $g->next(); echo $g->current(); echo $g->valid() ? \"y\" : \"n\"; $g->next(); echo $g->valid() ? \"y\" : \"n\";","output":"12yn","status":0}
 {"name":"generators 02","source":"<?php\nfunction g() { yield 1; return 9; } $g = g(); echo $g->current(); $g->next(); echo $g->getReturn();","output":"19","status":0}
 {"name":"generators 03","source":"<?php\nfunction g() { yield \"a\" => 1; } $g = g(); echo $g->key(), $g->current();","output":"a1","status":0}

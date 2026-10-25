@@ -135,6 +135,17 @@ resume; `send` makes `$v` the value of the `yield` expression. `getReturn()` is 
 `return` after the generator has finished. `rewind()` starts an unstarted generator and throws
 `Exception` if it has already run. `yield from` and fibers are not compiled yet.
 
+## Built-in functions
+
+These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, `gettype`,
+`is_null`, `is_bool`, `is_int` / `is_integer`, `is_float` / `is_double` / `is_real`, `is_string`,
+`is_array`, `is_object`, `is_numeric`, `function_exists`, `class_exists`. Too few arguments throw
+`ArgumentCountError` from the function (`name() expects exactly N argument(s), M given`). `strlen`
+and the case mappers take a string (other scalars are converted; an array or object throws
+`TypeError`). `count` of a non-array throws `TypeError`. `function_exists` sees user functions and
+these built-ins;
+`class_exists` sees declared and built-in classes. Other built-in families are not bound yet.
+
 ## Include
 
 `include`, `include_once`, `require` and `require_once` take a string path. A relative path is

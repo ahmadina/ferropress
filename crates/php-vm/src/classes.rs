@@ -144,6 +144,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 this: Some(handle.clone()),
                 implicit_ctor: None,
                 generator_method: Some((handle, method)),
+                native: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -160,6 +161,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 this: Some(handle),
                 implicit_ctor: None,
                 generator_method: None,
+                native: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -172,6 +174,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 this: Some(handle),
                 implicit_ctor: Some(class_name),
                 generator_method: None,
+                native: None,
                 args: Vec::new(),
             });
             return Ok(());

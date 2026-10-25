@@ -23,6 +23,8 @@ pub(crate) struct Pending {
     pub(crate) implicit_ctor: Option<Box<[u8]>>,
     /// A native `Generator` method, when this call is one.
     pub(crate) generator_method: Option<(Object, crate::generators::GenMethod)>,
+    /// A bound built-in, when this call is one.
+    pub(crate) native: Option<crate::builtins::Native>,
     pub(crate) args: Vec<Argument>,
 }
 
@@ -41,6 +43,19 @@ impl<O: Output> Machine<'_, '_, O> {
                 this: None,
                 implicit_ctor: None,
                 generator_method: None,
+                native: None,
+                args: Vec::new(),
+            });
+            return Ok(());
+        }
+        if let Some(native) = crate::builtins::lookup(key.as_bytes()) {
+            self.pending.push(Pending {
+                code: 0,
+                env: None,
+                this: None,
+                implicit_ctor: None,
+                generator_method: None,
+                native: Some(native),
                 args: Vec::new(),
             });
             return Ok(());
@@ -105,6 +120,7 @@ impl<O: Output> Machine<'_, '_, O> {
             this,
             implicit_ctor,
             generator_method,
+            native,
             args,
         } = self
             .pending
@@ -112,6 +128,9 @@ impl<O: Output> Machine<'_, '_, O> {
             .ok_or(VmError::Malformed("call without a prepared function"))?;
         if let Some((object, method)) = generator_method {
             return self.dispatch_generator(&object, method, &args, result);
+        }
+        if let Some(native) = native {
+            return self.dispatch_native(native, &args, result);
         }
         if let Some(class) = implicit_ctor {
             return self.finish_implicit(&class, this, &args);

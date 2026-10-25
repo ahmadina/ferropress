@@ -79,6 +79,19 @@ impl<O: Output> Machine<'_, '_, O> {
                 this: None,
                 implicit_ctor: None,
                 generator_method: None,
+                native: None,
+                args: Vec::new(),
+            });
+            return Ok(());
+        }
+        if let Some(native) = crate::builtins::lookup(&key) {
+            self.pending.push(Pending {
+                code: 0,
+                env: None,
+                this: None,
+                implicit_ctor: None,
+                generator_method: None,
+                native: Some(native),
                 args: Vec::new(),
             });
             return Ok(());
@@ -100,6 +113,7 @@ impl<O: Output> Machine<'_, '_, O> {
             this: None,
             implicit_ctor: None,
             generator_method: None,
+            native: None,
             args: Vec::new(),
         });
         Ok(())

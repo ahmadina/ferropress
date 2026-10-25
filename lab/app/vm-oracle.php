@@ -152,6 +152,18 @@ function vm_topic_cases(): array {
 			'try { throw new Exception("x"); } finally { echo "f"; }',
 			'function f() { try { return 1; } finally { echo "f"; } } echo f();',
 		),
+		'builtins'      => array(
+			'echo strlen("AbC"), strtolower("AbC"), strtoupper("AbC");',
+			'echo count(1);',
+			'echo gettype(1), gettype(1.5), gettype(true), gettype(null), gettype("a"); echo is_int(1) ? "y" : "n", is_string(1) ? "y" : "n", is_numeric("12") ? "y" : "n", is_numeric("12x") ? "y" : "n";',
+			'function f() {} echo function_exists("f") ? "y" : "n", function_exists("strlen") ? "y" : "n", function_exists("missing") ? "y" : "n";',
+			'class C {} echo class_exists("C") ? "y" : "n", class_exists("Exception") ? "y" : "n", class_exists("Missing") ? "y" : "n";',
+			'strlen();',
+			'echo count(null);',
+			'echo strlen(12);',
+			'echo is_null(null) ? "y" : "n", is_bool(false) ? "y" : "n", is_float(1.5) ? "y" : "n";',
+			'$n = "strlen"; echo $n("ab");',
+		),
 		'generators'    => array(
 			'function g() { yield 1; yield 2; } $g = g(); echo $g->current(); $g->next(); echo $g->current(); echo $g->valid() ? "y" : "n"; $g->next(); echo $g->valid() ? "y" : "n";',
 			'function g() { yield 1; return 9; } $g = g(); echo $g->current(); $g->next(); echo $g->getReturn();',

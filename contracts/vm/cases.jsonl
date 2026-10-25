@@ -111,6 +111,16 @@
 {"name":"exceptions 10","source":"<?php\ntry { throw new Exception(\"x\"); } catch (Exception $e) { echo \"c\"; } finally { echo \"f\"; }","output":"cf","status":0}
 {"name":"exceptions 11","source":"<?php\ntry { throw new Exception(\"x\"); } finally { echo \"f\"; }","output":"f\nFatal error: Uncaught Exception: x in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"exceptions 12","source":"<?php\nfunction f() { try { return 1; } finally { echo \"f\"; } } echo f();","output":"f1","status":0}
+{"name":"builtins 01","source":"<?php\necho strlen(\"AbC\"), strtolower(\"AbC\"), strtoupper(\"AbC\");","output":"3abcABC","status":0}
+{"name":"builtins 02","source":"<?php\necho count(1);","output":"\nFatal error: Uncaught TypeError: count(): Argument #1 ($value) must be of type Countable|array, int given in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"builtins 03","source":"<?php\necho gettype(1), gettype(1.5), gettype(true), gettype(null), gettype(\"a\"); echo is_int(1) ? \"y\" : \"n\", is_string(1) ? \"y\" : \"n\", is_numeric(\"12\") ? \"y\" : \"n\", is_numeric(\"12x\") ? \"y\" : \"n\";","output":"integerdoublebooleanNULLstringynyn","status":0}
+{"name":"builtins 04","source":"<?php\nfunction f() {} echo function_exists(\"f\") ? \"y\" : \"n\", function_exists(\"strlen\") ? \"y\" : \"n\", function_exists(\"missing\") ? \"y\" : \"n\";","output":"yyn","status":0}
+{"name":"builtins 05","source":"<?php\nclass C {} echo class_exists(\"C\") ? \"y\" : \"n\", class_exists(\"Exception\") ? \"y\" : \"n\", class_exists(\"Missing\") ? \"y\" : \"n\";","output":"yyn","status":0}
+{"name":"builtins 06","source":"<?php\nstrlen();","output":"\nFatal error: Uncaught ArgumentCountError: strlen() expects exactly 1 argument, 0 given in %file%:2\nStack trace:\n#0 %file%(2): strlen()\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"builtins 07","source":"<?php\necho count(null);","output":"\nFatal error: Uncaught TypeError: count(): Argument #1 ($value) must be of type Countable|array, null given in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"builtins 08","source":"<?php\necho strlen(12);","output":"2","status":0}
+{"name":"builtins 09","source":"<?php\necho is_null(null) ? \"y\" : \"n\", is_bool(false) ? \"y\" : \"n\", is_float(1.5) ? \"y\" : \"n\";","output":"yyy","status":0}
+{"name":"builtins 10","source":"<?php\n$n = \"strlen\"; echo $n(\"ab\");","output":"2","status":0}
 {"name":"generators 01","source":"<?php\nfunction g() { yield 1; yield 2; } $g = g(); echo $g->current(); $g->next(); echo $g->current(); echo $g->valid() ? \"y\" : \"n\"; $g->next(); echo $g->valid() ? \"y\" : \"n\";","output":"12yn","status":0}
 {"name":"generators 02","source":"<?php\nfunction g() { yield 1; return 9; } $g = g(); echo $g->current(); $g->next(); echo $g->getReturn();","output":"19","status":0}
 {"name":"generators 03","source":"<?php\nfunction g() { yield \"a\" => 1; } $g = g(); echo $g->key(), $g->current();","output":"a1","status":0}

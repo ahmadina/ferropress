@@ -52,7 +52,11 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] Parser: `php-parser`, syntax tree with the reference's errors, warnings and `assert()`
         rendering (`contracts/parser/`, recorded by `xtask lab parser`; `xtask lab parser-corpus`
         matches every upstream source file)
-  - [ ] Bytecode compiler
+  - [x] Compile-time checks: `php-compiler` reports the reference's fatal errors, warnings and
+        deprecations on their lines (`contracts/compiler/`, recorded by `xtask lab compiler`;
+        `xtask lab compiler-corpus` matches every upstream source file except those listed as
+        awaiting class linking, step 18, or built-in function descriptions, step 19)
+  - [ ] Bytecode compiler: code objects, instructions and a disassembler (ADR-0007)
   - [ ] VM core
 - [ ] 18. Language features: functions and closures; classes, interfaces, traits, enums; exceptions;
       generators and fibers; include/require and autoloading

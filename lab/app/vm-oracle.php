@@ -139,6 +139,11 @@ function vm_topic_cases(): array {
 			'try { throw new Exception("x"); } catch (Error $e) { echo "e"; } catch (Exception $e) { echo "x"; }',
 			'try { throw new Exception("x"); } catch (Throwable $e) { echo "t"; }',
 		),
+		'includes'      => array(
+			'echo include "missing-ferropress.php";',
+			'require "missing-ferropress.php";',
+			'include_once "missing-ferropress.php"; include_once "missing-ferropress.php";',
+		),
 		'errors'        => array(
 			"echo 1;\necho 1 % 0;\necho 2;",
 			'function f($x) { return $x / 0; } echo "before"; f("1");',

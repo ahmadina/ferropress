@@ -156,6 +156,7 @@ pub(crate) fn register_throwables(table: &mut HashMap<Box<[u8]>, Class>) {
         b"ArgumentCountError",
         b"ArithmeticError",
         b"DivisionByZeroError",
+        b"ParseError",
     ] {
         table
             .entry(name.to_ascii_lowercase().into())

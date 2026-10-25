@@ -304,7 +304,7 @@ fn fatal_programs_have_no_unit() {
 
 #[test]
 fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
-    let cases: [(&str, &str); 41] = [
+    let cases: [(&str, &str); 42] = [
         ("<?php namespace A;", "namespaces"),
         ("<?php use A\\B;", "use imports"),
         ("<?php use A\\{B};", "use imports"),
@@ -358,6 +358,7 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
         ("<?php echo $$a;", "variable variables"),
         ("<?php $a[] = 1;", "assignments to this target"),
         ("<?php echo [];", "this expression"),
+        ("<?php eval(\"1\");", "eval"),
     ];
     for (source, construct) in cases {
         match failure(source)? {
@@ -453,6 +454,21 @@ fn classes_emit_new_properties_and_methods() -> Result<(), String> {
             "   1    4  Add T1 = $x, T0",
             "   2    4  Return T1",
             "   3    4  Return",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn include_and_require_emit_an_include_instruction() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php echo include \"a.php\"; require_once $p;")?,
+        listing(&[
+            "code {main} temporaries=1",
+            "   0    1  Include T0 = \"a.php\"",
+            "   1    1  Echo T0",
+            "   2    1  Include/3 $p",
+            "   3    1  Return 1",
         ])
     );
     Ok(())

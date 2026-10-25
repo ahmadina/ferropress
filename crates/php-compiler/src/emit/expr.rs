@@ -4,8 +4,8 @@
 //! changed by a later operand of the same instruction is read after the change.
 
 use php_parser::ast::{
-    Arg, Args, AssignOp, BinaryOp, Expr, ExprKind, IncDecOp, Name, NameKind, StringPart, UnaryOp,
-    VarName,
+    Arg, Args, AssignOp, BinaryOp, Expr, ExprKind, IncDecOp, IncludeKind, Name, NameKind,
+    StringPart, UnaryOp, VarName,
 };
 
 use super::{Emit, Emitter};
@@ -164,6 +164,7 @@ impl Emitter<'_> {
             ExprKind::New { class, args } => self.new_object(class, args, used),
             ExprKind::NewAnonymous { .. } => self.unsupported("anonymous classes"),
             ExprKind::Throw(value) => self.throw_value(value),
+            ExprKind::Include { kind, expr } => self.include_file(*kind, expr, used),
             ExprKind::Property {
                 object,
                 name,
@@ -438,6 +439,25 @@ impl Emitter<'_> {
         self.builder
             .op(Opcode::Call, Operand::UNUSED, Operand::UNUSED, result)?;
         Ok(result)
+    }
+
+    fn include_file(&mut self, kind: IncludeKind, path: &Expr, used: bool) -> Emit<Operand> {
+        if kind == IncludeKind::Eval {
+            return self.unsupported("eval");
+        }
+        let path = self.expr(path)?;
+        let dest = self.result(used)?;
+        let mut ins = Instruction::new(Opcode::Include);
+        ins.a = path;
+        ins.result = dest;
+        ins.flags = match kind {
+            IncludeKind::Include | IncludeKind::Eval => 0,
+            IncludeKind::IncludeOnce => 1,
+            IncludeKind::Require => 2,
+            IncludeKind::RequireOnce => 3,
+        };
+        self.builder.emit(ins)?;
+        Ok(dest)
     }
 
     fn throw_value(&mut self, value: &Expr) -> Emit<Operand> {

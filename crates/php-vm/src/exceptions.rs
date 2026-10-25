@@ -15,6 +15,7 @@ const THROWABLE: &[&[u8]] = &[
     b"argumentcounterror",
     b"arithmeticerror",
     b"divisionbyzeroerror",
+    b"parseerror",
 ];
 
 impl<O: Output> Machine<'_, '_, O> {
@@ -82,6 +83,7 @@ pub(crate) fn catch_matches(handler: &[u8], thrown: &[u8]) -> bool {
                 | b"argumentcounterror"
                 | b"arithmeticerror"
                 | b"divisionbyzeroerror"
+                | b"parseerror"
         ),
         b"exception" => thrown == b"exception",
         b"arithmeticerror" => matches!(

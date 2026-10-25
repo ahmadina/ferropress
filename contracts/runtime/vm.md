@@ -106,5 +106,15 @@ the built-in hierarchy (`Throwable` matches every throwable, `Error` matches the
 object. A throw inside a called function unwinds to a matching `catch` in a caller. `finally` is not
 compiled yet.
 
+## Include
+
+`include`, `include_once`, `require` and `require_once` take a string path. A relative path is
+resolved against the directory of the file that is running. A missing path: `include` raises two
+warnings (`Failed to open stream` and `Failed opening … for inclusion`) and yields `false`;
+`require` raises the first warning and throws `Error` with `Failed opening required '<path>'
+(include_path='…')`. A file already recorded by `include` or `require` is skipped by the `_once`
+forms, which then yield `true`. A loaded file is compiled and run; its `return` value (or `1` when
+it does not return) is the value of the include expression. `eval` is not compiled yet.
+
 Operator errors (`DivisionByZeroError`, `ArithmeticError`, `TypeError`) and the warnings and deprecations
 of conversions follow `contracts/runtime/operators.md`.

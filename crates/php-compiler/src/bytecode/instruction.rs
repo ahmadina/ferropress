@@ -108,6 +108,9 @@ pub enum Opcode {
     InitMethodCall,
     /// Throws the object `a`.
     Throw,
+    /// Includes the file named by `a`. Flags: 0 `include`, 1 `include_once`, 2 `require`,
+    /// 3 `require_once`. `result` receives the included file's return value.
+    Include,
 }
 
 impl Opcode {
@@ -163,6 +166,7 @@ impl Opcode {
             Self::StoreProp => "StoreProp",
             Self::InitMethodCall => "InitMethodCall",
             Self::Throw => "Throw",
+            Self::Include => "Include",
         }
     }
 }
@@ -256,6 +260,7 @@ mod tests {
             Opcode::StoreProp,
             Opcode::InitMethodCall,
             Opcode::Throw,
+            Opcode::Include,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

@@ -68,7 +68,8 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] Exceptions: `throw`, `try`/`catch`, built-in `Exception`/`Error`
   - [ ] `finally`
   - [ ] Generators and fibers
-  - [ ] include/require and autoloading
+  - [x] include/require and their `_once` forms
+  - [ ] Autoloading
 - [ ] 19. Built-in function families: strings, arrays, math, JSON, PCRE, mbstring, date/time, streams,
       mysqli/PDO, and the rest required by the certified plugin set
 - [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP

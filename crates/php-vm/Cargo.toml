@@ -10,6 +10,7 @@ repository.workspace = true
 
 [dependencies]
 php-compiler = { path = "../php-compiler" }
+php-parser = { path = "../php-parser" }
 php-value = { path = "../php-value" }
 thiserror = { workspace = true }
 

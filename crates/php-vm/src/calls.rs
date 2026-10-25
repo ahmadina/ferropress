@@ -205,6 +205,7 @@ impl<O: Output> Machine<'_, '_, O> {
             .pop()
             .ok_or(VmError::Malformed("return without a frame"))?;
         if self.frames.is_empty() {
+            self.return_value = value;
             return Ok(Flow::Finished);
         }
         self.write(frame.result, value)?;

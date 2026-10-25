@@ -1,6 +1,6 @@
 //! The interpreter loop: frames, operands and the instructions that compute values.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use php_compiler::bytecode::{Code, Instruction, Literal, Opcode, Operand, OperandKind, Unit};
 use php_value::ops::{self, Collect, OpError};
@@ -87,6 +87,10 @@ pub(crate) struct Machine<'u, 'o, O: Output> {
     pub(crate) cx: Collect,
     /// The line of the instruction running.
     pub(crate) line: u32,
+    /// Resolved paths already included, for `include_once` / `require_once`.
+    pub(crate) included: HashSet<Box<[u8]>>,
+    /// The value the current unit's main code returned.
+    pub(crate) return_value: Value,
 }
 
 /// `literal` as a runtime value.
@@ -138,6 +142,8 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             classes,
             cx: Collect::default(),
             line: 0,
+            included: HashSet::new(),
+            return_value: Value::Null,
         }
     }
 
@@ -182,7 +188,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             .ok_or(VmError::Malformed("no active frame"))
     }
 
-    fn step(&mut self) -> Exec<Flow> {
+    pub(crate) fn step(&mut self) -> Exec<Flow> {
         let frame = self.frame()?;
         let code = self.codes[frame.code].code;
         let pc = frame.pc;
@@ -223,6 +229,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::StoreProp => self.store_prop(ins),
             Opcode::InitMethodCall => self.init_method_call(ins),
             Opcode::Throw => return self.throw_value(ins),
+            Opcode::Include => self.include_file(ins),
             Opcode::Return => return self.return_from(ins.a),
             _ => self.operator(ins),
         };
@@ -436,7 +443,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
     }
 
     /// Displays the diagnostics operations raised.
-    fn flush(&mut self) {
+    pub(crate) fn flush(&mut self) {
         let raised = std::mem::take(&mut self.cx.diagnostics);
         for diagnostic in raised {
             self.display(
@@ -444,6 +451,11 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
                 &diagnostic.message(),
             );
         }
+    }
+
+    /// Writes `bytes` to the script's output.
+    pub(crate) fn write_output(&mut self, bytes: &[u8]) {
+        self.output.write(bytes);
     }
 
     /// Displays a diagnostic on the current line.

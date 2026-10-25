@@ -4,7 +4,11 @@
 //! returns the fatal error, warnings and deprecations PHP reports for it, each on the line PHP
 //! reports it on. The cases it is proven against are captured from the reference PHP into
 //! `contracts/compiler/cases.jsonl`; the design is recorded in ADR-0007.
+//!
+//! [`bytecode`] defines what compiling produces for the VM: units, code objects and instructions,
+//! with a disassembly for tests.
 
+pub mod bytecode;
 mod check;
 mod diagnostic;
 

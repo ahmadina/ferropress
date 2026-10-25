@@ -478,6 +478,22 @@ fn a_generator_yields_and_marks_the_code() -> Result<(), String> {
 }
 
 #[test]
+fn static_calls_emit_init_static_call() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php echo Fiber::suspend(1);")?,
+        listing(&[
+            "code {main} temporaries=1",
+            "   0    1  InitStaticCall \"Fiber\", \"suspend\", \"suspend\"",
+            "   1    1  Send 1",
+            "   2    1  Call T0 =",
+            "   3    1  Echo T0",
+            "   4    1  Return 1",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
 fn interfaces_traits_and_enums_emit() -> Result<(), String> {
     assert_eq!(
         disassemble(

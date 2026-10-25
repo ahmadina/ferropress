@@ -145,6 +145,30 @@ impl<O: Output> Machine<'_, '_, O> {
                 implicit_ctor: None,
                 generator_method: Some((handle, method)),
                 native: None,
+                fiber_method: None,
+                args: Vec::new(),
+            });
+            return Ok(());
+        }
+        if handle
+            .class_name()
+            .as_bytes()
+            .eq_ignore_ascii_case(b"Fiber")
+        {
+            let Some(method) = crate::fibers::FiberMethod::from_name(key.as_bytes()) else {
+                let mut message = b"Call to undefined method Fiber::".to_vec();
+                message.extend_from_slice(written.as_bytes());
+                message.extend_from_slice(b"()");
+                return Err(self.throw("Error", message));
+            };
+            self.pending.push(Pending {
+                code: 0,
+                env: None,
+                this: Some(handle.clone()),
+                implicit_ctor: None,
+                generator_method: None,
+                native: None,
+                fiber_method: Some(crate::fibers::FiberCall::Instance(handle, method)),
                 args: Vec::new(),
             });
             return Ok(());
@@ -162,6 +186,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 implicit_ctor: None,
                 generator_method: None,
                 native: None,
+                fiber_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -175,6 +200,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 implicit_ctor: Some(class_name),
                 generator_method: None,
                 native: None,
+                fiber_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -318,6 +344,7 @@ pub(crate) fn register_throwables(table: &mut HashMap<Box<[u8]>, Class>) {
         b"ArithmeticError",
         b"DivisionByZeroError",
         b"ParseError",
+        b"FiberError",
     ] {
         table
             .entry(name.to_ascii_lowercase().into())

@@ -112,7 +112,8 @@ yet.
 ## Exceptions
 
 `throw` raises the value as an error. Only objects of the built-in throwable classes may be thrown
-(`Exception`, `Error`, `TypeError`, `ArgumentCountError`, `ArithmeticError`, `DivisionByZeroError`).
+(`Exception`, `Error`, `TypeError`, `ArgumentCountError`, `ArithmeticError`, `DivisionByZeroError`,
+`FiberError`).
 Any other object throws `Error` with `Cannot throw objects that do not implement Throwable`. A
 non-object throws `Error` with `Can only throw objects`. `new Exception("message")` and `new Error("message")` store
 the first argument as the public `message` property.
@@ -133,7 +134,21 @@ running the body. `yield`, `yield value` and `yield key => value` suspend the bo
 `key()` and `valid()` start it if needed and report the current yield. `next()` and `send($v)`
 resume; `send` makes `$v` the value of the `yield` expression. `getReturn()` is the function's
 `return` after the generator has finished. `rewind()` starts an unstarted generator and throws
-`Exception` if it has already run. `yield from` and fibers are not compiled yet.
+`Exception` if it has already run. `yield from` is not compiled yet.
+
+## Fibers
+
+`new Fiber($callable)` stores a `Closure` or a string naming a function. A non-callable throws
+`TypeError`. `$f->start(...$args)` runs the callback; `Fiber::suspend($v)` leaves the fiber and
+makes `$v` the value of `start` (or the later `resume`). `$f->resume($v)` continues and makes `$v`
+the value of the `suspend` expression. `getReturn()` is the callback's `return` after the fiber has
+finished. `isStarted`, `isSuspended`, `isRunning` and `isTerminated` report the state. `throw($e)`
+raises `$e` at the suspend point. `FiberError` extends `Error` and cannot be constructed (`The
+"FiberError" class is reserved for internal use and cannot be manually instantiated`). Suspend
+outside a fiber, resume of a fiber that is not suspended, a second `start`, and `getReturn` before
+the fiber has returned each throw `FiberError` (`Cannot get fiber return value: The fiber has not
+returned`). A non-callable constructor argument throws `TypeError` (`no array or string given`
+unless the value is a string naming a missing function).
 
 ## Built-in functions
 

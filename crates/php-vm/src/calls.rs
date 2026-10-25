@@ -11,7 +11,7 @@ use crate::{Output, VmError};
 pub(crate) struct Argument {
     pub(crate) slot: Slot,
     /// Whether the value is a call's result, which a by-reference parameter accepts with a notice.
-    from_call: bool,
+    pub(crate) from_call: bool,
 }
 
 /// A function, closure or method being prepared for [`Machine::call`].
@@ -25,6 +25,8 @@ pub(crate) struct Pending {
     pub(crate) generator_method: Option<(Object, crate::generators::GenMethod)>,
     /// A bound built-in, when this call is one.
     pub(crate) native: Option<crate::builtins::Native>,
+    /// A native `Fiber` method, when this call is one.
+    pub(crate) fiber_method: Option<crate::fibers::FiberCall>,
     pub(crate) args: Vec<Argument>,
 }
 
@@ -44,6 +46,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 implicit_ctor: None,
                 generator_method: None,
                 native: None,
+                fiber_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -56,6 +59,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 implicit_ctor: None,
                 generator_method: None,
                 native: Some(native),
+                fiber_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -121,6 +125,7 @@ impl<O: Output> Machine<'_, '_, O> {
             implicit_ctor,
             generator_method,
             native,
+            fiber_method,
             args,
         } = self
             .pending
@@ -128,6 +133,9 @@ impl<O: Output> Machine<'_, '_, O> {
             .ok_or(VmError::Malformed("call without a prepared function"))?;
         if let Some((object, method)) = generator_method {
             return self.dispatch_generator(&object, method, &args, result);
+        }
+        if let Some(call) = fiber_method {
+            return self.dispatch_fiber(call, &args, result);
         }
         if let Some(native) = native {
             return self.dispatch_native(native, &args, result);
@@ -242,6 +250,14 @@ impl<O: Output> Machine<'_, '_, O> {
         if let Some(id) = self.frame()?.generator {
             return self.finish_generator(id, value);
         }
+        if let Some(id) = self.current_fiber
+            && self
+                .fibers
+                .get(&id)
+                .is_some_and(|fiber| self.frames.len() == fiber.root_depth + 1)
+        {
+            return self.finish_fiber(id, value);
+        }
         let frame = self
             .frames
             .pop()
@@ -255,6 +271,15 @@ impl<O: Output> Machine<'_, '_, O> {
     }
 
     fn finish_implicit(&mut self, class: &[u8], this: Option<Object>, args: &[Argument]) -> Exec {
+        if class.eq_ignore_ascii_case(b"FiberError") {
+            return Err(self.throw_from(
+                "Error",
+                b"The \"FiberError\" class is reserved for internal use and cannot be manually instantiated"
+                    .to_vec(),
+                b"FiberError->__construct",
+                args.iter().map(|arg| arg.slot.value()).collect(),
+            ));
+        }
         if crate::exceptions::is_throwable(class)
             && let Some(this) = this
         {

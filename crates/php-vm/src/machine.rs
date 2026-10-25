@@ -98,6 +98,10 @@ pub(crate) struct Machine<'u, 'o, O: Output> {
     pub(crate) finally_leave: Option<crate::exceptions::FinallyLeave>,
     /// Live generators, keyed by the `Generator` object's identity.
     pub(crate) generators: HashMap<ObjectId, crate::generators::Generator>,
+    /// Live fibers, keyed by the `Fiber` object's identity.
+    pub(crate) fibers: HashMap<ObjectId, crate::fibers::Fiber>,
+    /// The fiber whose callback is on the frame stack.
+    pub(crate) current_fiber: Option<ObjectId>,
 }
 
 /// `literal` as a runtime value.
@@ -139,6 +143,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
         let mut classes = crate::classes::bind_classes(&unit.classes, &mut codes);
         crate::classes::register_throwables(&mut classes);
         crate::generators::register_generator(&mut classes);
+        crate::fibers::register_fiber(&mut classes);
         Self {
             codes,
             functions,
@@ -154,6 +159,8 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             return_value: Value::Null,
             finally_leave: None,
             generators: HashMap::new(),
+            fibers: HashMap::new(),
+            current_fiber: None,
         }
     }
 
@@ -244,6 +251,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::InstanceOf => self.instance_of(ins),
             Opcode::ClassConst => self.class_const(ins),
             Opcode::Yield => return self.yield_value(ins),
+            Opcode::InitStaticCall => self.init_static_call(ins),
             Opcode::Return => return self.return_from(ins.a),
             _ => self.operator(ins),
         };

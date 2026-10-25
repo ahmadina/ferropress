@@ -193,6 +193,7 @@ impl Emitter<'_> {
                 }
                 self.method_call(object, name, args, used)
             }
+            ExprKind::StaticCall { class, name, args } => self.static_call(class, name, args, used),
             _ => self.unsupported("this expression"),
         }
     }

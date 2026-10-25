@@ -120,6 +120,9 @@ pub enum Opcode {
     /// Suspends a generator: `a` is the yielded value, `b` the key when used; `result` is the
     /// value later sent into the `yield`.
     Yield,
+    /// Starts a static call of method `b` (lowercase) on the class named by `a`; `c` is the name
+    /// as written.
+    InitStaticCall,
 }
 
 impl Opcode {
@@ -180,6 +183,7 @@ impl Opcode {
             Self::InstanceOf => "InstanceOf",
             Self::ClassConst => "ClassConst",
             Self::Yield => "Yield",
+            Self::InitStaticCall => "InitStaticCall",
         }
     }
 }
@@ -278,6 +282,7 @@ mod tests {
             Opcode::InstanceOf,
             Opcode::ClassConst,
             Opcode::Yield,
+            Opcode::InitStaticCall,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

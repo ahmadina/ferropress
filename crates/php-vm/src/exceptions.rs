@@ -25,6 +25,7 @@ const THROWABLE: &[&[u8]] = &[
     b"arithmeticerror",
     b"divisionbyzeroerror",
     b"parseerror",
+    b"fibererror",
 ];
 
 impl<O: Output> Machine<'_, '_, O> {
@@ -69,8 +70,10 @@ impl<O: Output> Machine<'_, '_, O> {
                 return Ok(true);
             }
             if self.frames.len() == 1 {
+                self.leave_fiber();
                 return Ok(false);
             }
+            self.leave_fiber();
             self.frames.pop();
         }
         Ok(false)
@@ -109,6 +112,7 @@ pub(crate) fn catch_matches(handler: &[u8], thrown: &[u8]) -> bool {
                 | b"arithmeticerror"
                 | b"divisionbyzeroerror"
                 | b"parseerror"
+                | b"fibererror"
         ),
         b"exception" => thrown == b"exception",
         b"arithmeticerror" => matches!(
@@ -165,6 +169,7 @@ mod tests {
     fn throwable_classes_are_known() {
         assert!(is_throwable(b"Exception"));
         assert!(is_throwable(b"DivisionByZeroError"));
+        assert!(is_throwable(b"FiberError"));
         assert!(!is_throwable(b"C"));
     }
 
@@ -172,6 +177,7 @@ mod tests {
     fn catch_arms_follow_the_built_in_hierarchy() {
         assert!(catch_matches(b"Exception", b"Exception"));
         assert!(catch_matches(b"Error", b"DivisionByZeroError"));
+        assert!(catch_matches(b"Error", b"FiberError"));
         assert!(catch_matches(b"Throwable", b"TypeError"));
         assert!(catch_matches(b"ArithmeticError", b"DivisionByZeroError"));
         assert!(!catch_matches(b"Exception", b"Error"));

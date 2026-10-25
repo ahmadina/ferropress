@@ -13,6 +13,7 @@ mod classes;
 mod closures;
 mod error;
 mod exceptions;
+mod fibers;
 mod generators;
 mod includes;
 mod machine;

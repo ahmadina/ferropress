@@ -69,7 +69,7 @@ impl<O: Output> Machine<'_, '_, O> {
         }
     }
 
-    fn init_string_call(&mut self, written: &[u8]) -> Exec {
+    pub(crate) fn init_string_call(&mut self, written: &[u8]) -> Exec {
         let stripped = written.strip_prefix(b"\\").unwrap_or(written);
         let key = stripped.to_ascii_lowercase();
         if let Some(&code) = self.functions.get(key.as_slice()) {
@@ -80,6 +80,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 implicit_ctor: None,
                 generator_method: None,
                 native: None,
+                fiber_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -92,6 +93,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 implicit_ctor: None,
                 generator_method: None,
                 native: Some(native),
+                fiber_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -102,7 +104,7 @@ impl<O: Output> Machine<'_, '_, O> {
         Err(self.throw("Error", message))
     }
 
-    fn init_closure_call(&mut self, object: Object) -> Exec {
+    pub(crate) fn init_closure_call(&mut self, object: Object) -> Exec {
         if object.class_name().as_bytes() != b"Closure" {
             return Err(self.not_callable(&Value::Object(object)));
         }
@@ -114,6 +116,7 @@ impl<O: Output> Machine<'_, '_, O> {
             implicit_ctor: None,
             generator_method: None,
             native: None,
+            fiber_method: None,
             args: Vec::new(),
         });
         Ok(())

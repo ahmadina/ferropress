@@ -328,6 +328,41 @@ impl Emitter<'_> {
         Ok(dest)
     }
 
+    /// `Class::name(args)`.
+    pub(super) fn static_call(
+        &mut self,
+        class: &Expr,
+        name: &Member,
+        args: &php_parser::ast::Args,
+        needed: bool,
+    ) -> Emit<Operand> {
+        let ExprKind::Name(class_name) = &class.kind else {
+            return self.unsupported("dynamic class names");
+        };
+        if class_name.kind == NameKind::Relative {
+            return self.unsupported("namespace-relative names");
+        }
+        let Member::Name(name) = name else {
+            return self.unsupported("computed method names");
+        };
+        let php_parser::ast::Args::List(args) = args else {
+            return self.unsupported("first-class callables");
+        };
+        let class_op = self.builder.string(&class_name.bytes)?;
+        let method = self.builder.string(&name.to_ascii_lowercase())?;
+        let written = self.builder.string(name)?;
+        let mut init = Instruction::new(Opcode::InitStaticCall);
+        init.a = class_op;
+        init.b = method;
+        init.c = written;
+        self.builder.emit(init)?;
+        self.send_args(args)?;
+        let dest = self.result(needed)?;
+        self.builder
+            .op(Opcode::Call, Operand::UNUSED, Operand::UNUSED, dest)?;
+        Ok(dest)
+    }
+
     fn has_constructor(&self, class: &[u8]) -> bool {
         let named = |name: &[u8]| name.eq_ignore_ascii_case(b"__construct");
         self.ctx.current_methods.iter().any(|name| named(name))

@@ -56,6 +56,9 @@ pub(crate) enum Native {
     MbSubstr,
     Gmdate,
     Strtotime,
+    FileExists,
+    FileGetContents,
+    FilePutContents,
 }
 
 /// The built-in named by `key`, compared lowercase.
@@ -107,6 +110,9 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"mb_substr" => Native::MbSubstr,
         b"gmdate" => Native::Gmdate,
         b"strtotime" => Native::Strtotime,
+        b"file_exists" => Native::FileExists,
+        b"file_get_contents" => Native::FileGetContents,
+        b"file_put_contents" => Native::FilePutContents,
         _ => return None,
     })
 }
@@ -185,6 +191,9 @@ impl<O: Output> Machine<'_, '_, O> {
             Native::MbSubstr => self.native_mb_substr(args, result),
             Native::Gmdate => self.native_gmdate(args, result),
             Native::Strtotime => self.native_strtotime(args, result),
+            Native::FileExists => self.native_file_exists(args, result),
+            Native::FileGetContents => self.native_file_get_contents(args, result),
+            Native::FilePutContents => self.native_file_put_contents(args, result),
         }
     }
 }

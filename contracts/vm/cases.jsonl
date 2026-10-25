@@ -148,6 +148,8 @@
 {"name":"arrays 20","source":"<?php\necho gmdate(\"Y-m-d H:i:s\", 0), gmdate(\"Y-m-d\", 1609459200);","output":"1970-01-01 00:00:002021-01-01","status":0}
 {"name":"arrays 21","source":"<?php\necho strtotime(\"2021-01-01 00:00:00\");","output":"1609459200","status":0}
 {"name":"arrays 22","source":"<?php\necho strtotime(\"nope\") === false ? \"f\" : \"x\";","output":"f","status":0}
+{"name":"arrays 23","source":"<?php\n$p = \"/tmp/ferropress-vm-stream.txt\"; echo file_put_contents($p, \"hi\"); echo file_get_contents($p); echo file_exists($p) ? \"y\" : \"n\"; echo file_exists($p . \".no\") ? \"y\" : \"n\";","output":"2hiyn","status":0}
+{"name":"arrays 24","source":"<?php\necho file_get_contents(\"/tmp/ferropress-missing-stream-xyz\") === false ? \"f\" : \"x\";","output":"\nWarning: file_get_contents(/tmp/ferropress-missing-stream-xyz): Failed to open stream: No such file or directory in %file% on line 2\nf","status":0}
 {"name":"math 01","source":"<?php\necho abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);","output":"31312","status":0}
 {"name":"math 02","source":"<?php\necho intdiv(7, 2), intval(floor(1.5)), intval(ceil(1.2)), intval(round(1.5));","output":"3122","status":0}
 {"name":"math 03","source":"<?php\necho intval(sqrt(9));","output":"3","status":0}

@@ -81,6 +81,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] More strings: `substr`, `strpos`, `str_contains`, `trim`/`ltrim`/`rtrim`
   - [x] mbstring: `mb_strlen` / `mb_substr` (UTF-8)
   - [x] Date/time: `gmdate` and `strtotime` for civil UTC timestamps
+  - [x] Streams: `file_exists`, `file_get_contents`, `file_put_contents`
   - [x] JSON: `json_encode` / `json_decode` for scalars and arrays
 - [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
       classes extend Rust-owned classes

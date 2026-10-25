@@ -194,6 +194,8 @@ function vm_topic_cases(): array {
 			'echo gmdate("Y-m-d H:i:s", 0), gmdate("Y-m-d", 1609459200);',
 			'echo strtotime("2021-01-01 00:00:00");',
 			'echo strtotime("nope") === false ? "f" : "x";',
+			'$p = "/tmp/ferropress-vm-stream.txt"; echo file_put_contents($p, "hi"); echo file_get_contents($p); echo file_exists($p) ? "y" : "n"; echo file_exists($p . ".no") ? "y" : "n";',
+			'echo file_get_contents("/tmp/ferropress-missing-stream-xyz") === false ? "f" : "x";',
 		),
 		'math'          => array(
 			'echo abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);',

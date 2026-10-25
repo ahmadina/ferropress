@@ -126,7 +126,7 @@ impl<O: Output> Machine<'_, '_, O> {
     }
 }
 
-fn resolve_path(current_file: &[u8], path: &[u8]) -> PathBuf {
+pub(crate) fn resolve_path(current_file: &[u8], path: &[u8]) -> PathBuf {
     let requested = PathBuf::from(String::from_utf8_lossy(path).as_ref());
     if requested.is_absolute() {
         return requested;

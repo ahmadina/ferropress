@@ -28,6 +28,7 @@ fn main_code(instructions: Vec<Instruction>, literals: Vec<Literal>) -> Unit {
             ..Code::default()
         },
         functions: Vec::new(),
+        classes: Vec::new(),
     }
 }
 
@@ -110,6 +111,26 @@ fn malformed_operands_are_errors() -> Result<(), String> {
                 init
             }],
             "function name is not a string",
+        ),
+        (
+            vec![op(Opcode::New, literal(0), None, temp(0))],
+            "class name is not a string",
+        ),
+        (
+            vec![op(Opcode::LoadProp, slot(0), literal(0), temp(0))],
+            "property name is not a string",
+        ),
+        (
+            vec![op(Opcode::StoreProp, slot(0), literal(0), None)],
+            "property name is not a string",
+        ),
+        (
+            vec![{
+                let mut init = op(Opcode::InitMethodCall, slot(0), literal(0), None);
+                init.c = Operand::literal(1).unwrap_or(Operand::UNUSED);
+                init
+            }],
+            "method name is not a string",
         ),
     ];
     for (instructions, reason) in cases {

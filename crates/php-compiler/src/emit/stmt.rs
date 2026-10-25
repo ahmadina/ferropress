@@ -100,7 +100,8 @@ impl Emitter<'_> {
             StmtKind::Label(_) | StmtKind::Goto(_) => self.unsupported("goto"),
             StmtKind::Try(_) => self.unsupported("try"),
             StmtKind::Declare { .. } => self.unsupported("declare"),
-            StmtKind::Class(_) => self.unsupported("classes"),
+            StmtKind::Class(class) if self.conditional == 0 => self.class_declaration(class),
+            StmtKind::Class(_) => self.unsupported("conditional class declarations"),
         }
     }
 

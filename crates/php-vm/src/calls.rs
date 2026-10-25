@@ -14,10 +14,13 @@ pub(crate) struct Argument {
     from_call: bool,
 }
 
-/// A function or closure being prepared for [`Machine::call`].
+/// A function, closure or method being prepared for [`Machine::call`].
 pub(crate) struct Pending {
     pub(crate) code: usize,
     pub(crate) env: Option<Object>,
+    pub(crate) this: Option<Object>,
+    /// The class name when this call is the implicit constructor of a class that declares none.
+    pub(crate) implicit_ctor: Option<Box<[u8]>>,
     pub(crate) args: Vec<Argument>,
 }
 
@@ -33,6 +36,8 @@ impl<O: Output> Machine<'_, '_, O> {
             self.pending.push(Pending {
                 code,
                 env: None,
+                this: None,
+                implicit_ctor: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -91,10 +96,19 @@ impl<O: Output> Machine<'_, '_, O> {
     /// Calls the prepared function, binding its parameters; too few arguments throw
     /// `ArgumentCountError` from inside the called function.
     pub(crate) fn call(&mut self, result: Operand) -> Exec {
-        let Pending { code, env, args } = self
+        let Pending {
+            code,
+            env,
+            this,
+            implicit_ctor,
+            args,
+        } = self
             .pending
             .pop()
             .ok_or(VmError::Malformed("call without a prepared function"))?;
+        if implicit_ctor.is_some() {
+            return Ok(());
+        }
         let mut frame = Frame::new(code, &self.codes[code]);
         if let Some(env) = env {
             crate::closures::apply_captured_slots(
@@ -102,6 +116,9 @@ impl<O: Output> Machine<'_, '_, O> {
                 &mut frame.slots,
                 &self.codes[code].code.slots,
             )?;
+        }
+        if let Some(this) = this {
+            bind_this(&this, &mut frame.slots, &self.codes[code].code.slots);
         }
         frame.result = result;
         frame.call_line = self.line;
@@ -192,5 +209,13 @@ impl<O: Output> Machine<'_, '_, O> {
         }
         self.write(frame.result, value)?;
         Ok(Flow::Continue)
+    }
+}
+
+fn bind_this(this: &Object, slots: &mut [Option<Slot>], names: &[Box<[u8]>]) {
+    if let Some(index) = names.iter().position(|name| &**name == b"this")
+        && let Some(slot) = slots.get_mut(index)
+    {
+        *slot = Some(Slot::Value(Value::Object(this.clone())));
     }
 }

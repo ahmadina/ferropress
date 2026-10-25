@@ -51,6 +51,39 @@ pub struct FunctionDecl {
     pub code: Code,
 }
 
+/// One instance property of a class.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PropertyDecl {
+    /// The name, without `$`.
+    pub name: Box<[u8]>,
+    /// The value the property starts with; [`Literal::Null`] when none was written.
+    pub default: Literal,
+}
+
+/// One instance method of a class.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MethodDecl {
+    /// The name as declared.
+    pub name: Box<[u8]>,
+    /// The line of `function`.
+    pub line: u32,
+    /// The body. [`Code::name`] is `Class->method` for stack traces.
+    pub code: Code,
+}
+
+/// A class the file declares.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassDecl {
+    /// The name as declared.
+    pub name: Box<[u8]>,
+    /// The line of `class`.
+    pub line: u32,
+    /// Instance properties, in declaration order.
+    pub properties: Vec<PropertyDecl>,
+    /// Instance methods, in declaration order.
+    pub methods: Vec<MethodDecl>,
+}
+
 /// What compiling one file produces.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Unit {
@@ -60,6 +93,8 @@ pub struct Unit {
     /// [`FunctionDecl::name`] and is not entered in the function table; its [`Code::name`] is the
     /// generated `{closure:…}` name.
     pub functions: Vec<FunctionDecl>,
+    /// The classes the file declares, in declaration order.
+    pub classes: Vec<ClassDecl>,
 }
 
 impl fmt::Display for Unit {
@@ -67,6 +102,11 @@ impl fmt::Display for Unit {
         write!(f, "{}", self.main)?;
         for function in &self.functions {
             write!(f, "\n{}", function.code)?;
+        }
+        for class in &self.classes {
+            for method in &class.methods {
+                write!(f, "\n{}", method.code)?;
+            }
         }
         Ok(())
     }
@@ -216,7 +256,7 @@ impl fmt::Display for Code {
 
 #[cfg(test)]
 mod tests {
-    use super::{Code, FunctionDecl, Parameter, Unit};
+    use super::{ClassDecl, Code, FunctionDecl, MethodDecl, Parameter, PropertyDecl, Unit};
     use crate::bytecode::{Instruction, Literal, Opcode, Operand};
 
     fn operand(operand: Option<Operand>) -> Operand {
@@ -329,10 +369,39 @@ mod tests {
                 line: 1,
                 code: function,
             }],
+            classes: Vec::new(),
         };
         assert_eq!(
             unit.to_string(),
             "code {main} temporaries=0\n\ncode f &(&$a, ...$b) temporaries=0\n"
+        );
+    }
+
+    #[test]
+    fn units_list_class_methods_after_functions() {
+        let unit = Unit {
+            main: Code::default(),
+            functions: Vec::new(),
+            classes: vec![ClassDecl {
+                name: b"C".to_vec().into_boxed_slice(),
+                line: 1,
+                properties: vec![PropertyDecl {
+                    name: b"a".to_vec().into_boxed_slice(),
+                    default: Literal::Int(1),
+                }],
+                methods: vec![MethodDecl {
+                    name: b"m".to_vec().into_boxed_slice(),
+                    line: 2,
+                    code: Code {
+                        name: b"C->m".to_vec().into_boxed_slice(),
+                        ..Code::default()
+                    },
+                }],
+            }],
+        };
+        assert_eq!(
+            unit.to_string(),
+            "code {main} temporaries=0\n\ncode C->m temporaries=0\n"
         );
     }
 }

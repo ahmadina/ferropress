@@ -25,16 +25,7 @@ impl Emitter<'_> {
         uses: &[ClosureUse],
         exported: bool,
     ) -> Emit<u32> {
-        self.builder.line = function.line;
-        self.reject_signature(function)?;
-        self.bind_params(&function.params)?;
-        for use_var in uses {
-            self.builder.slot(&use_var.name)?;
-        }
-        if function.is_generator {
-            return self.unsupported("generators");
-        }
-        self.emit_body(function)?;
+        let code = self.compile_code(function, uses)?;
         let index = u32::try_from(self.ctx.functions.len()).map_err(|_overflow| {
             super::Failure::TooLarge {
                 line: self.builder.line,
@@ -45,13 +36,35 @@ impl Emitter<'_> {
         } else {
             Box::from([])
         };
-        let builder = std::mem::replace(&mut self.builder, super::builder::Builder::new(&[]));
         self.ctx.functions.push(FunctionDecl {
             name,
             line: function.line,
-            code: builder.finish(),
+            code,
         });
         Ok(index)
+    }
+
+    /// Compiles `function` to a code object without recording a named declaration.
+    pub(super) fn compile_code(
+        &mut self,
+        function: &Function,
+        uses: &[ClosureUse],
+    ) -> Emit<crate::bytecode::Code> {
+        self.builder.line = function.line;
+        self.reject_signature(function)?;
+        if matches!(self.scope, Scope::Method { .. }) {
+            self.builder.slot(b"this")?;
+        }
+        self.bind_params(&function.params)?;
+        for use_var in uses {
+            self.builder.slot(&use_var.name)?;
+        }
+        if function.is_generator {
+            return self.unsupported("generators");
+        }
+        self.emit_body(function)?;
+        let builder = std::mem::replace(&mut self.builder, super::builder::Builder::new(&[]));
+        Ok(builder.finish())
     }
 
     fn reject_signature(&self, function: &Function) -> Emit {

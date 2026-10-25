@@ -83,13 +83,14 @@ pub(crate) struct Machine<'u, 'o, O: Output> {
     /// Calls being prepared: the function and the arguments sent so far.
     pub(crate) pending: Vec<crate::calls::Pending>,
     pub(crate) objects: ObjectStore,
+    pub(crate) classes: HashMap<Box<[u8]>, crate::classes::Class>,
     pub(crate) cx: Collect,
     /// The line of the instruction running.
     pub(crate) line: u32,
 }
 
 /// `literal` as a runtime value.
-fn value_of(literal: &Literal) -> Value {
+pub(crate) fn value_of(literal: &Literal) -> Value {
     match literal {
         Literal::Null => Value::Null,
         Literal::Bool(value) => Value::Bool(*value),
@@ -99,7 +100,7 @@ fn value_of(literal: &Literal) -> Value {
     }
 }
 
-fn load(code: &Code) -> Loaded<'_> {
+pub(crate) fn load(code: &Code) -> Loaded<'_> {
     Loaded {
         code,
         literals: code.literals.iter().map(value_of).collect(),
@@ -124,6 +125,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             }
             codes.push(load(&function.code));
         }
+        let classes = crate::classes::bind_classes(&unit.classes, &mut codes);
         Self {
             codes,
             functions,
@@ -132,6 +134,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             frames: Vec::new(),
             pending: Vec::new(),
             objects: ObjectStore::new(),
+            classes,
             cx: Collect::default(),
             line: 0,
         }
@@ -203,6 +206,10 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
                 .and_then(|value| self.send(Slot::Value(value), ins.flags & 1 != 0)),
             Opcode::SendVar => self.send_variable(ins.a),
             Opcode::Call => self.call(ins.result),
+            Opcode::New => self.new_object(ins),
+            Opcode::LoadProp => self.load_prop(ins),
+            Opcode::StoreProp => self.store_prop(ins),
+            Opcode::InitMethodCall => self.init_method_call(ins),
             Opcode::Return => return self.return_from(ins.a),
             _ => self.operator(ins),
         };

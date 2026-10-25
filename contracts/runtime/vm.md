@@ -71,5 +71,26 @@ Closure could not be converted to string`.
 The closure's name in stack traces is `{closure:PARENT:LINE}`, where `PARENT` is the file path at the
 top level, `f()` inside a function, or the enclosing closure's name.
 
+## Classes
+
+An unconditional `class` with public instance properties (literal defaults) and public instance
+methods compiles. `new Name` and `new Name(args)` create an object of that class. Property defaults
+are copied onto each instance. `$object->name` reads a property (`Undefined property: Class::$name`
+and `null` when missing; a warning `Attempt to read property "name" on <type>` and `null` when the
+receiver is not an object). `$object->name = value` writes it, or throws `Error` with
+`Attempt to assign property "name" on <type>` (`true` and `false` named as such). `$object->name(args)`
+calls the method; `$this` is the instance. Class and method names are case-insensitive.
+
+`__construct` runs when declared. A class with no constructor still accepts `new Name`; extra
+arguments are evaluated and then discarded. Extra arguments to a declared `__construct` follow
+the same argument-count rules as a function. An undefined class throws `Error` with
+`Class "Name" not found`. An undefined method throws `Error` with
+`Call to undefined method Class::name()`. A method call on a non-object throws `Error` with
+`Call to a member function name() on <type>`.
+
+Interfaces, traits, enums, anonymous, abstract and readonly classes, inheritance, static, private
+and protected members, typed and hooked properties, class constants and computed names are not
+compiled yet.
+
 Operator errors (`DivisionByZeroError`, `ArithmeticError`, `TypeError`) and the warnings and deprecations
 of conversions follow `contracts/runtime/operators.md`.

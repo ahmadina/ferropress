@@ -4,6 +4,7 @@
 //! code that behaves differently.
 
 mod builder;
+mod class;
 mod closure;
 mod expr;
 mod free;
@@ -46,7 +47,10 @@ struct Loop {
 /// Shared declarations and the file path used in generated closure names.
 struct EmitCtx {
     functions: Vec<crate::bytecode::FunctionDecl>,
+    classes: Vec<crate::bytecode::ClassDecl>,
     file: Box<[u8]>,
+    /// Methods of the class currently being compiled, so `new` sees `__construct`.
+    current_methods: Vec<Box<[u8]>>,
 }
 
 /// The code object being compiled, which names nested closures.
@@ -54,6 +58,7 @@ enum Scope {
     File,
     Function(Box<[u8]>),
     Closure(Box<[u8]>),
+    Method { class: Box<[u8]>, name: Box<[u8]> },
 }
 
 /// Emits one code object at a time; nested functions and closures share [`EmitCtx`].
@@ -89,12 +94,15 @@ impl<'a> Emitter<'a> {
 pub(crate) fn run(program: &Program, file: &[u8]) -> Emit<Unit> {
     let mut ctx = EmitCtx {
         functions: Vec::new(),
+        classes: Vec::new(),
         file: file.into(),
+        current_methods: Vec::new(),
     };
     let main = emit_main(&mut ctx, program)?;
     Ok(Unit {
         main,
         functions: ctx.functions,
+        classes: ctx.classes,
     })
 }
 
@@ -145,6 +153,8 @@ impl EmitCtx {
         Self {
             functions: Vec::new(),
             file: Box::from(&b"/t.php"[..]),
+            classes: Vec::new(),
+            current_methods: Vec::new(),
         }
     }
 }

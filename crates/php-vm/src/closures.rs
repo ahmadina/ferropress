@@ -76,6 +76,8 @@ impl<O: Output> Machine<'_, '_, O> {
             self.pending.push(Pending {
                 code,
                 env: None,
+                this: None,
+                implicit_ctor: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -94,6 +96,8 @@ impl<O: Output> Machine<'_, '_, O> {
         self.pending.push(Pending {
             code,
             env: Some(object),
+            this: None,
+            implicit_ctor: None,
             args: Vec::new(),
         });
         Ok(())

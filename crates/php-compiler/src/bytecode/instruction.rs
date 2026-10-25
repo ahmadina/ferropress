@@ -97,6 +97,15 @@ pub enum Opcode {
     Echo,
     /// Returns `a` (or `null` when unused) from the code object.
     Return,
+    /// `result` is a new object of the class named by the literal `a`.
+    New,
+    /// `result = a->b`, where `b` is the property name.
+    LoadProp,
+    /// `a->b = c`.
+    StoreProp,
+    /// Starts a call of method `b` (lowercase) on the object `a`; `c` is the name as written.
+    /// Flag bit 0 is set for the implicit constructor of a class that declares none.
+    InitMethodCall,
 }
 
 impl Opcode {
@@ -147,6 +156,10 @@ impl Opcode {
             Self::PostDecrement => "PostDecrement",
             Self::Echo => "Echo",
             Self::Return => "Return",
+            Self::New => "New",
+            Self::LoadProp => "LoadProp",
+            Self::StoreProp => "StoreProp",
+            Self::InitMethodCall => "InitMethodCall",
         }
     }
 }
@@ -235,6 +248,10 @@ mod tests {
             Opcode::PostDecrement,
             Opcode::Echo,
             Opcode::Return,
+            Opcode::New,
+            Opcode::LoadProp,
+            Opcode::StoreProp,
+            Opcode::InitMethodCall,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

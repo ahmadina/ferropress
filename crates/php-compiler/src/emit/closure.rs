@@ -87,6 +87,12 @@ impl Emitter<'_> {
                 text.extend_from_slice(name);
                 text.extend_from_slice(b"()");
             }
+            Scope::Method { class, name } => {
+                text.extend_from_slice(class);
+                text.extend_from_slice(b"::");
+                text.extend_from_slice(name);
+                text.extend_from_slice(b"()");
+            }
             Scope::Closure(name) => text.extend_from_slice(name),
         }
         text.push(b':');

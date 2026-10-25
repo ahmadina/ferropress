@@ -304,7 +304,7 @@ fn fatal_programs_have_no_unit() {
 
 #[test]
 fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
-    let cases: [(&str, &str); 33] = [
+    let cases: [(&str, &str); 41] = [
         ("<?php namespace A;", "namespaces"),
         ("<?php use A\\B;", "use imports"),
         ("<?php use A\\{B};", "use imports"),
@@ -336,7 +336,18 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
         ("<?php a: goto a;", "goto"),
         ("<?php try {} finally {}", "try"),
         ("<?php declare(ticks=1);", "declare"),
-        ("<?php class A {}", "classes"),
+        ("<?php interface A {}", "interfaces"),
+        ("<?php trait A {}", "traits"),
+        ("<?php enum A {}", "enums"),
+        (
+            "<?php class A { private $a; }",
+            "static, private, typed or hooked properties",
+        ),
+        ("<?php class A { public $a = 1 + 1; }", "property defaults"),
+        ("<?php class A { const C = 1; }", "class constants"),
+        ("<?php abstract class A {}", "abstract and readonly classes"),
+        ("<?php class A extends B {}", "inheritance"),
+        ("<?php $o = new class {};", "anonymous classes"),
         ("<?php echo A;", "constants"),
         ("<?php $a ??= 1;", "??="),
         ("<?php echo $a ?? 1;", "??"),
@@ -412,6 +423,36 @@ fn closures_and_arrows_are_code_objects_with_captures() -> Result<(), String> {
             "code {closure:/t.php:5}($y) temporaries=1",
             "   0    5  Add T0 = $y, $a",
             "   1    5  Return T0",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn classes_emit_new_properties_and_methods() -> Result<(), String> {
+    assert_eq!(
+        disassemble(
+            "<?php\nclass C {\n  public $a = 1;\n  function m($x) { return $x + $this->a; }\n}\n\
+             $o = new C;\necho $o->m(2);\n$o->a = 3;\necho $o->a;\n"
+        )?,
+        listing(&[
+            "code {main} temporaries=3",
+            "   0    6  New T0 = \"C\"",
+            "   1    6  Assign $o, T0",
+            "   2    7  InitMethodCall $o, \"m\", \"m\"",
+            "   3    7  Send 2",
+            "   4    7  Call T1 =",
+            "   5    7  Echo T1",
+            "   6    8  StoreProp $o, \"a\", 3",
+            "   7    9  LoadProp T2 = $o, \"a\"",
+            "   8    9  Echo T2",
+            "   9    9  Return 1",
+            "",
+            "code C->m($x) temporaries=2",
+            "   0    4  LoadProp T0 = $this, \"a\"",
+            "   1    4  Add T1 = $x, T0",
+            "   2    4  Return T1",
+            "   3    4  Return",
         ])
     );
     Ok(())

@@ -63,7 +63,8 @@ Status legend: `[x]` done · `[ ]` not started
 - [ ] 18. Language features: functions and closures; classes, interfaces, traits, enums; exceptions;
       generators and fibers; include/require and autoloading
   - [x] Closures and arrow functions, including `use` captures and computed callees
-  - [ ] Classes, interfaces, traits and enums
+  - [x] Classes: public instance properties, methods, `new` and `$this`
+  - [ ] Interfaces, traits and enums
   - [ ] Exceptions
   - [ ] Generators and fibers
   - [ ] include/require and autoloading

@@ -80,7 +80,7 @@ fn assign_opcode(op: AssignOp) -> Option<Opcode> {
 }
 
 /// `true`, `false` or `null` named by a constant, in any case.
-fn keyword_constant(name: &Name) -> Option<Literal> {
+pub(crate) fn keyword_constant(name: &Name) -> Option<Literal> {
     if name.kind == NameKind::Relative {
         return None;
     }
@@ -130,13 +130,7 @@ impl Emitter<'_> {
             },
             ExprKind::Variable(name) => self.variable(name),
             ExprKind::Interpolated(parts) => self.interpolated(parts),
-            ExprKind::Assign { target, value } => {
-                let slot = self.target(target)?;
-                let value = self.expr(value)?;
-                let result = self.result(used)?;
-                self.builder.op(Opcode::Assign, slot, value, result)?;
-                Ok(result)
-            }
+            ExprKind::Assign { target, value } => self.assign(target, value, used),
             ExprKind::CompoundAssign { op, target, value } => {
                 let Some(opcode) = assign_opcode(*op) else {
                     return self.unsupported("??=");
@@ -167,12 +161,56 @@ impl Emitter<'_> {
             ExprKind::Call { callee, args } => self.call(callee, args, used),
             ExprKind::Closure(function) => self.closure(function, used),
             ExprKind::ArrowFunction { function, .. } => self.arrow(function, used),
+            ExprKind::New { class, args } => self.new_object(class, args, used),
+            ExprKind::NewAnonymous { .. } => self.unsupported("anonymous classes"),
+            ExprKind::Property {
+                object,
+                name,
+                nullsafe,
+            } => {
+                if *nullsafe {
+                    return self.unsupported("nullsafe operators");
+                }
+                self.property(object, name, used)
+            }
+            ExprKind::MethodCall {
+                object,
+                name,
+                args,
+                nullsafe,
+                ..
+            } => {
+                if *nullsafe {
+                    return self.unsupported("nullsafe operators");
+                }
+                self.method_call(object, name, args, used)
+            }
             _ => self.unsupported("this expression"),
         }
     }
 
+    fn assign(&mut self, target: &Expr, value: &Expr, used: bool) -> Emit<Operand> {
+        if let ExprKind::Property {
+            object,
+            name,
+            nullsafe,
+        } = &target.kind
+        {
+            if *nullsafe {
+                return self.unsupported("nullsafe operators");
+            }
+            let value = self.expr(value)?;
+            return self.store_property(object, name, value, used);
+        }
+        let slot = self.target(target)?;
+        let value = self.expr(value)?;
+        let result = self.result(used)?;
+        self.builder.op(Opcode::Assign, slot, value, result)?;
+        Ok(result)
+    }
+
     /// A temporary for the result when `used`, otherwise no operand.
-    fn result(&mut self, used: bool) -> Emit<Operand> {
+    pub(crate) fn result(&mut self, used: bool) -> Emit<Operand> {
         if used {
             self.builder.temp()
         } else {
@@ -183,7 +221,13 @@ impl Emitter<'_> {
     /// The slot of the local variable `name`.
     fn variable(&mut self, name: &VarName) -> Emit<Operand> {
         match name {
-            VarName::Name(name) if name.as_slice() == b"this" => self.unsupported("$this"),
+            VarName::Name(name) if name.as_slice() == b"this" => {
+                if matches!(self.scope, super::Scope::Method { .. }) {
+                    self.builder.slot(name)
+                } else {
+                    self.unsupported("$this")
+                }
+            }
             VarName::Name(name) if SUPERGLOBALS.contains(&name.as_slice()) => {
                 self.unsupported("superglobals")
             }
@@ -395,7 +439,7 @@ impl Emitter<'_> {
         Ok(result)
     }
 
-    fn send_args(&mut self, args: &[Arg]) -> Emit {
+    pub(crate) fn send_args(&mut self, args: &[Arg]) -> Emit {
         for arg in args {
             let Arg::Positional(value) = arg else {
                 return self.unsupported("named and unpacked arguments");

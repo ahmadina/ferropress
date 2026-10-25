@@ -8,6 +8,7 @@
 //! output and exit status the reference produced, recorded by `cargo xtask lab vm`.
 
 mod calls;
+mod classes;
 mod closures;
 mod error;
 mod machine;

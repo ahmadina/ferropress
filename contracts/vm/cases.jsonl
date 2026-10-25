@@ -76,6 +76,20 @@
 {"name":"closures 12","source":"<?php\n$f = function() { echo 1 % 0; }; $f();","output":"\nFatal error: Uncaught DivisionByZeroError: Modulo by zero in %file%:2\nStack trace:\n#0 %file%(2): {closure:%file%:2}()\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"closures 13","source":"<?php\n$n = \"missing\"; $n();","output":"\nFatal error: Uncaught Error: Call to undefined function missing() in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"closures 14","source":"<?php\n$f();","output":"\nWarning: Undefined variable $f in %file% on line 2\n\nFatal error: Uncaught Error: Value of type null is not callable in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"classes 01","source":"<?php\nclass C { public $a = 1; function m($x) { return $x + $this->a; } } $o = new C; echo $o->m(2); $o->a = 10; echo $o->m(3);","output":"313","status":0}
+{"name":"classes 02","source":"<?php\nclass C { public $a; public $b = 1.5; public $c = \"x\"; public $d = true; public $e = false; } $o = new C; echo $o->a === null ? \"n\" : \"x\", $o->b, $o->c, $o->d, $o->e;","output":"n1.5x1","status":0}
+{"name":"classes 03","source":"<?php\nclass C { public $a; function __construct($n) { $this->a = $n; } } $o = new C(7); echo $o->a;","output":"7","status":0}
+{"name":"classes 04","source":"<?php\nclass C {} $o = new C; echo $o->z;","output":"\nWarning: Undefined property: C::$z in %file% on line 2\n","status":0}
+{"name":"classes 05","source":"<?php\nclass C {} $i = 0; new C($i += 1); echo $i;","output":"1","status":0}
+{"name":"classes 06","source":"<?php\nclass C { function __construct() { echo \"c\"; } } new C(1);","output":"c","status":0}
+{"name":"classes 07","source":"<?php\nnew Missing();","output":"\nFatal error: Uncaught Error: Class \"Missing\" not found in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"classes 08","source":"<?php\nclass C {} $o = new C; $o->m();","output":"\nFatal error: Uncaught Error: Call to undefined method C::m() in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"classes 09","source":"<?php\n$a = 1; $a->p = 2;","output":"\nFatal error: Uncaught Error: Attempt to assign property \"p\" on int in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"classes 10","source":"<?php\nclass C { function M() { return 1; } } $o = new c; echo $o->m();","output":"1","status":0}
+{"name":"classes 11","source":"<?php\nclass C { public $a = 1; } $x = new C; $y = new C; $x->a = 2; echo $x->a, $y->a;","output":"21","status":0}
+{"name":"classes 12","source":"<?php\necho (1)->z;","output":"\nWarning: Attempt to read property \"z\" on int in %file% on line 2\n","status":0}
+{"name":"classes 13","source":"<?php\n$a = 1; $a->m();","output":"\nFatal error: Uncaught Error: Call to a member function m() on int in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"classes 14","source":"<?php\n$a = true; $a->p = 1;","output":"\nFatal error: Uncaught Error: Attempt to assign property \"p\" on true in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"errors 01","source":"<?php\necho 1;\necho 1 % 0;\necho 2;","output":"1\nFatal error: Uncaught DivisionByZeroError: Modulo by zero in %file%:3\nStack trace:\n#0 {main}\n  thrown in %file% on line 3\n","status":255}
 {"name":"errors 02","source":"<?php\nfunction f($x) { return $x / 0; } echo \"before\"; f(\"1\");","output":"before\nFatal error: Uncaught DivisionByZeroError: Division by zero in %file%:2\nStack trace:\n#0 %file%(2): f('1')\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"errors 03","source":"<?php\necho -\"abc\";","output":"\nFatal error: Uncaught TypeError: Unsupported operand types: string * int in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}

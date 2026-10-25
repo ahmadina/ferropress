@@ -23,6 +23,7 @@ mod arith;
 mod bitwise;
 mod compare;
 mod convert;
+mod key;
 mod numeric;
 mod step;
 
@@ -34,6 +35,7 @@ pub use arith::{add, div, modulo, mul, pow, sub};
 pub use bitwise::{bit_and, bit_not, bit_or, bit_xor, shift_left, shift_right};
 pub use compare::{compare, identical, less, less_or_equal, loose_equals};
 pub use convert::concat;
+pub use key::array_key;
 pub use numeric::{Number, NumericPrefix, Overflow, numeric_prefix, parse_float, whole_numeric};
 pub use step::{decrement, increment};
 
@@ -148,6 +150,8 @@ pub enum Diagnostic {
     DecrementNonNumericString,
     /// `0 ** n` with a negative `n`.
     ZeroToNegativePower,
+    /// `null` used as an array key or offset.
+    NullOffset,
 }
 
 impl Diagnostic {
@@ -164,7 +168,8 @@ impl Diagnostic {
             | Self::IncrementNonNumericString
             | Self::DecrementEmptyString
             | Self::DecrementNonNumericString
-            | Self::ZeroToNegativePower => Severity::Deprecated,
+            | Self::ZeroToNegativePower
+            | Self::NullOffset => Severity::Deprecated,
         }
     }
 
@@ -220,6 +225,9 @@ impl Diagnostic {
             Self::ZeroToNegativePower => {
                 out.extend_from_slice(b"Power of base 0 and negative exponent is deprecated");
             }
+            Self::NullOffset => out.extend_from_slice(
+                b"Using null as an array offset is deprecated, use an empty string instead",
+            ),
         }
         out
     }
@@ -346,7 +354,7 @@ mod tests {
 
     #[test]
     fn diagnostics_print_php_messages() {
-        let cases: [(Diagnostic, Severity, &str); 13] = [
+        let cases: [(Diagnostic, Severity, &str); 14] = [
             (
                 Diagnostic::NonNumeric,
                 Severity::Warning,
@@ -411,6 +419,11 @@ mod tests {
                 Diagnostic::ZeroToNegativePower,
                 Severity::Deprecated,
                 "Power of base 0 and negative exponent is deprecated",
+            ),
+            (
+                Diagnostic::NullOffset,
+                Severity::Deprecated,
+                "Using null as an array offset is deprecated, use an empty string instead",
             ),
         ];
         for (diagnostic, severity, message) in cases {

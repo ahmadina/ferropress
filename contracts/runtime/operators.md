@@ -225,3 +225,16 @@ The reference throws `Error` "Maximum call stack size reached during comparison"
 runs low. That depends on the stack size: with an 8 MiB stack, `==` handles about 32,500 nested levels
 and `===` about 65,000. Ferropress walks nested arrays without recursion and throws the same error past
 a fixed 32,768 levels, for both operators.
+
+## Array keys
+
+An array literal's keys and an array offset convert to keys like this:
+
+- `null` is the empty string, with the deprecation "Using null as an array offset is deprecated, use
+  an empty string instead".
+- `false` and `true` are 0 and 1.
+- A float converts as an integer operand: truncated toward zero, with "Implicit conversion from float
+  … to int loses precision" when a fraction is lost, and "The float … is not representable as an int,
+  cast occurred" (giving 0) for infinities. `NAN` raises both and gives 0.
+- A string that is the canonical form of an integer is that integer; any other string stays a string.
+- An array or object cannot be a key; the engine throws a `TypeError` naming its type.

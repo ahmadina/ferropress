@@ -875,6 +875,16 @@ A method name given as an expression (`$a->{expr}()`, `A::{expr}()`) compiles af
 class. If it folds to a constant that is not a string (an integer, float, boolean, null or array):
 "Method name must be a string". Runtime constants such as `PHP_EOL` do not fold.
 
+### Property names
+
+A property name given as an expression (`$a->{expr}`, `$a?->{expr}`, `A::${expr}`) compiles after the
+object or class, in every kind of access (read, write, `isset`, `unset`, reference). If it compiles to
+a constant (as for class operands under "Class references": literals, array literals whose items all
+fold, and operators over those, not casts) the constant becomes the name. An array warns "Array to
+string conversion" and compilation goes on; other values convert silently. So `$a->{[] + []}` warns,
+while `$a->{[$b]}`, `$a->{(string) []}` and `$a->{"a" . []}` (which does not fold) do not. A class
+constant fetch with a computed name (`A::{[]}`) does not warn.
+
 ### Writing through a created closure
 
 A closure created by `f(...)` is a temporary value. Using it as the container of an element or

@@ -510,6 +510,45 @@
 {"name":"known callees 110","source":"<?php class C { static function m($v){} } class D { static function m($v){} function n() { C::m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
 {"name":"known callees 111","source":"<?php class C { function m($v){} } C::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
 {"name":"known callees 112","source":"<?php function t($v){} class C { function n() { t($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"array property names 1","source":"<?php $a->{array()};","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 2","source":"<?php $a->{[]};","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 3","source":"<?php $a->{[1]};","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 4","source":"<?php $a?->{[]};","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 5","source":"<?php $a->{[]} = 1;","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 6","source":"<?php isset($a->{[]});","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 7","source":"<?php unset($a->{[]});","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 8","source":"<?php $a->{1};","diagnostics":[]}
+{"name":"array property names 9","source":"<?php $a->{1.5};","diagnostics":[]}
+{"name":"array property names 10","source":"<?php $a->{true};","diagnostics":[]}
+{"name":"array property names 11","source":"<?php $a->{null};","diagnostics":[]}
+{"name":"array property names 12","source":"<?php $a->{[]}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
+{"name":"array property names 13","source":"<?php A::${[]};","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 14","source":"<?php A::{[]}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
+{"name":"array property names 15","source":"<?php $a->{[$b]};","diagnostics":[]}
+{"name":"array property names 16","source":"<?php $a->{function(){}};","diagnostics":[]}
+{"name":"array property names 17","source":"<?php $a->{[]}->{[]};","diagnostics":[["Warning","Array to string conversion",1],["Warning","Array to string conversion",1]]}
+{"name":"array property names 18","source":"<?php $x = &$a->{[]};","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 19","source":"<?php f($a->{[]});","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 20","source":"<?php \"$a->{[]}\";","diagnostics":[]}
+{"name":"array property names 21","source":"<?php $a->{[] + []};","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 22","source":"<?php const X = A::{[]};","diagnostics":[]}
+{"name":"array property names 23","source":"<?php $a->{[]}++;","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 24","source":"<?php class C { public $p = A::{[]}; }","diagnostics":[]}
+{"name":"array property names 25","source":"<?php $a->{\"a\" . []};","diagnostics":[]}
+{"name":"array property names 26","source":"<?php list($a->{[]}) = $b;","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 27","source":"<?php $a->{(string) []};","diagnostics":[]}
+{"name":"array property names 28","source":"<?php echo \"{$a->{[]}}\";","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 29","source":"<?php $x = A::{[]};","diagnostics":[]}
+{"name":"array property names 30","source":"<?php $x = $a::{[]};","diagnostics":[]}
+{"name":"array property names 31","source":"<?php A::${[]} = 1;","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 32","source":"<?php A::${1.5};","diagnostics":[]}
+{"name":"array property names 33","source":"<?php $a->{[]}::{[]};","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 34","source":"<?php $a->{[1, 2]};","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 35","source":"<?php $a->{[\"a\" => 1]};","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 36","source":"<?php $a->{array(1)} ?? 1;","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 37","source":"<?php $a->{[...[]]};","diagnostics":[["Warning","Array to string conversion",1]]}
+{"name":"array property names 38","source":"<?php $a->{\n[]}->b->{\n[1]};","diagnostics":[["Warning","Array to string conversion",2],["Warning","Array to string conversion",3]]}
+{"name":"array property names 39","source":"<?php function t($v) {} t($a->{[]});","diagnostics":[["Warning","Array to string conversion",1]]}
 {"name":"misc rules 1","source":"<?php $this?->b(...);","diagnostics":[]}
 {"name":"misc rules 2","source":"<?php $this?->a->b(...);","diagnostics":[]}
 {"name":"misc rules 3","source":"<?php $this?->a?->b(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}
@@ -576,7 +615,6 @@
 {"name":"misc rules 66","source":"<?php $a->{1+1}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
 {"name":"misc rules 67","source":"<?php A::{1}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
 {"name":"misc rules 68","source":"<?php $a->{null}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
-{"name":"misc rules 69","source":"<?php $a->{[]}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
 {"name":"misc rules 70","source":"<?php $a->{PHP_EOL}();","diagnostics":[]}
 {"name":"misc rules 71","source":"<?php $this->{1}();","diagnostics":[["Fatal error","Method name must be a string",1]]}
 {"name":"misc rules 72","source":"<?php $a->{1}(...);","diagnostics":[["Fatal error","Method name must be a string",1]]}

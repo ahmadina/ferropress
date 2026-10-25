@@ -385,13 +385,16 @@ impl<'a> Checker<'a> {
                     self.var(object, fetch)?;
                     self.writable_base(object, fetch)?;
                 }
-                self.member(name)
+                match name {
+                    Member::Name(_) => Ok(()),
+                    Member::Expr(name) => self.property_name(name),
+                }
             }
             ExprKind::StaticProperty { class, name, .. } => {
                 self.class_ref(class)?;
                 match name {
                     VarName::Name(_) => Ok(()),
-                    VarName::Expr(name) => self.expr(name),
+                    VarName::Expr(name) => self.property_name(name),
                 }
             }
             ExprKind::Call { callee, args } => {
@@ -432,6 +435,16 @@ impl<'a> Checker<'a> {
             _ if fetch.writes() => self.fatal("Cannot use temporary expression in write context"),
             _ => self.expr(expr),
         }
+    }
+
+    /// Compiles a computed property name. One that compiles to a constant becomes a string, which
+    /// warns for an array.
+    fn property_name(&mut self, name: &'a Expr) -> Flow {
+        self.expr(name)?;
+        if let Some(Value::Array(_)) = self.compiled_constant(name)? {
+            self.report(Severity::Warning, "Array to string conversion");
+        }
+        Ok(())
     }
 
     fn member(&mut self, member: &'a Member) -> Flow {
@@ -936,6 +949,22 @@ mod tests {
             ("$a?->{true}(...);", &[message]),
             (
                 "$a->{'a' . 'b'}(); $a->{PHP_EOL}(); $a->$b(); A::{$b}();",
+                &[],
+            ),
+        ]);
+    }
+
+    #[test]
+    fn constant_array_property_names_warn() {
+        let warning = "Array to string conversion @1";
+        assert_cases(&[
+            ("$a->{[]};", &[warning]),
+            ("$a?->{[1]}; $b->{[1]} = 1;", &[warning, warning]),
+            ("A::${[] + []};", &[warning]),
+            ("$a->{[]}->{[]};", &[warning, warning]),
+            ("unset($a->{array()});", &[warning]),
+            (
+                "$a->{1.5}; $a->{null}; $a->{[$b]}; $a->{(string) []}; $x = A::{[]};",
                 &[],
             ),
         ]);

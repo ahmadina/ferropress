@@ -729,7 +729,9 @@ A static call is a call of the parent class's hook when all of these hold:
 
 - its method is a literal `get` or `set` (any case);
 - its class part is an unparenthesized `parent::$name`;
-- the property name is literal;
+- the property name is literal: a name, a string (`${'a'}`), or an integer or float literal, which
+  names the property as converting it to a string spells it (`${0}` is `0`, `${1e100}` is
+  `1.0E+100`); a signed number such as `${-1}` is not a literal;
 - `parent` is written as a name in any form or as a string.
 
 Otherwise it compiles as an ordinary static call. Its checks:

@@ -1,8 +1,12 @@
 //! Property hooks, and calls of a parent class's hook from inside one.
 
+use std::borrow::Cow;
+
 use php_parser::ast::{
     Args, ClassKind, Expr, ExprKind, Hook, HookBody, Member, Modifiers, Param, Type, VarName,
 };
+use php_value::Value;
+use php_value::ops::Collect;
 
 use super::attributes::Target;
 use super::types::{DeclaredType, Mask};
@@ -331,10 +335,13 @@ impl<'a> Checker<'a> {
     ) -> Flow<bool> {
         let ExprKind::StaticProperty {
             class: parent,
-            name: VarName::Name(property),
+            name: property,
             parenthesized: false,
         } = &class.kind
         else {
+            return Ok(false);
+        };
+        let Some(property) = literal_property(property) else {
             return Ok(false);
         };
         let is_parent = match &parent.kind {
@@ -355,12 +362,12 @@ impl<'a> Checker<'a> {
             return self.fatal("Cannot create Closure for parent property hook call");
         }
         let mut message = b"Must not use parent::$".to_vec();
-        message.extend_from_slice(property);
+        message.extend_from_slice(&property);
         message.extend_from_slice(b"::");
         message.extend_from_slice(hook);
         message.extend_from_slice(b"() ");
         match (&self.frame.property, self.frame.hook) {
-            (Some(active), _) if active != property => {
+            (Some(active), _) if *active != *property => {
                 message.extend_from_slice(b"in a different property ($");
                 message.extend_from_slice(active);
                 message.push(b')');
@@ -378,6 +385,21 @@ impl<'a> Checker<'a> {
         }
         self.fatal(message)
     }
+}
+
+/// The property of `parent::$name` when its name is a literal: a name, or a number spelled as
+/// converting it to a string spells it (`parent::${0}` names the property `0`).
+fn literal_property(name: &VarName) -> Option<Cow<'_, [u8]>> {
+    let number = match name {
+        VarName::Name(name) => return Some(Cow::Borrowed(name)),
+        VarName::Expr(expr) => match expr.kind {
+            ExprKind::Int(number) => Value::Int(number),
+            ExprKind::Float(number) => Value::Float(number),
+            _ => return None,
+        },
+    };
+    let text = number.to_php_string(&mut Collect::default()).ok()?;
+    Some(Cow::Owned(text.as_bytes().to_vec()))
 }
 
 #[cfg(test)]
@@ -701,6 +723,18 @@ mod tests {
         fatal(
             "class A { public $a { set { parent::$a::Get(); } } }",
             "Must not use parent::$a::Get() in a different property hook (set)",
+        );
+        fatal(
+            "class A { public $a { get => parent::${0}::get(); } }",
+            "Must not use parent::$0::get() in a different property ($a)",
+        );
+        fatal(
+            "class A { public $a { get => parent::${1.5}::get(); } }",
+            "Must not use parent::$1.5::get() in a different property ($a)",
+        );
+        fatal(
+            "class A { public $a { get => parent::${-1}::get(); } }",
+            "Cannot use \"parent\" when current class scope has no parent",
         );
         fatal(
             "class A { public $a { get => (parent::$a)::get(); } }",

@@ -181,7 +181,9 @@ These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, 
 `is_null`, `is_bool`, `is_int` / `is_integer`, `is_float` / `is_double` / `is_real`, `is_string`,
 `is_array`, `is_object`, `is_numeric`, `function_exists`, `class_exists`, `spl_autoload_register`,
 `abs`, `min`, `max`, `floor`, `ceil`, `round`, `intval`, `floatval` / `doubleval`, `strval`,
-`intdiv`, `sqrt`, `implode` / `join`, `explode`, `json_encode`, `json_decode`. Too few arguments throw
+`intdiv`, `sqrt`, `implode` / `join`, `explode`, `json_encode`, `json_decode`,
+`array_key_exists` / `key_exists`, `in_array`, `array_merge`, `array_keys`, `array_values`,
+`substr`, `strpos`, `str_contains`, `trim` / `ltrim` / `rtrim`. Too few arguments throw
 `ArgumentCountError` from the function (`name() expects exactly N argument(s), M given`). `strlen`
 and the case mappers take a string (other scalars are converted; an array or object throws
 `TypeError`). `count` of a non-array throws `TypeError`. `function_exists` sees user functions and

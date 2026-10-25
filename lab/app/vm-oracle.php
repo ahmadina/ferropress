@@ -185,6 +185,11 @@ function vm_topic_cases(): array {
 			'$s = "a"; echo $s[5] === "" ? "e" : "x";',
 			'$o = new Exception("x"); $o[0] = 1;',
 			'$n = 1; $n[0] = 2; echo $n;',
+			'echo array_key_exists("a", ["a" => 1]) ? "y" : "n", in_array(2, [1, 2]) ? "y" : "n", implode(",", array_merge([1], [2]));',
+			'echo array_keys(["a" => 1])[0], array_values(["a" => 3])[0];',
+			'echo substr("abcd", 1, 2), strpos("abcd", "c"), str_contains("abcd", "bc") ? "y" : "n", trim(" a ");',
+			'echo ltrim(" a "), rtrim(" a ");',
+			'echo strpos("abcd", "z") === false ? "f" : "x";',
 		),
 		'math'          => array(
 			'echo abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);',

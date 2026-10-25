@@ -21,6 +21,7 @@ mod includes;
 mod json;
 mod machine;
 mod math;
+mod strings;
 mod thrown;
 
 pub use error::VmError;

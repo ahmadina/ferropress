@@ -211,6 +211,109 @@ impl<O: Output> Machine<'_, '_, O> {
         }
         self.write(result, Value::Array(array))
     }
+
+    pub(crate) fn native_array_key_exists(&mut self, args: &[Argument], result: Operand) -> Exec {
+        if args.len() < 2 {
+            return Err(self.too_few("array_key_exists", args.len(), 2));
+        }
+        let key_value = args[0].slot.value();
+        let Some(key) = self.compute(|cx| Ok(array_key(&key_value, cx)))? else {
+            return Err(self.throw(
+                "TypeError",
+                format!(
+                    "array_key_exists(): Argument #1 ($key) must be of type string|int, {} given",
+                    key_value.type_name()
+                )
+                .into_bytes(),
+            ));
+        };
+        let array = self.need_array("array_key_exists", 2, "array", args[1].slot.value())?;
+        self.write(result, Value::Bool(array.contains_key(&key)))
+    }
+
+    pub(crate) fn native_in_array(&mut self, args: &[Argument], result: Operand) -> Exec {
+        if args.len() < 2 {
+            return Err(self.too_few("in_array", args.len(), 2));
+        }
+        let needle = args[0].slot.value();
+        let array = self.need_array("in_array", 2, "haystack", args[1].slot.value())?;
+        let strict = match args.get(2) {
+            Some(arg) => self.compute(|cx| arg.slot.value().to_bool(cx))?,
+            None => false,
+        };
+        let mut found = false;
+        for (_key, slot) in array.iter() {
+            let item = slot.value();
+            found = if strict {
+                self.compute(|_cx| php_value::ops::identical(&needle, &item))?
+            } else {
+                self.compute(|cx| php_value::ops::loose_equals(&needle, &item, cx))?
+            };
+            if found {
+                break;
+            }
+        }
+        self.write(result, Value::Bool(found))
+    }
+
+    pub(crate) fn native_array_merge(&mut self, args: &[Argument], result: Operand) -> Exec {
+        let mut out = PhpArray::new();
+        for (index, arg) in args.iter().enumerate() {
+            let array = self.need_array("array_merge", index + 1, "array", arg.slot.value())?;
+            for (key, slot) in array.iter() {
+                match key {
+                    ArrayKey::Int(_) => {
+                        out.append(slot.value())
+                            .map_err(|_full| VmError::Unsupported("this many array items"))?;
+                    }
+                    ArrayKey::String(name) => {
+                        out.assign(ArrayKey::String(name.clone()), slot.value());
+                    }
+                }
+            }
+        }
+        self.write(result, Value::Array(out))
+    }
+
+    pub(crate) fn native_array_keys(&mut self, args: &[Argument], result: Operand) -> Exec {
+        let value = self.native_one("array_keys", args)?;
+        let array = self.need_array("array_keys", 1, "array", value)?;
+        let mut out = PhpArray::new();
+        for (key, _slot) in array.iter() {
+            let item = match key {
+                ArrayKey::Int(number) => Value::Int(*number),
+                ArrayKey::String(text) => Value::String(text.clone()),
+            };
+            out.append(item)
+                .map_err(|_full| VmError::Unsupported("this many array items"))?;
+        }
+        self.write(result, Value::Array(out))
+    }
+
+    pub(crate) fn native_array_values(&mut self, args: &[Argument], result: Operand) -> Exec {
+        let value = self.native_one("array_values", args)?;
+        let array = self.need_array("array_values", 1, "array", value)?;
+        let mut out = PhpArray::new();
+        for (_key, slot) in array.iter() {
+            out.append(slot.value())
+                .map_err(|_full| VmError::Unsupported("this many array items"))?;
+        }
+        self.write(result, Value::Array(out))
+    }
+
+    fn need_array(&mut self, name: &str, nth: usize, param: &str, value: Value) -> Exec<PhpArray> {
+        match value {
+            Value::Array(array) => Ok(array),
+            other => Err(self.throw(
+                "TypeError",
+                format!(
+                    "{name}(): Argument #{nth} (${param}) must be of type array, {} given",
+                    other.type_name()
+                )
+                .into_bytes(),
+            )),
+        }
+    }
 }
 
 fn undefined_key_message(key: &ArrayKey) -> Vec<u8> {
@@ -219,7 +322,7 @@ fn undefined_key_message(key: &ArrayKey) -> Vec<u8> {
         ArrayKey::Int(number) => {
             message.extend_from_slice(number.to_string().as_bytes());
         }
-        php_value::ArrayKey::String(text) => {
+        ArrayKey::String(text) => {
             message.push(b'"');
             message.extend_from_slice(text.as_bytes());
             message.push(b'"');

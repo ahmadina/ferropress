@@ -139,6 +139,11 @@
 {"name":"arrays 11","source":"<?php\n$s = \"a\"; echo $s[5] === \"\" ? \"e\" : \"x\";","output":"\nWarning: Uninitialized string offset 5 in %file% on line 2\ne","status":0}
 {"name":"arrays 12","source":"<?php\n$o = new Exception(\"x\"); $o[0] = 1;","output":"\nFatal error: Uncaught Error: Cannot use object of type Exception as array in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"arrays 13","source":"<?php\n$n = 1; $n[0] = 2; echo $n;","output":"\nFatal error: Uncaught Error: Cannot use a scalar value as an array in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"arrays 14","source":"<?php\necho array_key_exists(\"a\", [\"a\" => 1]) ? \"y\" : \"n\", in_array(2, [1, 2]) ? \"y\" : \"n\", implode(\",\", array_merge([1], [2]));","output":"yy1,2","status":0}
+{"name":"arrays 15","source":"<?php\necho array_keys([\"a\" => 1])[0], array_values([\"a\" => 3])[0];","output":"a3","status":0}
+{"name":"arrays 16","source":"<?php\necho substr(\"abcd\", 1, 2), strpos(\"abcd\", \"c\"), str_contains(\"abcd\", \"bc\") ? \"y\" : \"n\", trim(\" a \");","output":"bc2ya","status":0}
+{"name":"arrays 17","source":"<?php\necho ltrim(\" a \"), rtrim(\" a \");","output":"a  a","status":0}
+{"name":"arrays 18","source":"<?php\necho strpos(\"abcd\", \"z\") === false ? \"f\" : \"x\";","output":"f","status":0}
 {"name":"math 01","source":"<?php\necho abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);","output":"31312","status":0}
 {"name":"math 02","source":"<?php\necho intdiv(7, 2), intval(floor(1.5)), intval(ceil(1.2)), intval(round(1.5));","output":"3122","status":0}
 {"name":"math 03","source":"<?php\necho intval(sqrt(9));","output":"3","status":0}

@@ -41,6 +41,17 @@ pub(crate) enum Native {
     Explode,
     JsonEncode,
     JsonDecode,
+    ArrayKeyExists,
+    InArray,
+    ArrayMerge,
+    ArrayKeys,
+    ArrayValues,
+    Substr,
+    Strpos,
+    StrContains,
+    Trim,
+    Ltrim,
+    Rtrim,
 }
 
 /// The built-in named by `key`, compared lowercase.
@@ -77,6 +88,17 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"explode" => Native::Explode,
         b"json_encode" => Native::JsonEncode,
         b"json_decode" => Native::JsonDecode,
+        b"array_key_exists" | b"key_exists" => Native::ArrayKeyExists,
+        b"in_array" => Native::InArray,
+        b"array_merge" => Native::ArrayMerge,
+        b"array_keys" => Native::ArrayKeys,
+        b"array_values" => Native::ArrayValues,
+        b"substr" => Native::Substr,
+        b"strpos" => Native::Strpos,
+        b"str_contains" => Native::StrContains,
+        b"trim" => Native::Trim,
+        b"ltrim" => Native::Ltrim,
+        b"rtrim" => Native::Rtrim,
         _ => return None,
     })
 }
@@ -140,6 +162,17 @@ impl<O: Output> Machine<'_, '_, O> {
             Native::Explode => self.native_explode(args, result),
             Native::JsonEncode => self.native_json_encode(args, result),
             Native::JsonDecode => self.native_json_decode(args, result),
+            Native::ArrayKeyExists => self.native_array_key_exists(args, result),
+            Native::InArray => self.native_in_array(args, result),
+            Native::ArrayMerge => self.native_array_merge(args, result),
+            Native::ArrayKeys => self.native_array_keys(args, result),
+            Native::ArrayValues => self.native_array_values(args, result),
+            Native::Substr => self.native_substr(args, result),
+            Native::Strpos => self.native_strpos(args, result),
+            Native::StrContains => self.native_str_contains(args, result),
+            Native::Trim => self.native_trim(args, result, crate::strings::Trim::Both),
+            Native::Ltrim => self.native_trim(args, result, crate::strings::Trim::Left),
+            Native::Rtrim => self.native_trim(args, result, crate::strings::Trim::Right),
         }
     }
 }

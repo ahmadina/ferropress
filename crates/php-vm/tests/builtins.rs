@@ -177,6 +177,35 @@ fn offset_on_a_scalar_warns() -> Result<(), String> {
 }
 
 #[test]
+fn array_lookups_and_merge() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo array_key_exists(\"a\", [\"a\" => 1]) ? \"y\" : \"n\", in_array(2, [1, 2]) ? \"y\" : \"n\", implode(\",\", array_merge([1], [2])), array_keys([\"a\" => 1])[0], array_values([\"a\" => 3])[0];",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"yy1,2a3");
+    Ok(())
+}
+
+#[test]
+fn array_key_exists_rejects_a_non_array() -> Result<(), String> {
+    let (output, status) = run(b"<?php array_key_exists(\"a\", 1);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("must be of type array, int given"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn string_slice_search_and_trim() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo substr(\"abcd\", 1, 2), strpos(\"abcd\", \"c\"), str_contains(\"abcd\", \"bc\") ? \"y\" : \"n\", trim(\" a \");",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"bc2ya");
+    Ok(())
+}
+
+#[test]
 fn assigning_to_a_scalar_offset_throws() -> Result<(), String> {
     let (output, status) = run(b"<?php $n = 1; $n[0] = 2;")?;
     let text = String::from_utf8_lossy(&output);

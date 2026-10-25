@@ -6,7 +6,7 @@ use super::builder::Field;
 use super::{Emit, Emitter, Loop};
 use crate::bytecode::{Opcode, Operand};
 
-impl Emitter {
+impl Emitter<'_> {
     pub(super) fn stmts(&mut self, stmts: &[Stmt]) -> Emit {
         stmts.iter().try_for_each(|stmt| self.stmt(stmt))
     }

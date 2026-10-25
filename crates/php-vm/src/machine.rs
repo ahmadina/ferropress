@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use php_compiler::bytecode::{Code, Instruction, Literal, Opcode, Operand, OperandKind, Unit};
 use php_value::ops::{self, Collect, OpError};
-use php_value::{PhpString, Slot, Value};
+use php_value::{ObjectStore, PhpString, Slot, Value};
 
 use crate::thrown::{Thrown, TraceEntry};
 use crate::{Output, VmError};
@@ -81,7 +81,8 @@ pub(crate) struct Machine<'u, 'o, O: Output> {
     output: &'o mut O,
     pub(crate) frames: Vec<Frame>,
     /// Calls being prepared: the function and the arguments sent so far.
-    pub(crate) pending: Vec<(usize, Vec<crate::calls::Argument>)>,
+    pub(crate) pending: Vec<crate::calls::Pending>,
+    pub(crate) objects: ObjectStore,
     pub(crate) cx: Collect,
     /// The line of the instruction running.
     pub(crate) line: u32,
@@ -118,7 +119,9 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
         let mut codes = vec![load(&unit.main)];
         let mut functions = HashMap::with_capacity(unit.functions.len());
         for function in &unit.functions {
-            functions.insert(function.name.to_ascii_lowercase().into(), codes.len());
+            if !function.name.is_empty() {
+                functions.insert(function.name.to_ascii_lowercase().into(), codes.len());
+            }
             codes.push(load(&function.code));
         }
         Self {
@@ -128,6 +131,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             output,
             frames: Vec::new(),
             pending: Vec::new(),
+            objects: ObjectStore::new(),
             cx: Collect::default(),
             line: 0,
         }
@@ -191,6 +195,9 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::PreDecrement | Opcode::PostDecrement => self.step_variable(ins, ops::decrement),
             Opcode::Echo => self.echo(ins.a),
             Opcode::InitCall => self.init_call(ins),
+            Opcode::InitCallValue => self.init_call_value(ins.a),
+            Opcode::MakeClosure => self.make_closure(ins),
+            Opcode::Capture => self.capture(ins),
             Opcode::Send => self
                 .read(ins.a)
                 .and_then(|value| self.send(Slot::Value(value), ins.flags & 1 != 0)),
@@ -245,7 +252,9 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::BoolNot => self.unary(ins, |value, cx| Ok(Value::Bool(!value.to_bool(cx)?))),
             Opcode::ToBool => self.unary(ins, |value, cx| Ok(Value::Bool(value.to_bool(cx)?))),
             Opcode::ToString => {
-                self.unary(ins, |value, cx| Ok(Value::String(value.to_php_string(cx)?)))
+                let operand = self.read(ins.a)?;
+                let text = self.stringify(&operand)?;
+                self.write(ins.result, Value::String(text))
             }
             _ => Err(VmError::Unsupported("this instruction").into()),
         }
@@ -269,7 +278,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
 
     fn echo(&mut self, operand: Operand) -> Exec {
         let value = self.read(operand)?;
-        let text = self.compute(|cx| value.to_php_string(cx))?;
+        let text = self.stringify(&value)?;
         self.flush();
         self.output.write(text.as_bytes());
         Ok(())

@@ -358,8 +358,7 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
             other @ Failure::TooLarge { .. } => return Err(format!("{source}: {other}")),
         }
     }
-    let calls: [(&str, &str); 4] = [
-        ("<?php $f();", "calls of computed callees"),
+    let calls: [(&str, &str); 3] = [
         ("<?php namespace\\f();", "namespace-relative names"),
         ("<?php f(...);", "first-class callables"),
         ("<?php f(a: 1);", "named and unpacked arguments"),
@@ -375,6 +374,64 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
             other => return Err(format!("{source}: {other:?}")),
         }
     }
+    Ok(())
+}
+
+#[test]
+fn closures_and_arrows_are_code_objects_with_captures() -> Result<(), String> {
+    assert_eq!(
+        disassemble(
+            "<?php\n$a = 1;\n$f = function($x) use ($a, &$b) { return $x + $a; };\necho $f(2);\n\
+             $g = fn($y) => $y + $a;\necho $g(3);\n"
+        )?,
+        listing(&[
+            "code {main} temporaries=4",
+            "   0    2  Assign $a, 1",
+            "   1    3  MakeClosure T0 = 0",
+            "   2    3  Capture T0, $a, 1",
+            "   3    3  Capture/1 T0, $b, 2",
+            "   4    3  Assign $f, T0",
+            "   5    4  InitCallValue $f",
+            "   6    4  Send 2",
+            "   7    4  Call T1 =",
+            "   8    4  Echo T1",
+            "   9    5  MakeClosure T2 = 1",
+            "  10    5  Capture T2, $a, 1",
+            "  11    5  Assign $g, T2",
+            "  12    6  InitCallValue $g",
+            "  13    6  Send 3",
+            "  14    6  Call T3 =",
+            "  15    6  Echo T3",
+            "  16    6  Return 1",
+            "",
+            "code {closure:/t.php:3}($x) temporaries=1",
+            "   0    3  Add T0 = $x, $a",
+            "   1    3  Return T0",
+            "   2    3  Return",
+            "",
+            "code {closure:/t.php:5}($y) temporaries=1",
+            "   0    5  Add T0 = $y, $a",
+            "   1    5  Return T0",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_computed_callee_uses_the_value() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php $n = \"add\"; echo $n(1, $x);")?,
+        listing(&[
+            "code {main} temporaries=1",
+            "   0    1  Assign $n, \"add\"",
+            "   1    1  InitCallValue $n",
+            "   2    1  Send 1",
+            "   3    1  SendVar $x",
+            "   4    1  Call T0 =",
+            "   5    1  Echo T0",
+            "   6    1  Return 1",
+        ])
+    );
     Ok(())
 }
 

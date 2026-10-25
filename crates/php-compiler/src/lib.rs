@@ -96,7 +96,7 @@ pub fn compile(program: &Program, file: &[u8]) -> Result<Compiled, CompileFailur
         let diagnostics = check::Checker::run(program, file);
         let unit = match diagnostics.fatal {
             Some(_) => None,
-            None => Some(emit::Emitter::run(program)?),
+            None => Some(emit::run(program, file)?),
         };
         Ok(Compiled { diagnostics, unit })
     })

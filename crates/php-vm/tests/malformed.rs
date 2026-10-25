@@ -92,6 +92,18 @@ fn malformed_operands_are_errors() -> Result<(), String> {
             "function name is not a string",
         ),
         (
+            vec![op(Opcode::MakeClosure, literal(0), None, None)],
+            "closure index out of range",
+        ),
+        (
+            vec![op(Opcode::MakeClosure, literal(1), None, None)],
+            "closure index is not an integer",
+        ),
+        (
+            vec![op(Opcode::Capture, literal(0), None, None)],
+            "capture target is not a closure",
+        ),
+        (
             vec![{
                 let mut init = op(Opcode::InitCall, literal(1), None, None);
                 init.c = Operand::literal(0).unwrap_or(Operand::UNUSED);

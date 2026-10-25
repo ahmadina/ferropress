@@ -49,11 +49,27 @@ name as declared (not as the call wrote it), and ends with `{main}`. The argumen
 
 - Calling an undefined function throws `Error` with `Call to undefined function <name>()`, the name as
   the call wrote it (fully qualified, without the leading backslash). The arguments are not evaluated.
+- A computed callee (`$f()`, `$name()`) is evaluated first. A string looks up a function by that name
+  (case-insensitive; a leading backslash is dropped). A `Closure` object is invoked. Any other value
+  throws `Error` with `Value of type <type> is not callable` (`null`, `bool`, `int`, `float`, `string`,
+  `array`, or the object's class name).
 - Passing fewer arguments than the function declares parameters (not counting a variadic one) throws
   `ArgumentCountError` from inside the called function, so the trace starts with that call: `Too few
   arguments to function <name>(), <passed> passed in <file> on line <call line> and exactly <declared>
   expected`. Its line is the line of the first parameter that received no argument.
 - Passing more arguments than declared is allowed; the extra ones appear in stack traces.
+
+## Closures
+
+A `function (…) use (…) { … }` or `fn (…) => expr` expression evaluates to an object of class `Closure`.
+Calling it runs the compiled body. `use ($a)` copies `$a` when the closure is created (an undefined
+variable warns and copies `null`); `use (&$a)` binds the same reference, creating `$a` as `null` when
+it was undefined. An arrow function captures every free variable of its body by value, in the order
+they first appear, excluding its parameters. Echoing a `Closure` throws `Error` with `Object of class
+Closure could not be converted to string`.
+
+The closure's name in stack traces is `{closure:PARENT:LINE}`, where `PARENT` is the file path at the
+top level, `f()` inside a function, or the enclosing closure's name.
 
 Operator errors (`DivisionByZeroError`, `ArithmeticError`, `TypeError`) and the warnings and deprecations
 of conversions follow `contracts/runtime/operators.md`.

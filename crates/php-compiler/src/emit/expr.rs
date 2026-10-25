@@ -96,7 +96,7 @@ fn keyword_constant(name: &Name) -> Option<Literal> {
     }
 }
 
-impl Emitter {
+impl Emitter<'_> {
     /// Compiles `expr` for its value.
     pub(super) fn expr(&mut self, expr: &Expr) -> Emit<Operand> {
         let line = self.builder.line;
@@ -165,6 +165,8 @@ impl Emitter {
                 self.builder.literal(Literal::Int(1))
             }
             ExprKind::Call { callee, args } => self.call(callee, args, used),
+            ExprKind::Closure(function) => self.closure(function, used),
+            ExprKind::ArrowFunction { function, .. } => self.arrow(function, used),
             _ => self.unsupported("this expression"),
         }
     }
@@ -362,23 +364,38 @@ impl Emitter {
         Ok(result)
     }
 
-    /// A call of a function named at compile time, with positional arguments.
+    /// A call of a named function or of a computed callee, with positional arguments.
     fn call(&mut self, callee: &Expr, args: &Args, used: bool) -> Emit<Operand> {
-        let ExprKind::Name(name) = &callee.kind else {
-            return self.unsupported("calls of computed callees");
-        };
-        if name.kind == NameKind::Relative {
-            return self.unsupported("namespace-relative names");
-        }
         let Args::List(args) = args else {
             return self.unsupported("first-class callables");
         };
-        let function = self.builder.string(&name.bytes.to_ascii_lowercase())?;
-        let written = self.builder.string(&name.bytes)?;
-        let mut init = Instruction::new(Opcode::InitCall);
-        init.a = function;
-        init.c = written;
-        self.builder.emit(init)?;
+        if let ExprKind::Name(name) = &callee.kind {
+            if name.kind == NameKind::Relative {
+                return self.unsupported("namespace-relative names");
+            }
+            let function = self.builder.string(&name.bytes.to_ascii_lowercase())?;
+            let written = self.builder.string(&name.bytes)?;
+            let mut init = Instruction::new(Opcode::InitCall);
+            init.a = function;
+            init.c = written;
+            self.builder.emit(init)?;
+        } else {
+            let value = self.expr(callee)?;
+            self.builder.op(
+                Opcode::InitCallValue,
+                value,
+                Operand::UNUSED,
+                Operand::UNUSED,
+            )?;
+        }
+        self.send_args(args)?;
+        let result = self.result(used)?;
+        self.builder
+            .op(Opcode::Call, Operand::UNUSED, Operand::UNUSED, result)?;
+        Ok(result)
+    }
+
+    fn send_args(&mut self, args: &[Arg]) -> Emit {
         for arg in args {
             let Arg::Positional(value) = arg else {
                 return self.unsupported("named and unpacked arguments");
@@ -403,10 +420,7 @@ impl Emitter {
                 self.builder.emit(send)?;
             }
         }
-        let result = self.result(used)?;
-        self.builder
-            .op(Opcode::Call, Operand::UNUSED, Operand::UNUSED, result)?;
-        Ok(result)
+        Ok(())
     }
 }
 
@@ -426,7 +440,8 @@ mod tests {
 
     #[test]
     fn interpolations_without_expressions_are_literals() {
-        let mut emitter = Emitter::new(b"");
+        let mut ctx = super::super::EmitCtx::for_test();
+        let mut emitter = Emitter::new(&mut ctx, b"", super::super::Scope::File);
         let empty = emitter.expr(&interpolated(Vec::new())).unwrap();
         let text = emitter
             .expr(&interpolated(vec![
@@ -453,7 +468,8 @@ mod tests {
             kind: ExprKind::Variable(VarName::Name(b"a".to_vec())),
             line: 1,
         };
-        let mut emitter = Emitter::new(b"");
+        let mut ctx = super::super::EmitCtx::for_test();
+        let mut emitter = Emitter::new(&mut ctx, b"", super::super::Scope::File);
         emitter
             .expr(&interpolated(vec![
                 StringPart::Literal(b"x".to_vec()),

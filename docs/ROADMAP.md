@@ -62,6 +62,11 @@ Status legend: `[x]` done · `[ ]` not started
         fail or use constructs not compiled yet)
 - [ ] 18. Language features: functions and closures; classes, interfaces, traits, enums; exceptions;
       generators and fibers; include/require and autoloading
+  - [x] Closures and arrow functions, including `use` captures and computed callees
+  - [ ] Classes, interfaces, traits and enums
+  - [ ] Exceptions
+  - [ ] Generators and fibers
+  - [ ] include/require and autoloading
 - [ ] 19. Built-in function families: strings, arrays, math, JSON, PCRE, mbstring, date/time, streams,
       mysqli/PDO, and the rest required by the certified plugin set
 - [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP

@@ -1,7 +1,7 @@
 //! Calls between PHP functions: preparing arguments, binding parameters and returning.
 
 use php_compiler::bytecode::{Instruction, Operand, OperandKind};
-use php_value::{PhpArray, Slot, Value};
+use php_value::{Object, PhpArray, Slot, Value};
 
 use crate::machine::{Exec, Flow, Frame, Machine};
 use crate::{Output, VmError};
@@ -14,6 +14,13 @@ pub(crate) struct Argument {
     from_call: bool,
 }
 
+/// A function or closure being prepared for [`Machine::call`].
+pub(crate) struct Pending {
+    pub(crate) code: usize,
+    pub(crate) env: Option<Object>,
+    pub(crate) args: Vec<Argument>,
+}
+
 impl<O: Output> Machine<'_, '_, O> {
     /// Starts a call of the function named by the literal `a`; an undefined function throws
     /// before any argument is evaluated.
@@ -23,7 +30,11 @@ impl<O: Output> Machine<'_, '_, O> {
             return Err(VmError::Malformed("function name is not a string").into());
         };
         if let Some(&code) = self.functions.get(key.as_bytes()) {
-            self.pending.push((code, Vec::new()));
+            self.pending.push(Pending {
+                code,
+                env: None,
+                args: Vec::new(),
+            });
             return Ok(());
         }
         let written = self.read(ins.c)?;
@@ -37,11 +48,11 @@ impl<O: Output> Machine<'_, '_, O> {
     }
 
     pub(crate) fn send(&mut self, arg: Slot, from_call: bool) -> Exec {
-        let (_, args) = self
+        let pending = self
             .pending
             .last_mut()
             .ok_or(VmError::Malformed("argument sent outside a call"))?;
-        args.push(Argument {
+        pending.args.push(Argument {
             slot: arg,
             from_call,
         });
@@ -51,14 +62,14 @@ impl<O: Output> Machine<'_, '_, O> {
     /// Sends the variable `operand`: by reference when the parameter at this position takes one,
     /// creating the variable if needed; otherwise by value.
     pub(crate) fn send_variable(&mut self, operand: Operand) -> Exec {
-        let &(code, ref args) = self
+        let pending = self
             .pending
             .last()
             .ok_or(VmError::Malformed("argument sent outside a call"))?;
-        let by_ref = self.codes[code]
+        let by_ref = self.codes[pending.code]
             .code
             .params
-            .get(args.len())
+            .get(pending.args.len())
             .is_some_and(|param| param.by_ref && !param.variadic);
         if !by_ref {
             let value = self.read(operand)?;
@@ -80,11 +91,18 @@ impl<O: Output> Machine<'_, '_, O> {
     /// Calls the prepared function, binding its parameters; too few arguments throw
     /// `ArgumentCountError` from inside the called function.
     pub(crate) fn call(&mut self, result: Operand) -> Exec {
-        let (code, args) = self
+        let Pending { code, env, args } = self
             .pending
             .pop()
             .ok_or(VmError::Malformed("call without a prepared function"))?;
         let mut frame = Frame::new(code, &self.codes[code]);
+        if let Some(env) = env {
+            crate::closures::apply_captured_slots(
+                &env,
+                &mut frame.slots,
+                &self.codes[code].code.slots,
+            )?;
+        }
         frame.result = result;
         frame.call_line = self.line;
         frame.passed = args.len();

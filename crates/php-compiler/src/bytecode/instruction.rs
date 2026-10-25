@@ -70,6 +70,13 @@ pub enum Opcode {
     /// Starts a call of the function named by the literal `a` (lowercase); `b`, when used, is the
     /// global name tried when no function `a` exists; `c` is the name as written, for messages.
     InitCall,
+    /// Starts a call of the value `a`: a `Closure` object, or a string naming a function.
+    InitCallValue,
+    /// `result` is a new `Closure` of the function declaration `a` (its index in the unit).
+    MakeClosure,
+    /// Binds the variable `b` into the closure `a` as that closure's slot `c`; flag bit 0 is set
+    /// when the binding is by reference.
+    Capture,
     /// Passes `a` by value as the next argument of the call being prepared. Flag bit 0 is set when
     /// `a` is a call's result, which a by-reference parameter accepts with a notice.
     Send,
@@ -128,6 +135,9 @@ impl Opcode {
             Self::JumpIfTrue => "JumpIfTrue",
             Self::ToString => "ToString",
             Self::InitCall => "InitCall",
+            Self::InitCallValue => "InitCallValue",
+            Self::MakeClosure => "MakeClosure",
+            Self::Capture => "Capture",
             Self::Send => "Send",
             Self::SendVar => "SendVar",
             Self::Call => "Call",
@@ -213,6 +223,9 @@ mod tests {
             Opcode::JumpIfTrue,
             Opcode::ToString,
             Opcode::InitCall,
+            Opcode::InitCallValue,
+            Opcode::MakeClosure,
+            Opcode::Capture,
             Opcode::Send,
             Opcode::SendVar,
             Opcode::Call,

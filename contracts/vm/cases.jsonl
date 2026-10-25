@@ -62,6 +62,20 @@
 {"name":"functions 17","source":"<?php\nfunction r($x) { return $x; } echo r(r(r(\"nested\")));","output":"nested","status":0}
 {"name":"functions 18","source":"<?php\nfunction lines(\n  $a,\n  $b\n) {}\nlines(1);","output":"\nFatal error: Uncaught ArgumentCountError: Too few arguments to function lines(), 1 passed in %file% on line 6 and exactly 2 expected in %file%:4\nStack trace:\n#0 %file%(6): lines(1)\n#1 {main}\n  thrown in %file% on line 4\n","status":255}
 {"name":"functions 19","source":"<?php\nfunction rec($n) { return $n <= 0 ? 0 : 1 + rec($n - 1); } echo rec(5000);","output":"5000","status":0}
+{"name":"closures 01","source":"<?php\n$f = function($x) { return $x + 1; }; echo $f(2);","output":"3","status":0}
+{"name":"closures 02","source":"<?php\n$f = fn($x) => $x * 2; echo $f(3);","output":"6","status":0}
+{"name":"closures 03","source":"<?php\n$a = 10; $f = function($x) use ($a) { return $x + $a; }; $a = 1; echo $f(2);","output":"12","status":0}
+{"name":"closures 04","source":"<?php\n$a = 10; $f = function() use (&$a) { $a++; }; $f(); echo $a;","output":"11","status":0}
+{"name":"closures 05","source":"<?php\n$a = 3; $f = fn($x) => $x + $a; $a = 0; echo $f(1);","output":"4","status":0}
+{"name":"closures 06","source":"<?php\n$f = function() { return function($x) { return $x; }; }; $g = $f(); echo $g(7);","output":"7","status":0}
+{"name":"closures 07","source":"<?php\nfunction add2($a, $b) { return $a + $b; } $n = \"ADD2\"; echo $n(2, 3);","output":"5","status":0}
+{"name":"closures 08","source":"<?php\necho (function($x) { return $x; })(5);","output":"5","status":0}
+{"name":"closures 09","source":"<?php\n$f = 1; $f();","output":"\nFatal error: Uncaught Error: Value of type int is not callable in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"closures 10","source":"<?php\n$f = function() {}; echo $f;","output":"\nFatal error: Uncaught Error: Object of class Closure could not be converted to string in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"closures 11","source":"<?php\n$u = function() use ($missing) { return $missing; }; echo $u();","output":"\nWarning: Undefined variable $missing in %file% on line 2\n","status":0}
+{"name":"closures 12","source":"<?php\n$f = function() { echo 1 % 0; }; $f();","output":"\nFatal error: Uncaught DivisionByZeroError: Modulo by zero in %file%:2\nStack trace:\n#0 %file%(2): {closure:%file%:2}()\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"closures 13","source":"<?php\n$n = \"missing\"; $n();","output":"\nFatal error: Uncaught Error: Call to undefined function missing() in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"closures 14","source":"<?php\n$f();","output":"\nWarning: Undefined variable $f in %file% on line 2\n\nFatal error: Uncaught Error: Value of type null is not callable in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"errors 01","source":"<?php\necho 1;\necho 1 % 0;\necho 2;","output":"1\nFatal error: Uncaught DivisionByZeroError: Modulo by zero in %file%:3\nStack trace:\n#0 {main}\n  thrown in %file% on line 3\n","status":255}
 {"name":"errors 02","source":"<?php\nfunction f($x) { return $x / 0; } echo \"before\"; f(\"1\");","output":"before\nFatal error: Uncaught DivisionByZeroError: Division by zero in %file%:2\nStack trace:\n#0 %file%(2): f('1')\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"errors 03","source":"<?php\necho -\"abc\";","output":"\nFatal error: Uncaught TypeError: Unsupported operand types: string * int in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}

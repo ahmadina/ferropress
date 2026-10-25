@@ -43,7 +43,7 @@ pub struct Code {
 /// A function the file declares.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl {
-    /// The namespaced name as declared.
+    /// The namespaced name as declared; empty for a closure, which is not callable by name.
     pub name: Box<[u8]>,
     /// The line of `function`.
     pub line: u32,
@@ -56,7 +56,9 @@ pub struct FunctionDecl {
 pub struct Unit {
     /// The file's main code.
     pub main: Code,
-    /// The functions the file declares, in order.
+    /// The functions and closures the file declares, in declaration order. A closure has an empty
+    /// [`FunctionDecl::name`] and is not entered in the function table; its [`Code::name`] is the
+    /// generated `{closure:…}` name.
     pub functions: Vec<FunctionDecl>,
 }
 

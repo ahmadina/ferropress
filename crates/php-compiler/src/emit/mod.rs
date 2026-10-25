@@ -4,12 +4,15 @@
 //! code that behaves differently.
 
 mod builder;
+mod closure;
 mod expr;
+mod free;
+mod function;
 mod stmt;
 
-use php_parser::ast::{Function, FunctionBody, Program, TopStatement};
+use php_parser::ast::{Program, TopStatement};
 
-use crate::bytecode::{FunctionDecl, Literal, Opcode, Operand, Parameter, Unit};
+use crate::bytecode::{Literal, Opcode, Operand, Unit};
 use builder::Builder;
 
 /// Why emitting stopped.
@@ -40,42 +43,75 @@ struct Loop {
     continues: Vec<u32>,
 }
 
-/// Emits one code object at a time; functions declared inside compile with their own emitter.
-pub(crate) struct Emitter {
+/// Shared declarations and the file path used in generated closure names.
+struct EmitCtx {
+    functions: Vec<crate::bytecode::FunctionDecl>,
+    file: Box<[u8]>,
+}
+
+/// The code object being compiled, which names nested closures.
+enum Scope {
+    File,
+    Function(Box<[u8]>),
+    Closure(Box<[u8]>),
+}
+
+/// Emits one code object at a time; nested functions and closures share [`EmitCtx`].
+pub(crate) struct Emitter<'a> {
     builder: Builder,
     loops: Vec<Loop>,
     /// How many conditionals and loops enclose the statement being compiled.
     conditional: u32,
-    functions: Vec<FunctionDecl>,
+    ctx: &'a mut EmitCtx,
+    scope: Scope,
 }
 
-impl Emitter {
-    fn new(name: &[u8]) -> Self {
+impl<'a> Emitter<'a> {
+    fn new(ctx: &'a mut EmitCtx, name: &[u8], scope: Scope) -> Self {
         Self {
             builder: Builder::new(name),
             loops: Vec::new(),
             conditional: 0,
-            functions: Vec::new(),
+            ctx,
+            scope,
         }
     }
 
-    /// Emits the unit for `program`, which passed the compile-time checks.
-    pub(crate) fn run(program: &Program) -> Emit<Unit> {
-        let mut emitter = Self::new(b"");
-        emitter.builder.line = 1;
-        for statement in &program.statements {
-            emitter.top_statement(statement)?;
-        }
-        let one = emitter.builder.literal(Literal::Int(1))?;
+    /// A nested function or closure, whose declarations are conditional.
+    fn child(ctx: &'a mut EmitCtx, name: &[u8], scope: Scope) -> Self {
+        let mut emitter = Self::new(ctx, name, scope);
+        emitter.conditional = 1;
         emitter
-            .builder
-            .op(Opcode::Return, one, Operand::UNUSED, Operand::UNUSED)?;
-        Ok(Unit {
-            main: emitter.builder.finish(),
-            functions: emitter.functions,
-        })
     }
+}
 
+/// Emits the unit for `program`, compiled from the file at path `file`.
+pub(crate) fn run(program: &Program, file: &[u8]) -> Emit<Unit> {
+    let mut ctx = EmitCtx {
+        functions: Vec::new(),
+        file: file.into(),
+    };
+    let main = emit_main(&mut ctx, program)?;
+    Ok(Unit {
+        main,
+        functions: ctx.functions,
+    })
+}
+
+fn emit_main(ctx: &mut EmitCtx, program: &Program) -> Emit<crate::bytecode::Code> {
+    let mut emitter = Emitter::new(ctx, b"", Scope::File);
+    emitter.builder.line = 1;
+    for statement in &program.statements {
+        emitter.top_statement(statement)?;
+    }
+    let one = emitter.builder.literal(Literal::Int(1))?;
+    emitter
+        .builder
+        .op(Opcode::Return, one, Operand::UNUSED, Operand::UNUSED)?;
+    Ok(emitter.builder.finish())
+}
+
+impl Emitter<'_> {
     fn unsupported<T>(&self, construct: &'static str) -> Emit<T> {
         Err(Failure::Unsupported {
             construct,
@@ -101,65 +137,14 @@ impl Emitter {
             }
         }
     }
+}
 
-    /// Compiles the top-level function `function` into the unit's declarations.
-    fn function_declaration(&mut self, function: &Function) -> Emit {
-        self.builder.line = function.line;
-        if function.by_ref {
-            return self.unsupported("functions returning by reference");
+#[cfg(test)]
+impl EmitCtx {
+    fn for_test() -> Self {
+        Self {
+            functions: Vec::new(),
+            file: Box::from(&b"/t.php"[..]),
         }
-        if function.return_type.is_some() {
-            return self.unsupported("return types");
-        }
-        if !function.attributes.is_empty() {
-            return self.unsupported("attributes");
-        }
-        let mut inner = Self::new(&function.name);
-        inner.builder.line = function.line;
-        inner.conditional = 1;
-        for param in &function.params {
-            inner.builder.line = param.line;
-            if param.declared_type.is_some() {
-                return inner.unsupported("parameter types");
-            }
-            if param.default.is_some() {
-                return inner.unsupported("parameter defaults");
-            }
-            if !param.attributes.is_empty() {
-                return inner.unsupported("attributes");
-            }
-            if param.by_ref && param.variadic {
-                return inner.unsupported("by-reference variadic parameters");
-            }
-            let slot = inner.builder.slot(&param.name)?.index();
-            inner.builder.code_mut().params.push(Parameter {
-                slot,
-                by_ref: param.by_ref,
-                variadic: param.variadic,
-                line: param.line,
-            });
-        }
-        if function.is_generator {
-            return inner.unsupported("generators");
-        }
-        match &function.body {
-            FunctionBody::Block(stmts) => inner.stmts(stmts)?,
-            FunctionBody::Expr(_) | FunctionBody::Absent => {
-                return inner.unsupported("functions without a block body");
-            }
-        }
-        inner.builder.op(
-            Opcode::Return,
-            Operand::UNUSED,
-            Operand::UNUSED,
-            Operand::UNUSED,
-        )?;
-        self.functions.append(&mut inner.functions);
-        self.functions.push(FunctionDecl {
-            name: function.name.as_slice().into(),
-            line: function.line,
-            code: inner.builder.finish(),
-        });
-        Ok(())
     }
 }

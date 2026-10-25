@@ -30,6 +30,13 @@ pub(super) struct Imports {
 }
 
 impl Imports {
+    /// The function `alias` imports, compared case-insensitively.
+    pub(super) fn function(&self, alias: &[u8]) -> Option<&[u8]> {
+        self.functions
+            .get(&alias.to_ascii_lowercase())
+            .map(Vec::as_slice)
+    }
+
     fn clear(&mut self) {
         self.classes.clear();
         self.functions.clear();
@@ -140,6 +147,10 @@ impl<'a> Checker<'a> {
             StmtKind::Function(function) => {
                 self.line = stmt.line;
                 self.function_declaration(function, true)?;
+            }
+            StmtKind::Class(class) => {
+                self.line = stmt.line;
+                self.class(class, true)?;
             }
             StmtKind::Declare { directives, body } => {
                 self.declare(directives, body.as_deref(), preceding)?;
@@ -328,7 +339,8 @@ impl<'a> Checker<'a> {
             message.extend_from_slice(format!(":{first})").as_bytes());
             return self.fatal(message);
         }
-        self.names.functions.insert(lower, function.line);
+        self.names.functions.insert(lower.clone(), function.line);
+        self.bound.function(lower, function);
         self.resolve_jumps(&frame.jumps)
     }
 

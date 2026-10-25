@@ -97,9 +97,16 @@ impl<'a> Checker<'a> {
             }
             if let (Some(property_type), Some(Some(param_type)), Some(params)) =
                 (&property.declared, params.first(), &hook.params)
-                && property_type.accepted_by(param_type) == Some(false)
             {
-                return self.hook_variance_error(property.name, &params[0]);
+                match property_type.accepted_by(param_type) {
+                    Some(false) => return self.hook_variance_error(property.name, &params[0]),
+                    None => {
+                        if let Some(class) = &mut self.class {
+                            class.links_at_run_time = true;
+                        }
+                    }
+                    Some(true) => {}
+                }
             }
         }
         let has_parent = self

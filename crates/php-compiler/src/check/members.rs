@@ -1,7 +1,7 @@
 //! Class-like declarations and their members other than methods: properties, class constants
 //! and enum cases.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use php_parser::ast::{
     ClassKind, ClassLike, ClassMember, ConstantGroup, EnumCase, Modifiers, Param, Property,
@@ -24,7 +24,8 @@ fn visibility_rank(modifiers: Modifiers, protected: Modifiers, private: Modifier
 }
 
 impl<'a> Checker<'a> {
-    pub(super) fn class(&mut self, class: &'a ClassLike) -> Flow {
+    /// Compiles `class`; one declared at the top level may be bound while compiling.
+    pub(super) fn class(&mut self, class: &'a ClassLike, top_level: bool) -> Flow {
         self.line = class.line;
         if let Some(name) = &class.name {
             self.class_declaration(class.kind, name)?;
@@ -41,11 +42,17 @@ impl<'a> Checker<'a> {
             is_backed: false,
             properties: HashSet::new(),
             constants: HashSet::new(),
+            methods: HashMap::new(),
+            links_at_run_time: false,
         };
         let outer = self.class.replace(scope);
         let result = self.class_body(class);
-        self.class = outer;
-        result
+        let scope = std::mem::replace(&mut self.class, outer);
+        result?;
+        if let (true, Some(scope)) = (top_level, scope) {
+            self.bound.class(class, scope);
+        }
+        Ok(())
     }
 
     fn class_body(&mut self, class: &'a ClassLike) -> Flow {
@@ -56,10 +63,9 @@ impl<'a> Checker<'a> {
         if let Some(backing) = &class.backing_type {
             self.backing_type(backing)?;
         }
-        let mut methods = HashSet::new();
         for member in &class.members {
             match member {
-                ClassMember::Method(method) => self.method(class, method, &mut methods)?,
+                ClassMember::Method(method) => self.method(class, method)?,
                 ClassMember::Property(group) => {
                     self.line = group.line;
                     self.property_group(group)?;

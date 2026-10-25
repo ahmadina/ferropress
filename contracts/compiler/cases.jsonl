@@ -382,6 +382,134 @@
 {"name":"yielded references 21","source":"<?php function &g() { yield $a::$b; yield $a->b; yield ${\"a\"}; yield $a[1][2]; }","diagnostics":[]}
 {"name":"yielded references 22","source":"<?php function &g() { yield; }","diagnostics":[]}
 {"name":"yielded references 23","source":"<?php function &g() { yield $a => $b; }","diagnostics":[]}
+{"name":"parent hook names 1","source":"<?php class C { public $a { get { return parent::${0}::get(); } } }","diagnostics":[["Fatal error","Must not use parent::$0::get() in a different property ($a)",1]]}
+{"name":"parent hook names 2","source":"<?php class C { public $a { get { return parent::${\"a\"}::get(); } } }","diagnostics":[]}
+{"name":"parent hook names 3","source":"<?php class C { public $a { get { return parent::${\"b\"}::get(); } } }","diagnostics":[["Fatal error","Must not use parent::$b::get() in a different property ($a)",1]]}
+{"name":"parent hook names 4","source":"<?php class C { public $a { get { return parent::${1.5}::get(); } } }","diagnostics":[["Fatal error","Must not use parent::$1.5::get() in a different property ($a)",1]]}
+{"name":"parent hook names 5","source":"<?php class C { public $a { get { return parent::${-1}::get(); } } }","diagnostics":[["Fatal error","Cannot use \"parent\" when current class scope has no parent",1]]}
+{"name":"parent hook names 6","source":"<?php class C { public $a { get { return parent::${true}::get(); } } }","diagnostics":[["Fatal error","Cannot use \"parent\" when current class scope has no parent",1]]}
+{"name":"parent hook names 7","source":"<?php class C { public $a { get { return parent::${\"x\".\"y\"}::get(); } } }","diagnostics":[["Fatal error","Must not use parent::$xy::get() in a different property ($a)",1]]}
+{"name":"parent hook names 8","source":"<?php class C { public $a { get { return parent::${A}::get(); } } }","diagnostics":[["Fatal error","Cannot use \"parent\" when current class scope has no parent",1]]}
+{"name":"parent hook names 9","source":"<?php class C { public $a { get { return parent::${\"a\"}::set(); } } }","diagnostics":[["Fatal error","Must not use parent::$a::set() in a different property hook (get)",1]]}
+{"name":"parent hook names 10","source":"<?php class C { public $a { get { return parent::${0}::get(...); } } }","diagnostics":[["Fatal error","Cannot create Closure for parent property hook call",1]]}
+{"name":"parent hook names 11","source":"<?php class C { public $a { get { return parent::${__LINE__}::get(); } } }","diagnostics":[["Fatal error","Cannot use \"parent\" when current class scope has no parent",1]]}
+{"name":"parent hook names 12","source":"<?php class C { public $a { get { return parent::${1e100}::get(); } } }","diagnostics":[["Fatal error","Must not use parent::$1.0E+100::get() in a different property ($a)",1]]}
+{"name":"parent hook names 13","source":"<?php class C { public $a { get { return parent::${0x1F}::get(); } } }","diagnostics":[["Fatal error","Must not use parent::$31::get() in a different property ($a)",1]]}
+{"name":"parent hook names 14","source":"<?php class C { public $a { get { return parent::${1.0}::get(); } } }","diagnostics":[["Fatal error","Must not use parent::$1::get() in a different property ($a)",1]]}
+{"name":"parent hook names 15","source":"<?php class C { public $a { get { return parent::${$a}::get(); } } }","diagnostics":[["Fatal error","Cannot use \"parent\" when current class scope has no parent",1]]}
+{"name":"parent hook names 16","source":"<?php parent::${0}::get();","diagnostics":[["Fatal error","Cannot use \"parent\" when no class scope is active",1]]}
+{"name":"known callees 1","source":"<?php function t($v){} t($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 2","source":"<?php t($a[]); function t($v){}","diagnostics":[]}
+{"name":"known callees 3","source":"<?php function t(&$v){} t($a[]);","diagnostics":[]}
+{"name":"known callees 4","source":"<?php function t(&$v){} t(1);","diagnostics":[]}
+{"name":"known callees 5","source":"<?php function t(&$v){} t($a?->b);","diagnostics":[]}
+{"name":"known callees 6","source":"<?php function t(&...$v){} t(1, $a[]);","diagnostics":[]}
+{"name":"known callees 7","source":"<?php function t($x, ...$v){} t(1, $a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 8","source":"<?php function t($v){} t(v: $a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 9","source":"<?php function t($v){} t(w: $a[]);","diagnostics":[]}
+{"name":"known callees 10","source":"<?php function t($v){} T($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 11","source":"<?php function t($v){} \\t($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 12","source":"<?php function t($v){} \"t\"($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 13","source":"<?php function t($v){} \"\\\\t\"($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 14","source":"<?php namespace A; function t($v){} t($a[]);","diagnostics":[]}
+{"name":"known callees 15","source":"<?php namespace A; function t($v){} \\A\\t($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 16","source":"<?php namespace A; function t($v){} namespace\\t($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 17","source":"<?php namespace A { function t($v){} } namespace B { use function A\\t; t($a[]); }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 18","source":"<?php namespace A { function t($v){} } namespace B { use A; A\\t($a[]); }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 19","source":"<?php if (1) { function t($v){} } t($a[]);","diagnostics":[]}
+{"name":"known callees 20","source":"<?php { function t($v){} } t($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 21","source":"<?php function t($v){} t($a[1][]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 22","source":"<?php function t($v){} function u() { t($a[]); }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 23","source":"<?php function t(){} t($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 24","source":"<?php function t(&$v){} t(1, $a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 25","source":"<?php class C { function m() { function t($v){} } } t($a[]);","diagnostics":[]}
+{"name":"known callees 26","source":"<?php function t(&$v){} t($this);","diagnostics":[]}
+{"name":"known callees 27","source":"<?php function t(&$v){} t($GLOBALS);","diagnostics":[]}
+{"name":"known callees 28","source":"<?php function t($v){ t($a[]); }","diagnostics":[]}
+{"name":"known callees 29","source":"<?php function t($v){} t(...$b);","diagnostics":[]}
+{"name":"known callees 30","source":"<?php function t($v){} t(...$b, v: $a[]);","diagnostics":[]}
+{"name":"known callees 31","source":"<?php function t($v, $w){} t(w: $a[], v: 1);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 32","source":"<?php function t(&$v){} t(\"abc\"[0]);","diagnostics":[["Fatal error","Cannot use temporary expression in write context",1]]}
+{"name":"known callees 33","source":"<?php function t(&$v){} t([1][0]);","diagnostics":[["Fatal error","Cannot use temporary expression in write context",1]]}
+{"name":"known callees 34","source":"<?php function t(&$v){} t(A::B[0]);","diagnostics":[["Fatal error","Cannot use temporary expression in write context",1]]}
+{"name":"known callees 35","source":"<?php function t($v){} t(\"abc\"[0]);","diagnostics":[]}
+{"name":"known callees 36","source":"<?php function t(&$v){} t($this->a);","diagnostics":[]}
+{"name":"known callees 37","source":"<?php function t(&$v){} t($GLOBALS[0]);","diagnostics":[]}
+{"name":"known callees 38","source":"<?php function t($v){} t($a[]->b);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 39","source":"<?php function t(&$v){} t(f()[0]);","diagnostics":[]}
+{"name":"known callees 40","source":"<?php function t(&$v){} t($a?->b->c);","diagnostics":[]}
+{"name":"known callees 41","source":"<?php function t($v){} t(${\"a\"}[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 42","source":"<?php function t($v){} t(A::$b[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 43","source":"<?php function t(&$v){} t((function(){})->a);","diagnostics":[["Fatal error","Cannot use temporary expression in write context",1]]}
+{"name":"known callees 44","source":"<?php function t(&$v){} t(f(...)[0]);","diagnostics":[["Fatal error","Cannot use result of built-in function in write context",1]]}
+{"name":"known callees 45","source":"<?php class C { private function m($v){} function n() { $this->m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 46","source":"<?php class C { function m($v){} function n() { $this->m($a[]); } }","diagnostics":[]}
+{"name":"known callees 47","source":"<?php class C { final function m($v){} function n() { $this->m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 48","source":"<?php final class C { function m($v){} function n() { $this->m($a[]); } }","diagnostics":[]}
+{"name":"known callees 49","source":"<?php class C { function n() { $this->m($a[]); } private function m($v){} }","diagnostics":[]}
+{"name":"known callees 50","source":"<?php class C { private function m($v){ $this->m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 51","source":"<?php class C { private function m($v){} function n() { $this?->m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 52","source":"<?php class C { private function m($v){} function n() { $this->{\"m\"}($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 53","source":"<?php class C { private function m($v){} function n() { $this->M($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 54","source":"<?php class C { function m($v){} static function n() { $this->m($a[]); } }","diagnostics":[]}
+{"name":"known callees 55","source":"<?php class C { private function m($v){} public $p { get { return $this->m($a[]); } } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 56","source":"<?php class C { private function m(&$v){} function n() { $this->m($a[]); } }","diagnostics":[]}
+{"name":"known callees 57","source":"<?php class C { private function m($v){} function n() { $f = function() { $this->m($a[]); }; } }","diagnostics":[]}
+{"name":"known callees 58","source":"<?php class C { private function m($v){} function n() { $f = fn() => $this->m($a[]); } }","diagnostics":[]}
+{"name":"known callees 59","source":"<?php trait T { private function m($v){} function n() { $this->m($a[]); } }","diagnostics":[]}
+{"name":"known callees 60","source":"<?php enum E { case A; private function m($v){} function n() { $this->m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 61","source":"<?php $o = new class { private function m($v){} function n() { $this->m($a[]); } };","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 62","source":"<?php class C { static function m($v){} function n() { self::m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 63","source":"<?php class C { static function m($v){} } C::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 64","source":"<?php class C { static function m($v){} function n() { static::m($a[]); } }","diagnostics":[]}
+{"name":"known callees 65","source":"<?php class C { function __construct($v){} } new C($a[]);","diagnostics":[]}
+{"name":"known callees 66","source":"<?php class C { function __construct($v){} function n() { new self($a[]); } }","diagnostics":[]}
+{"name":"known callees 67","source":"<?php class C { static function m($v){} function n() { C::m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 68","source":"<?php class C { private static function m($v){} function n() { self::m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 69","source":"<?php class P { static function m($v){} } class C extends P { function n() { parent::m($a[]); } }","diagnostics":[]}
+{"name":"known callees 70","source":"<?php class C { private static function m($v){ self::m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 71","source":"<?php class C { static function m($v){ C::m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 72","source":"<?php class P { static function m($v){} } class C extends P { function n() { self::m($a[]); } }","diagnostics":[]}
+{"name":"known callees 73","source":"<?php interface I {} class C implements I { static function m($v){} } C::m($a[]);","diagnostics":[]}
+{"name":"known callees 74","source":"<?php class C { use T; static function m($v){} } C::m($a[]);","diagnostics":[]}
+{"name":"known callees 75","source":"<?php enum E { case A; function n() { self::cases($a[]); } }","diagnostics":[]}
+{"name":"known callees 76","source":"<?php enum E { case A; static function m($v){} } E::m($a[]);","diagnostics":[]}
+{"name":"known callees 77","source":"<?php class C { private static function m($v){} } C::m($a[]);","diagnostics":[]}
+{"name":"known callees 78","source":"<?php class C { protected static function m($v){} } C::m($a[]);","diagnostics":[]}
+{"name":"known callees 79","source":"<?php class C { protected static function m($v){} } class D { function n() { C::m($a[]); } }","diagnostics":[]}
+{"name":"known callees 80","source":"<?php if (1) { class C { static function m($v){} } } C::m($a[]);","diagnostics":[]}
+{"name":"known callees 81","source":"<?php class C { static function m($v){} } function f() { C::m($a[]); }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 82","source":"<?php abstract class C { abstract static function m($v); } C::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 83","source":"<?php class C { static function m($v){} } c::M($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 84","source":"<?php namespace A; class C { static function m($v){} } C::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 85","source":"<?php namespace A; class C { static function m($v){} } \\A\\C::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 86","source":"<?php namespace A { class C { static function m($v){} } } namespace B { use A\\C; C::m($a[]); }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 87","source":"<?php class C { static function m($v){} } \\C::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 88","source":"<?php class C { static function m($v){} } \"C\"::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 89","source":"<?php class C { static function m($v){} } \"\\\\C\"::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 90","source":"<?php class C { static function m($v){} } C::{\"m\"}($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 91","source":"<?php class C { static function m($v){} } (C::class)::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 92","source":"<?php class C { function __construct($v){} } class D extends C { function __construct() { parent::__construct($a[]); } }","diagnostics":[]}
+{"name":"known callees 93","source":"<?php interface I { static function m($v); } I::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 94","source":"<?php interface J {} interface I extends J { static function m($v); } I::m($a[]);","diagnostics":[]}
+{"name":"known callees 95","source":"<?php trait T { static function m($v){} } T::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 96","source":"<?php trait T { static function m($v){} function n() { self::m($a[]); } }","diagnostics":[]}
+{"name":"known callees 97","source":"<?php class C { public int $p { set(int|string $v) {} } static function m($v){} } C::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 98","source":"<?php class C { public A $p { set(B $v) {} } static function m($v){} } C::m($a[]);","diagnostics":[]}
+{"name":"known callees 99","source":"<?php class C { public $p { get => 1; } static function m($v){} } C::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 100","source":"<?php class C { static function m($v){} } class C {} C::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 101","source":"<?php class C { static function m(...$v){} } C::m(v: $a[]);","diagnostics":[]}
+{"name":"known callees 102","source":"<?php $o = new class { static function m($v){} function n() { self::m($a[]); } };","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 103","source":"<?php class C { static function m($v){} function n() { $f = fn() => self::m($a[]); } }","diagnostics":[]}
+{"name":"known callees 104","source":"<?php class C { static function m($v){} function n() { $f = function() { C::m($a[]); }; } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 105","source":"<?php class C { static function m($v){} function n() { function t() { self::m($a[]); } } }","diagnostics":[["Fatal error","Cannot use \"self\" when no class scope is active",1]]}
+{"name":"known callees 106","source":"<?php class C { static function m($v){} function n() { namespace\\self::m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 107","source":"<?php class C { static function m($v){} function n() { \\self::m($a[]); } }","diagnostics":[["Fatal error","'\\self' is an invalid class name",1]]}
+{"name":"known callees 108","source":"<?php class C { static function m($v){} function n() { \"self\"::m($a[]); } }","diagnostics":[["Fatal error","'\\self' is an invalid class name",1]]}
+{"name":"known callees 109","source":"<?php class C { static function m(&$v){} } C::m(\"abc\"[0]);","diagnostics":[["Fatal error","Cannot use temporary expression in write context",1]]}
+{"name":"known callees 110","source":"<?php class C { static function m($v){} } class D { static function m($v){} function n() { C::m($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 111","source":"<?php class C { function m($v){} } C::m($a[]);","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
+{"name":"known callees 112","source":"<?php function t($v){} class C { function n() { t($a[]); } }","diagnostics":[["Fatal error","Cannot use [] for reading",1]]}
 {"name":"misc rules 1","source":"<?php $this?->b(...);","diagnostics":[]}
 {"name":"misc rules 2","source":"<?php $this?->a->b(...);","diagnostics":[]}
 {"name":"misc rules 3","source":"<?php $this?->a?->b(...);","diagnostics":[["Fatal error","Cannot combine nullsafe operator with Closure creation",1]]}

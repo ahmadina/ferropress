@@ -7,6 +7,7 @@ use php_parser::ast::{
 
 use php_value::Value;
 
+use super::callees::{Callee, Sent};
 use super::{Checker, Code, Flow};
 use crate::diagnostic::Severity;
 
@@ -174,7 +175,7 @@ impl<'a> Checker<'a> {
             }
             ExprKind::NewAnonymous { class, args } => {
                 self.args(args)?;
-                self.class(class)?;
+                self.class(class, false)?;
                 self.line = class.line;
                 self.constructor_args(args)
             }
@@ -397,7 +398,8 @@ impl<'a> Checker<'a> {
                 if !matches!(callee.kind, ExprKind::Name(_)) {
                     self.expr(callee)?;
                 }
-                self.args(args)
+                let known = self.called_function(callee);
+                self.call_args(args, known)
             }
             ExprKind::MethodCall {
                 object,
@@ -415,7 +417,8 @@ impl<'a> Checker<'a> {
                 if skips && matches!(args, Args::CallableConvert) {
                     return self.fatal("Cannot combine nullsafe operator with Closure creation");
                 }
-                self.args(args)
+                let known = self.called_method(object, name);
+                self.call_args(args, known)
             }
             ExprKind::StaticCall { class, name, args } => {
                 if self.parent_hook_call(class, name, args)? {
@@ -423,7 +426,8 @@ impl<'a> Checker<'a> {
                 }
                 self.class_ref(class)?;
                 self.method_name(name)?;
-                self.args(args)
+                let known = self.called_static_method(class, name);
+                self.call_args(args, known)
             }
             _ if fetch.writes() => self.fatal("Cannot use temporary expression in write context"),
             _ => self.expr(expr),
@@ -485,24 +489,32 @@ impl<'a> Checker<'a> {
     }
 
     pub(super) fn args(&mut self, args: &'a Args) -> Flow {
+        self.call_args(args, None)
+    }
+
+    /// Compiles the arguments of a call of `callee`, when known. Each variable passed to a known
+    /// parameter is fetched for reading or, by reference, for writing; otherwise the fetch waits
+    /// for run time. After an unpacked argument the callee is no longer known.
+    pub(super) fn call_args(&mut self, args: &'a Args, mut callee: Option<Callee<'a>>) -> Flow {
         let Args::List(args) = args else {
             return Ok(());
         };
         let mut named = false;
         let mut unpacked = false;
-        for arg in args {
-            let value = match arg {
+        for (position, arg) in args.iter().enumerate() {
+            let (value, sent) = match arg {
                 Arg::Unpack(value) => {
                     if named {
                         return self.fatal("Cannot use argument unpacking after named arguments");
                     }
                     unpacked = true;
+                    callee = None;
                     self.expr(value)?;
                     continue;
                 }
-                Arg::Named { value, .. } => {
+                Arg::Named { name, value } => {
                     named = true;
-                    value
+                    (value, callee.and_then(|callee| callee.named(name)))
                 }
                 Arg::Positional(value) => {
                     if unpacked {
@@ -512,16 +524,24 @@ impl<'a> Checker<'a> {
                     if named {
                         return self.fatal("Cannot use positional argument after named argument");
                     }
-                    value
+                    (value, callee.map(|callee| callee.positional(position)))
                 }
             };
-            if is_variable(value) {
-                self.var(value, Fetch::Argument)?;
-            } else {
-                self.expr(value)?;
-            }
+            self.arg(value, sent)?;
         }
         Ok(())
+    }
+
+    fn arg(&mut self, value: &'a Expr, sent: Option<Sent>) -> Flow {
+        if !is_variable(value) {
+            return self.expr(value);
+        }
+        match sent {
+            None => self.var(value, Fetch::Argument),
+            Some(_) if is_short_circuited(value) || is_globals(value) => self.expr(value),
+            Some(Sent::ByValue) => self.var(value, Fetch::Read),
+            Some(Sent::ByRef) => self.var(value, Fetch::Write),
+        }
     }
 
     fn ensure_writable(&self, target: &Expr) -> Flow {

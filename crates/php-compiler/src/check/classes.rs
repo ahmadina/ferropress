@@ -111,6 +111,15 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// The constant `expr` compiled to, once [`Self::compiled_constant`] has compiled it.
+    pub(super) fn compiled_value(&self, expr: &'a Expr) -> Option<Value> {
+        match &expr.kind {
+            ExprKind::Constant(name) => self.special_constant(name),
+            ExprKind::ClassName(class) => self.known_class_name(class),
+            _ => self.value_of(expr),
+        }
+    }
+
     /// The name `class::class` resolves to while compiling, when it does.
     fn known_class_name(&self, class: &Expr) -> Option<Value> {
         let (written, name) = match &class.kind {

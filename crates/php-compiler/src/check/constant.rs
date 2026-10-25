@@ -243,7 +243,7 @@ impl<'a> Checker<'a> {
     }
 
     /// The value of `expr` when it is a literal or was folded to one.
-    fn value_of(&self, expr: &'a Expr) -> Option<Value> {
+    pub(super) fn value_of(&self, expr: &'a Expr) -> Option<Value> {
         let expr = self.resolve(expr);
         match &expr.kind {
             ExprKind::Int(number) => Some(Value::Int(*number)),
@@ -939,6 +939,7 @@ mod tests {
 
     use super::*;
     use crate::check::{ClassScope, ClosureName, Frame};
+    use std::collections::HashMap;
 
     fn program(source: &str) -> Program {
         parse(source.as_bytes(), ParseOptions::default())
@@ -981,12 +982,12 @@ mod tests {
     #[derive(Default)]
     struct Context {
         namespace: Option<&'static str>,
-        class: Option<ClassScope>,
+        class: Option<ClassScope<'static>>,
         code: Code,
         property: Option<&'static str>,
     }
 
-    fn class(name: Option<&str>, is_trait: bool, has_parent: bool) -> ClassScope {
+    fn class(name: Option<&str>, is_trait: bool, has_parent: bool) -> ClassScope<'static> {
         ClassScope {
             name: name.map(|name| name.as_bytes().to_vec()),
             kind: if is_trait {
@@ -999,6 +1000,8 @@ mod tests {
             is_backed: false,
             properties: HashSet::new(),
             constants: HashSet::new(),
+            methods: HashMap::new(),
+            links_at_run_time: false,
         }
     }
 

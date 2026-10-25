@@ -6,6 +6,7 @@
 //! last node visited.
 
 mod attributes;
+mod callees;
 mod classes;
 mod constant;
 mod expr;
@@ -106,6 +107,8 @@ struct Frame {
     by_ref: bool,
     /// The compiled types of the parameters so far, `None` for untyped ones.
     params: Vec<Option<DeclaredType>>,
+    /// The function's modifiers: a method's, or `static` for a static closure.
+    modifiers: Modifiers,
 }
 
 impl Frame {
@@ -119,7 +122,7 @@ impl Frame {
 
 /// The class-like declaration being compiled.
 #[derive(Debug, Clone)]
-struct ClassScope {
+struct ClassScope<'a> {
     /// The namespaced name; `None` for an anonymous class, whose name holds the file path.
     name: Option<Vec<u8>>,
     kind: ClassKind,
@@ -133,9 +136,14 @@ struct ClassScope {
     properties: HashSet<Vec<u8>>,
     /// The constants and enum cases declared so far.
     constants: HashSet<Vec<u8>>,
+    /// The methods declared so far.
+    methods: callees::Methods<'a>,
+    /// Whether a set hook's parameter type can only be checked against its property's type at
+    /// run time, which keeps the class from being bound while compiling.
+    links_at_run_time: bool,
 }
 
-impl ClassScope {
+impl ClassScope<'_> {
     fn is_trait(&self) -> bool {
         self.kind == ClassKind::Trait
     }
@@ -154,9 +162,11 @@ pub(crate) struct Checker<'a> {
     frame: Frame,
     namespace: Option<Vec<u8>>,
     names: names::FileNames,
-    class: Option<ClassScope>,
+    class: Option<ClassScope<'a>>,
     /// What constant folding made of the nodes it changed.
     folded: HashMap<*const Expr, Folded<'a>>,
+    /// The functions and classes bound so far.
+    bound: callees::Bound<'a>,
 }
 
 impl<'a> Checker<'a> {
@@ -170,6 +180,7 @@ impl<'a> Checker<'a> {
             names: names::FileNames::default(),
             class: None,
             folded: HashMap::new(),
+            bound: callees::Bound::default(),
         }
     }
 
@@ -284,7 +295,7 @@ impl<'a> Checker<'a> {
                 self.declare(directives, body.as_deref(), None)
             }
             StmtKind::Function(function) => self.function_declaration(function, false),
-            StmtKind::Class(class) => self.class(class),
+            StmtKind::Class(class) => self.class(class, false),
         }
     }
 
@@ -470,6 +481,7 @@ impl<'a> Checker<'a> {
         }
         let is_free = matches!(code, Code::Function(_));
         let outer = std::mem::replace(&mut self.frame, Frame::new(code));
+        self.frame.modifiers = function.modifiers;
         let target = if matches!(self.frame.code, Code::Method { .. }) {
             Target::Method
         } else {

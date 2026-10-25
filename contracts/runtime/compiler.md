@@ -925,10 +925,47 @@ it: "Assignments can only happen to writable values". A `?->` property is not dr
 `[$a?->b->c] = …` fails here. A call or pipe that passes goes on to "Can't use function return value in
 write context" (or "method").
 
+### Known callees
+
+When the function or method a call reaches is known while compiling, each argument that is a
+variable (not one a `?->` can skip, and not `$GLOBALS`) is fetched as the parameter takes it: for
+reading when by value, so `t($a[])` fails as "Cannot use [] for reading", and for writing when by
+reference, so `t("abc"[0])` fails as "Cannot use temporary expression in write context". With an
+unknown callee the fetch waits for run time and neither fails.
+
+- **Which parameter.** A positional argument goes to the parameter at its position. Past the declared
+  parameters it goes to the variadic one, or is taken by value when there is none. A named argument
+  goes to the parameter of that exact name (case-sensitive), not counting the variadic one; any other
+  name leaves the fetch to run time. Once an argument is unpacked (`...$x`), the callee is unknown for
+  the rest of the call.
+- **Functions.** A function declared at the top level of the file (directly, in a namespace or in a
+  block) is known once its declaration has compiled, so not inside its own body and not before it.
+  Conditional and nested declarations are never known. The call's name must resolve while compiling:
+  a fully qualified, `namespace\` or qualified name, an imported one, an unqualified one outside any
+  namespace, or a string (with any leading `\` dropped). An unqualified name inside a namespace that
+  no `use function` imports falls back at run time and is not known.
+- **`$this->m()`** (with `->` or `?->`, the name written or a constant string) is known in a
+  non-static method or hook of a class other than a trait, but not in a closure. `m` must be declared
+  earlier in the class, or be the method being compiled, and be private or final.
+- **`X::m()`**, unless `m` is `__construct`:
+  - `self` (not fully qualified) is the class being compiled, where the scope is known (not in a
+    closure, not in a trait).
+  - Any other class name, or a constant string, is looked up among the classes bound so far, then
+    compared with the name of the class being compiled. `static` and `parent` are never known.
+  - The method must be public, or belong to the class being compiled, whatever its visibility.
+    A protected method of another class is never known while compiling.
+- **Bound classes.** A class, interface or trait declared at the top level is bound once its
+  declaration compiles when it has no parent, implements or extends no interface, uses no trait, is
+  not an enum, and no set hook's parameter type has to wait for run time to be checked against its
+  property's type. When two declarations share a name, the first is bound.
+- `new X(...)` never knows its constructor while compiling.
+
 ### Not yet implemented
 
 These need descriptions of the built-in functions (roadmap step 19):
 
+- Built-in functions are known callees too, and a class may extend a built-in one. A user class that
+  takes a built-in class's name is not bound, which this checker cannot yet tell.
 - Built-in functions that the reference compiles to dedicated instructions, such as `strlen()` with
   one argument, return temporaries. Writing through their result is "Cannot use result of built-in
   function in write context".
@@ -937,3 +974,7 @@ These need descriptions of the built-in functions (roadmap step 19):
   exceptions are when the function has already assigned the variable or has a parameter of that name.
   Whether a function argument counts as a read depends on whether the called function is known while
   compiling and takes that argument by value.
+
+This needs class linking (roadmap step 18): a top-level class whose parent is already bound is bound
+too when its members are compatible with the parent's, and then inherits the parent's methods as
+known callees. Such classes are treated as unbound for now, so their calls fetch at run time.

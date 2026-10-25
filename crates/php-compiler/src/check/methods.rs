@@ -1,7 +1,7 @@
 //! Method declarations: their modifiers and bodies, redeclarations, and the signatures the
 //! reference requires of magic methods.
 
-use std::collections::HashSet;
+use std::collections::hash_map::Entry;
 
 use php_parser::ast::{ClassKind, ClassLike, Function, FunctionBody, Modifiers};
 
@@ -110,16 +110,10 @@ const MAGIC: [Magic; 17] = [
 ];
 
 impl<'a> Checker<'a> {
-    /// Compiles `method` of `class`; `declared` holds the lowercase names of the methods
-    /// declared before it.
-    pub(super) fn method(
-        &mut self,
-        class: &'a ClassLike,
-        method: &'a Function,
-        declared: &mut HashSet<Vec<u8>>,
-    ) -> Flow {
+    /// Compiles `method` of `class`, which joins the class's methods before its body compiles.
+    pub(super) fn method(&mut self, class: &'a ClassLike, method: &'a Function) -> Flow {
         self.line = method.line;
-        self.method_declaration(class, method, declared)?;
+        self.method_declaration(class, method)?;
         let code = Code::Method {
             class: self.class.as_ref().and_then(|scope| scope.name.clone()),
             name: method.name.clone(),
@@ -131,12 +125,7 @@ impl<'a> Checker<'a> {
     }
 
     /// The checks the reference makes before compiling a method.
-    fn method_declaration(
-        &mut self,
-        class: &ClassLike,
-        method: &Function,
-        declared: &mut HashSet<Vec<u8>>,
-    ) -> Flow {
+    fn method_declaration(&mut self, class: &ClassLike, method: &'a Function) -> Flow {
         let modifiers = method.modifiers;
         let subject = self.method_subject(method);
         if modifiers.contains(Modifiers::PRIVATE.union(Modifiers::FINAL))
@@ -213,13 +202,17 @@ impl<'a> Checker<'a> {
             message.extend_from_slice(b"() must contain body");
             return self.fatal(message);
         }
-        if !declared.insert(method.name.to_ascii_lowercase()) {
-            let mut message = b"Cannot redeclare ".to_vec();
-            message.extend_from_slice(&subject);
-            message.extend_from_slice(b"()");
-            return self.fatal(message);
+        let Some(scope) = &mut self.class else {
+            return Ok(());
+        };
+        if let Entry::Vacant(slot) = scope.methods.entry(method.name.to_ascii_lowercase()) {
+            slot.insert(method);
+            return Ok(());
         }
-        Ok(())
+        let mut message = b"Cannot redeclare ".to_vec();
+        message.extend_from_slice(&subject);
+        message.extend_from_slice(b"()");
+        self.fatal(message)
     }
 
     /// `Class::method`, as messages about `method` name it.

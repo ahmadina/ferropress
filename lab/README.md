@@ -27,6 +27,7 @@ cargo xtask lab parser-corpus             # compare our parser with the referenc
 cargo xtask lab compiler                  # record compile-time diagnostics into contracts/compiler/
 cargo xtask lab compiler-corpus           # compare our compile-time diagnostics on the upstream sources
 cargo xtask lab operators                 # record operator and conversion results into contracts/operators/
+cargo xtask lab vm                        # record what short scripts print into contracts/vm/
 ```
 
 `lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
@@ -242,6 +243,17 @@ a `linking:` prefix, until the class linker exists (ADR-0007). One whose first m
 depends on the built-in functions (redeclaring one, writing through one's result, the deprecated
 `$http_response_header` reads) is listed with a `built-ins:` prefix until they are described. The
 command fails when any other file differs. Nothing from the corpus is committed.
+
+## VM
+
+`lab vm` runs our own script (`app/vm-oracle.php`) in the running lab. It writes every case to a file of
+its own and runs it in a fresh PHP CLI process with no `php.ini` and fixed settings (`display_errors=1`,
+`error_reporting=-1`, `log_errors=0`, `html_errors=0`). For every case it records what the script printed
+on stdout, with the case's file path shown as `%file%`, and its exit status; anything on stderr fails the
+run. The cases are hand-written scripts that only use what the Ferropress VM runs so far.
+
+The result is written to `contracts/vm/cases.jsonl` (a header line recording the PHP version, then one
+case per line, byte strings encoded as above), and `crates/php-vm` replays every case.
 
 ## Operators
 

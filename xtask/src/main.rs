@@ -21,6 +21,7 @@ mod parser_corpus;
 mod process;
 mod serialize;
 mod value;
+mod vm;
 mod workspace;
 
 use std::fs;
@@ -454,6 +455,33 @@ fn run_lab_compiler(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Resul
     })
 }
 
+fn run_lab_vm(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
+    let manifest = match load_valid_manifest(repo_root)? {
+        Ok(manifest) => manifest,
+        Err(report) => return Ok(report),
+    };
+    let env = lab::lab_env(&manifest)?;
+    let output = process::capture_checked(
+        runner,
+        &lab::compose(
+            &env,
+            ["exec", "-T", "--user", "www-data", "app", "php", vm::SCRIPT],
+        ),
+    )
+    .context("running the VM oracle script")?;
+    let oracle = vm::parse(&output)?;
+    vm::write(&oracle, &repo_root.join(vm::VM_DIR))?;
+    Ok(Report {
+        text: format!(
+            "lab vm: wrote {} for PHP {} ({})",
+            vm::VM_DIR,
+            oracle.php_version,
+            oracle.summary()
+        ),
+        success: true,
+    })
+}
+
 fn run_lab_operators(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
     let manifest = match load_valid_manifest(repo_root)? {
         Ok(manifest) => manifest,
@@ -749,6 +777,7 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                 LabCommand::Operators => {
                     return run_lab_operators(repo_root(), &mut system_runner());
                 }
+                LabCommand::Vm => return run_lab_vm(repo_root(), &mut system_runner()),
                 LabCommand::ParserCorpus => {
                     return run_lab_parser_corpus(repo_root(), &mut system_runner());
                 }
@@ -1766,6 +1795,72 @@ path = "/"
         fs::write(blocked.0.join("contracts/compiler"), b"not a directory").unwrap();
         let error =
             run_lab_compiler(&blocked.0, &mut compiler_runner(COMPILER_OUTPUT)).unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    const VM_OUTPUT: &str = r#"{"schema": 1, "php_version": "8.5.12", "cases": [
+        {"name": "x", "source": "<?php\necho 1;", "output": "1", "status": 0}]}"#;
+
+    fn vm_runner(
+        output: &'static str,
+    ) -> FakeRunner<impl FnMut(&process::Invocation) -> std::io::Result<Option<String>>> {
+        FakeRunner::new(move |invocation: &process::Invocation| {
+            let script = invocation.args.last().map(String::as_str) == Some(vm::SCRIPT);
+            Ok(Some(if script { output } else { "" }.to_owned()))
+        })
+    }
+
+    #[test]
+    fn lab_vm_runs_the_oracle_and_writes_the_cases() {
+        let repo = TempRepo::new("vm-ok", Some(&lab_manifest_text()));
+        let mut runner = vm_runner(VM_OUTPUT);
+        let report = run_lab_vm(&repo.0, &mut runner).unwrap();
+        assert_eq!(
+            report,
+            Report {
+                text: "lab vm: wrote contracts/vm for PHP 8.5.12 (1 cases, 0 ending with a non-zero status)"
+                    .to_owned(),
+                success: true,
+            }
+        );
+        assert_eq!(runner.seen.len(), 1, "{:?}", runner.seen);
+        assert!(
+            runner.seen[0]
+                .ends_with("exec -T --user www-data app php /opt/ferropress/vm-oracle.php"),
+            "{:?}",
+            runner.seen
+        );
+        assert_eq!(
+            vm::Oracle::load(&repo.0.join(vm::VM_DIR)).unwrap(),
+            vm::parse(VM_OUTPUT).unwrap()
+        );
+    }
+
+    #[test]
+    fn lab_vm_refuses_invalid_input_and_propagates_failures() {
+        let invalid = TempRepo::new("vm-invalid", Some(&manifest_text(5)));
+        let mut runner = vm_runner(VM_OUTPUT);
+        let report = run_lab_vm(&invalid.0, &mut runner).unwrap();
+        assert!(!report.success);
+        assert!(runner.seen.is_empty());
+
+        let incomplete = TempRepo::new("vm-incomplete", Some(&manifest_text(1)));
+        let error = run_lab_vm(&incomplete.0, &mut vm_runner(VM_OUTPUT)).unwrap_err();
+        assert!(
+            error.to_string().starts_with("the manifest has no"),
+            "{error}"
+        );
+
+        let repo = TempRepo::new("vm-fail", Some(&lab_manifest_text()));
+        let error = run_lab_vm(&repo.0, &mut recording(false)).unwrap_err();
+        assert_eq!(error.to_string(), "running the VM oracle script");
+
+        let error = run_lab_vm(&repo.0, &mut vm_runner("{}")).unwrap_err();
+        assert_eq!(error.to_string(), "parsing the VM oracle's output");
+
+        let blocked = TempRepo::new("vm-blocked", Some(&lab_manifest_text()));
+        fs::write(blocked.0.join("contracts/vm"), b"not a directory").unwrap();
+        let error = run_lab_vm(&blocked.0, &mut vm_runner(VM_OUTPUT)).unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

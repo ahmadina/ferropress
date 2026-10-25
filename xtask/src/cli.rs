@@ -70,6 +70,8 @@ pub(crate) enum LabCommand {
     CompilerCorpus,
     /// Record what the reference PHP's operators and conversions return into contracts/operators
     Operators,
+    /// Record what short scripts print when the reference PHP runs them into contracts/vm
+    Vm,
     /// Run contracts/scenarios/SCENARIO.toml twice from fresh installs and require identical results
     Check {
         /// Scenario id
@@ -116,6 +118,7 @@ mod tests {
             ("compiler", LabCommand::Compiler),
             ("compiler-corpus", LabCommand::CompilerCorpus),
             ("operators", LabCommand::Operators),
+            ("vm", LabCommand::Vm),
         ];
         for (name, command) in lab {
             assert_eq!(parse(&["lab", name]), Ok(Command::Lab(command)), "{name}");

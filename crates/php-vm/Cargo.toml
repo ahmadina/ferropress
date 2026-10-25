@@ -1,0 +1,21 @@
+[package]
+name = "php-vm"
+description = "PHP VM core: runs compiled PHP bytecode with the reference's output, warnings and errors"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+php-compiler = { path = "../php-compiler" }
+php-value = { path = "../php-value" }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+php-parser = { path = "../php-parser" }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

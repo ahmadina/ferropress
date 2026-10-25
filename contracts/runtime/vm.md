@@ -1,0 +1,59 @@
+# VM core
+
+What the reference PHP CLI (version pinned in `contracts/reference-manifest.toml`) prints while running a
+script, beyond what the script echoes itself, with `display_errors=1`, `html_errors=0` and
+`error_reporting=-1`. Implemented by `crates/php-vm` (ADR-0008); differential evidence in
+`contracts/vm/cases.jsonl`, recorded by `cargo xtask lab vm`.
+
+Provenance: `main/main.c` (error display), `Zend/zend_exceptions.c` (uncaught errors and stack traces),
+`Zend/zend_smart_str.c` (trace arguments), `Zend/zend_execute.c` (argument count errors) in the pinned
+PHP source.
+
+## Displayed diagnostics
+
+A warning or deprecation raised while running is printed, at the moment it is raised, as a newline, the
+label (`Warning`, `Deprecated`), a colon and a space, the message, ` in `, the file path, ` on line `,
+the line of the instruction running, and a newline.
+
+Reading a local variable that was never assigned raises the warning `Undefined variable $name` and
+gives `null`. It is raised by the instruction that reads it: passing the variable to a parameter taken
+by value raises it at the call; passing it by reference creates the variable as `null` silently.
+
+## Uncaught errors
+
+An error thrown and not caught ends the script with exit status 255 after printing:
+
+```
+<newline>Fatal error: Uncaught <class>: <message> in <file>:<line>
+Stack trace:
+#0 <file>(<line of the call>): <function>(<arguments>)
+…
+#<n> {main}
+  thrown in <file> on line <line>
+```
+
+The trace lists the active calls innermost first, each with the line it was made on and the function's
+name as declared (not as the call wrote it), and ends with `{main}`. The arguments are separated by
+`, `:
+
+- the current value of each declared parameter that received an argument (a parameter changed by the
+  function shows its new value), then every argument passed beyond the declared parameters, including
+  those collected by a variadic parameter;
+- `NULL`, `true`, `false`, integers as written, floats in `precision` (14) digits with `.0` added
+  when the result has no `.` and the float is finite, `Array`, and `Object(<class>)`;
+- strings in single quotes, cut after 15 bytes with `...` appended, with bytes below 32, the backslash
+  and bytes above 126 escaped: `\n`, `\r`, `\t`, `\f`, `\v`, `\\`, `\e` for the escape byte, otherwise
+  `\x` and two uppercase hex digits.
+
+## Calls
+
+- Calling an undefined function throws `Error` with `Call to undefined function <name>()`, the name as
+  the call wrote it (fully qualified, without the leading backslash). The arguments are not evaluated.
+- Passing fewer arguments than the function declares parameters (not counting a variadic one) throws
+  `ArgumentCountError` from inside the called function, so the trace starts with that call: `Too few
+  arguments to function <name>(), <passed> passed in <file> on line <call line> and exactly <declared>
+  expected`. Its line is the line of the first parameter that received no argument.
+- Passing more arguments than declared is allowed; the extra ones appear in stack traces.
+
+Operator errors (`DivisionByZeroError`, `ArithmeticError`, `TypeError`) and the warnings and deprecations
+of conversions follow `contracts/runtime/operators.md`.

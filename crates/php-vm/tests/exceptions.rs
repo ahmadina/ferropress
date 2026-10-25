@@ -76,6 +76,44 @@ fn a_function_throw_unwinds_to_the_caller() -> Result<(), String> {
 }
 
 #[test]
+fn finally_runs_after_try() -> Result<(), String> {
+    let (output, status) = run(b"<?php try { echo 1; } finally { echo 2; }")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"12");
+    Ok(())
+}
+
+#[test]
+fn finally_runs_after_a_caught_throw() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php try { throw new Exception(\"x\"); } catch (Exception $e) { echo \"c\"; } finally { echo \"f\"; }",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"cf");
+    Ok(())
+}
+
+#[test]
+fn finally_runs_before_an_uncaught_throw() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php try { throw new Exception(\"x\"); } finally { echo \"f\"; }")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.starts_with('f'), "{text}");
+    assert!(text.contains("Uncaught Exception: x"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn finally_runs_before_return() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php function f() { try { return 1; } finally { echo \"f\"; } } echo f();")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"f1");
+    Ok(())
+}
+
+#[test]
 fn the_first_matching_catch_wins() -> Result<(), String> {
     let (output, status) = run(
         b"<?php try { throw new Exception(\"x\"); } catch (Error $e) { echo \"e\"; } catch (Exception $e) { echo \"x\"; }",

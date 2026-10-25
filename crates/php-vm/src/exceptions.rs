@@ -1,11 +1,20 @@
 //! `throw` and `try`/`catch`: matching a thrown object to a handler and binding it.
 
-use php_compiler::bytecode::{CatchHandler, Instruction};
+use php_compiler::bytecode::{CatchHandler, FinallyHandler, Instruction};
 use php_value::{Object, Slot, Value};
 
 use crate::machine::{Exec, Flow, Machine};
 use crate::thrown::Thrown;
 use crate::{Output, VmError};
+
+/// What a `finally` body must do after it finishes.
+#[derive(Debug, Clone)]
+pub(crate) enum FinallyLeave {
+    /// The `try`/`catch` threw and was not caught there.
+    Rethrow(Box<Thrown>),
+    /// The `try`/`catch` returned this value.
+    Return(Value),
+}
 
 /// Classes the VM itself throws, plus `Exception`.
 const THROWABLE: &[&[u8]] = &[
@@ -41,6 +50,7 @@ impl<O: Output> Machine<'_, '_, O> {
         while !self.frames.is_empty() {
             if let Some(handler) = self.matching_handler(thrown.class.as_ref()) {
                 self.pending.clear();
+                self.finally_leave = None;
                 if let Some(index) = handler.slot {
                     let slot = self
                         .frame_mut()?
@@ -52,12 +62,27 @@ impl<O: Output> Machine<'_, '_, O> {
                 self.frame_mut()?.pc = handler.target as usize;
                 return Ok(true);
             }
+            if let Some(finally) = self.matching_finally() {
+                self.pending.clear();
+                self.finally_leave = Some(FinallyLeave::Rethrow(Box::new(thrown.clone())));
+                self.frame_mut()?.pc = finally.target as usize;
+                return Ok(true);
+            }
             if self.frames.len() == 1 {
                 return Ok(false);
             }
             self.frames.pop();
         }
         Ok(false)
+    }
+
+    /// Runs the pending leave after a `finally` body.
+    pub(crate) fn end_finally(&mut self) -> Exec<Flow> {
+        match self.finally_leave.take() {
+            None => Ok(Flow::Continue),
+            Some(FinallyLeave::Rethrow(thrown)) => Err(crate::machine::Stop::Thrown(thrown)),
+            Some(FinallyLeave::Return(value)) => self.finish_return(value),
+        }
     }
 }
 
@@ -105,6 +130,17 @@ fn object_message(object: &Object) -> Vec<u8> {
 }
 
 impl<O: Output> Machine<'_, '_, O> {
+    pub(crate) fn matching_finally(&self) -> Option<FinallyHandler> {
+        let frame = self.frames.last()?;
+        let pc = frame.pc.saturating_sub(1);
+        self.codes[frame.code]
+            .code
+            .finallys
+            .iter()
+            .find(|handler| pc >= handler.start as usize && pc < handler.end as usize)
+            .cloned()
+    }
+
     fn matching_handler(&self, class: &[u8]) -> Option<CatchHandler> {
         let frame = self.frames.last()?;
         let pc = frame.pc.saturating_sub(1);

@@ -304,7 +304,7 @@ fn fatal_programs_have_no_unit() {
 
 #[test]
 fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
-    let cases: [(&str, &str); 42] = [
+    let cases: [(&str, &str); 41] = [
         ("<?php namespace A;", "namespaces"),
         ("<?php use A\\B;", "use imports"),
         ("<?php use A\\{B};", "use imports"),
@@ -334,7 +334,6 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
         ("<?php function f() { static $a; }", "static variables"),
         ("<?php unset($a);", "unset"),
         ("<?php a: goto a;", "goto"),
-        ("<?php try {} finally {}", "finally"),
         ("<?php declare(ticks=1);", "declare"),
         ("<?php interface A {}", "interfaces"),
         ("<?php trait A {}", "traits"),
@@ -469,6 +468,22 @@ fn include_and_require_emit_an_include_instruction() -> Result<(), String> {
             "   1    1  Echo T0",
             "   2    1  Include/3 $p",
             "   3    1  Return 1",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn try_finally_emits_end_finally() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php try { echo 1; } finally { echo 2; }")?,
+        listing(&[
+            "code {main} temporaries=0",
+            "   0    1  Echo 1",
+            "   1    1  Jump @2",
+            "   2    1  Echo 2",
+            "   3    1  EndFinally",
+            "   4    1  Return 1",
         ])
     );
     Ok(())

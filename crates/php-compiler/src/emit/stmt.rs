@@ -4,7 +4,7 @@ use php_parser::ast::{Expr, ExprKind, NameKind, Stmt, StmtKind, Try};
 
 use super::builder::Field;
 use super::{Emit, Emitter, Loop};
-use crate::bytecode::{CatchHandler, Opcode, Operand};
+use crate::bytecode::{CatchHandler, FinallyHandler, Opcode, Operand};
 
 impl Emitter<'_> {
     pub(super) fn stmts(&mut self, stmts: &[Stmt]) -> Emit {
@@ -114,11 +114,8 @@ impl Emitter<'_> {
     }
 
     fn try_statement(&mut self, parts: &Try) -> Emit {
-        if parts.finally.is_some() {
-            return self.unsupported("finally");
-        }
-        if parts.catches.is_empty() {
-            return self.unsupported("finally");
+        if parts.catches.is_empty() && parts.finally.is_none() {
+            return self.unsupported("try");
         }
         let start = self.builder.here()?;
         self.stmts(&parts.body)?;
@@ -146,9 +143,31 @@ impl Emitter<'_> {
             self.stmts(&catch.body)?;
             exits.push(self.jump()?);
         }
-        exits
-            .into_iter()
-            .try_for_each(|exit| self.builder.patch_here(exit, Field::A))
+        let covered = self.builder.here()?;
+        if let Some(finally) = &parts.finally {
+            let target = covered;
+            for exit in exits {
+                self.builder.patch(exit, Field::A, target)?;
+            }
+            self.builder.code_mut().finallys.push(FinallyHandler {
+                start,
+                end: covered,
+                target,
+            });
+            self.stmts(finally)?;
+            self.builder
+                .op(
+                    Opcode::EndFinally,
+                    Operand::UNUSED,
+                    Operand::UNUSED,
+                    Operand::UNUSED,
+                )
+                .map(drop)
+        } else {
+            exits
+                .into_iter()
+                .try_for_each(|exit| self.builder.patch_here(exit, Field::A))
+        }
     }
 
     /// Emits a jump to be patched.

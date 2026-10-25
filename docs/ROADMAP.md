@@ -66,7 +66,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] Classes: public instance properties, methods, `new` and `$this`
   - [ ] Interfaces, traits and enums
   - [x] Exceptions: `throw`, `try`/`catch`, built-in `Exception`/`Error`
-  - [ ] `finally`
+  - [x] `finally`
   - [ ] Generators and fibers
   - [x] include/require and their `_once` forms
   - [ ] Autoloading

@@ -34,6 +34,17 @@ pub struct CatchHandler {
     pub slot: Option<u32>,
 }
 
+/// A `finally` block covering a `try` and its `catch` arms.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FinallyHandler {
+    /// First instruction of the `try` body.
+    pub start: u32,
+    /// First instruction of the `finally` body; the range is `[start, end)`.
+    pub end: u32,
+    /// First instruction of the `finally` body.
+    pub target: u32,
+}
+
 /// The compiled body of a function, method, closure or file.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Code {
@@ -55,6 +66,8 @@ pub struct Code {
     pub by_ref: bool,
     /// `catch` arms, inner ranges first.
     pub handlers: Vec<CatchHandler>,
+    /// `finally` blocks, inner ranges first.
+    pub finallys: Vec<FinallyHandler>,
 }
 
 /// A function the file declares.

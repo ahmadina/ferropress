@@ -200,6 +200,16 @@ impl<O: Output> Machine<'_, '_, O> {
         } else {
             self.read(operand)?
         };
+        self.finish_return(value)
+    }
+
+    /// Leaves the current frame with `value`, after any `finally` of this frame has run.
+    pub(crate) fn finish_return(&mut self, value: Value) -> Exec<Flow> {
+        if let Some(finally) = self.matching_finally() {
+            self.finally_leave = Some(crate::exceptions::FinallyLeave::Return(value));
+            self.frame_mut()?.pc = finally.target as usize;
+            return Ok(Flow::Continue);
+        }
         let frame = self
             .frames
             .pop()

@@ -111,6 +111,8 @@ pub enum Opcode {
     /// Includes the file named by `a`. Flags: 0 `include`, 1 `include_once`, 2 `require`,
     /// 3 `require_once`. `result` receives the included file's return value.
     Include,
+    /// Ends a `finally` body: rethrows or returns what the `try`/`catch` left pending.
+    EndFinally,
 }
 
 impl Opcode {
@@ -167,6 +169,7 @@ impl Opcode {
             Self::InitMethodCall => "InitMethodCall",
             Self::Throw => "Throw",
             Self::Include => "Include",
+            Self::EndFinally => "EndFinally",
         }
     }
 }
@@ -261,6 +264,7 @@ mod tests {
             Opcode::InitMethodCall,
             Opcode::Throw,
             Opcode::Include,
+            Opcode::EndFinally,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

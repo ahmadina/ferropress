@@ -91,6 +91,8 @@ pub(crate) struct Machine<'u, 'o, O: Output> {
     pub(crate) included: HashSet<Box<[u8]>>,
     /// The value the current unit's main code returned.
     pub(crate) return_value: Value,
+    /// What to do after the `finally` body that is running.
+    pub(crate) finally_leave: Option<crate::exceptions::FinallyLeave>,
 }
 
 /// `literal` as a runtime value.
@@ -144,6 +146,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             line: 0,
             included: HashSet::new(),
             return_value: Value::Null,
+            finally_leave: None,
         }
     }
 
@@ -230,6 +233,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::InitMethodCall => self.init_method_call(ins),
             Opcode::Throw => return self.throw_value(ins),
             Opcode::Include => self.include_file(ins),
+            Opcode::EndFinally => return self.end_finally(),
             Opcode::Return => return self.return_from(ins.a),
             _ => self.operator(ins),
         };

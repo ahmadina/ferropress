@@ -103,8 +103,11 @@ the first argument as the public `message` property.
 `try { … } catch (Class $e) { … }` runs the first arm whose class matches the thrown class, including
 the built-in hierarchy (`Throwable` matches every throwable, `Error` matches the `Error` family,
 `ArithmeticError` matches `DivisionByZeroError`). The optional catch variable receives the thrown
-object. A throw inside a called function unwinds to a matching `catch` in a caller. `finally` is not
-compiled yet.
+object. A throw inside a called function unwinds to a matching `catch` in a caller.
+
+`finally` always runs when leaving the `try` (and its `catch` arms): after a normal completion, after
+a caught throw, before an uncaught throw is displayed, and before a `return` from the `try` or a
+`catch`. A throw or return from the `finally` body itself replaces the pending leave.
 
 ## Include
 

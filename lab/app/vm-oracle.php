@@ -138,6 +138,10 @@ function vm_topic_cases(): array {
 			'function f() { throw new Exception("in"); } try { f(); echo "n"; } catch (Exception $e) { echo "c"; }',
 			'try { throw new Exception("x"); } catch (Error $e) { echo "e"; } catch (Exception $e) { echo "x"; }',
 			'try { throw new Exception("x"); } catch (Throwable $e) { echo "t"; }',
+			'try { echo 1; } finally { echo 2; }',
+			'try { throw new Exception("x"); } catch (Exception $e) { echo "c"; } finally { echo "f"; }',
+			'try { throw new Exception("x"); } finally { echo "f"; }',
+			'function f() { try { return 1; } finally { echo "f"; } } echo f();',
 		),
 		'includes'      => array(
 			'echo include "missing-ferropress.php";',

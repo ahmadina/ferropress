@@ -18,6 +18,7 @@ mod exceptions;
 mod fibers;
 mod generators;
 mod includes;
+mod json;
 mod machine;
 mod math;
 mod thrown;

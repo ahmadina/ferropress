@@ -87,6 +87,56 @@ fn a_computed_callee_finds_a_builtin() -> Result<(), String> {
 }
 
 #[test]
+fn json_round_trips_scalars_and_lists() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo json_encode(1), json_encode(\"a\"), json_encode([1, 2]); echo implode(\",\", json_decode(\"[3,4]\"));",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"1\"a\"[1,2]3,4");
+    Ok(())
+}
+
+#[test]
+fn json_decode_of_invalid_input_is_null() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo json_decode(\"{\") === null ? \"n\" : \"x\";")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"n");
+    Ok(())
+}
+
+#[test]
+fn json_encode_maps_objects_assoc_and_scalars() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php class C { public $x = 1; } echo json_encode(new C), json_encode([\"a\" => 2]), json_encode(null), json_encode(true), json_encode(1.5);",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"{\"x\":1}{\"a\":2}nulltrue1.5");
+    Ok(())
+}
+
+#[test]
+fn json_decode_reads_scalars_and_objects() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo json_decode(\"true\") ? \"t\" : \"f\", json_decode(\"null\") === null ? \"n\" : \"x\", json_decode(\"1.5\"), count(json_decode(\"{\\\"a\\\":1}\"));",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"tn1.51");
+    Ok(())
+}
+
+#[test]
+fn json_encode_without_arguments_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php json_encode();")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("json_encode() expects exactly 1 argument, 0 given"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
 fn count_of_an_array_literal() -> Result<(), String> {
     let (output, status) = run(b"<?php echo count([1, 2, 3]);")?;
     assert_eq!(status, 0);

@@ -164,6 +164,13 @@ function vm_topic_cases(): array {
 			'echo is_null(null) ? "y" : "n", is_bool(false) ? "y" : "n", is_float(1.5) ? "y" : "n";',
 			'$n = "strlen"; echo $n("ab");',
 		),
+		'json'          => array(
+			'echo json_encode(1), json_encode("a"), json_encode([1, 2]); echo implode(",", json_decode("[3,4]"));',
+			'echo json_decode("{") === null ? "n" : "x";',
+			'echo json_encode(["a" => 1]);',
+			'class C { public $x = 1; } echo json_encode(new C), json_encode(null), json_encode(true), json_encode(1.5);',
+			'echo json_decode("true") ? "t" : "f", json_decode("null") === null ? "n" : "x", json_decode("1.5");',
+		),
 		'arrays'        => array(
 			'echo count([1, 2, 3]);',
 			'echo implode("-", explode(",", "a,b,c"));',

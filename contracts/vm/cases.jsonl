@@ -121,6 +121,11 @@
 {"name":"builtins 08","source":"<?php\necho strlen(12);","output":"2","status":0}
 {"name":"builtins 09","source":"<?php\necho is_null(null) ? \"y\" : \"n\", is_bool(false) ? \"y\" : \"n\", is_float(1.5) ? \"y\" : \"n\";","output":"yyy","status":0}
 {"name":"builtins 10","source":"<?php\n$n = \"strlen\"; echo $n(\"ab\");","output":"2","status":0}
+{"name":"json 01","source":"<?php\necho json_encode(1), json_encode(\"a\"), json_encode([1, 2]); echo implode(\",\", json_decode(\"[3,4]\"));","output":"1\"a\"[1,2]3,4","status":0}
+{"name":"json 02","source":"<?php\necho json_decode(\"{\") === null ? \"n\" : \"x\";","output":"n","status":0}
+{"name":"json 03","source":"<?php\necho json_encode([\"a\" => 1]);","output":"{\"a\":1}","status":0}
+{"name":"json 04","source":"<?php\nclass C { public $x = 1; } echo json_encode(new C), json_encode(null), json_encode(true), json_encode(1.5);","output":"{\"x\":1}nulltrue1.5","status":0}
+{"name":"json 05","source":"<?php\necho json_decode(\"true\") ? \"t\" : \"f\", json_decode(\"null\") === null ? \"n\" : \"x\", json_decode(\"1.5\");","output":"tn1.5","status":0}
 {"name":"arrays 01","source":"<?php\necho count([1, 2, 3]);","output":"3","status":0}
 {"name":"arrays 02","source":"<?php\necho implode(\"-\", explode(\",\", \"a,b,c\"));","output":"a-b-c","status":0}
 {"name":"arrays 03","source":"<?php\necho implode([\"x\", \"y\"]);","output":"xy","status":0}

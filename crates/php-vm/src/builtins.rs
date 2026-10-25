@@ -39,6 +39,8 @@ pub(crate) enum Native {
     Sqrt,
     Implode,
     Explode,
+    JsonEncode,
+    JsonDecode,
 }
 
 /// The built-in named by `key`, compared lowercase.
@@ -73,6 +75,8 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"sqrt" => Native::Sqrt,
         b"implode" | b"join" => Native::Implode,
         b"explode" => Native::Explode,
+        b"json_encode" => Native::JsonEncode,
+        b"json_decode" => Native::JsonDecode,
         _ => return None,
     })
 }
@@ -134,6 +138,8 @@ impl<O: Output> Machine<'_, '_, O> {
             Native::Sqrt => self.native_sqrt(args, result),
             Native::Implode => self.native_implode(args, result),
             Native::Explode => self.native_explode(args, result),
+            Native::JsonEncode => self.native_json_encode(args, result),
+            Native::JsonDecode => self.native_json_decode(args, result),
         }
     }
 }

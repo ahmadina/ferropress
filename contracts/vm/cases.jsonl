@@ -131,6 +131,14 @@
 {"name":"arrays 03","source":"<?php\necho implode([\"x\", \"y\"]);","output":"xy","status":0}
 {"name":"arrays 04","source":"<?php\nexplode(\"\", \"ab\");","output":"\nFatal error: Uncaught ValueError: explode(): Argument #1 ($separator) must not be empty in %file%:2\nStack trace:\n#0 %file%(2): explode('', 'ab')\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"arrays 05","source":"<?php\necho [1];","output":"\nWarning: Array to string conversion in %file% on line 2\nArray","status":0}
+{"name":"arrays 06","source":"<?php\n$a = [1, 2]; echo $a[0], $a[1]; $a[0] = 9; $a[] = 3; echo $a[0], $a[2];","output":"1293","status":0}
+{"name":"arrays 07","source":"<?php\n$a = []; echo $a[0] === null ? \"n\" : \"x\";","output":"\nWarning: Undefined array key 0 in %file% on line 2\nn","status":0}
+{"name":"arrays 08","source":"<?php\n$s = \"ab\"; echo $s[0], $s[1];","output":"ab","status":0}
+{"name":"arrays 09","source":"<?php\n$n = 1; echo $n[0] === null ? \"n\" : \"x\";","output":"\nWarning: Trying to access array offset on int in %file% on line 2\nn","status":0}
+{"name":"arrays 10","source":"<?php\n$a = [\"k\" => 4]; echo $a[\"k\"];","output":"4","status":0}
+{"name":"arrays 11","source":"<?php\n$s = \"a\"; echo $s[5] === \"\" ? \"e\" : \"x\";","output":"\nWarning: Uninitialized string offset 5 in %file% on line 2\ne","status":0}
+{"name":"arrays 12","source":"<?php\n$o = new Exception(\"x\"); $o[0] = 1;","output":"\nFatal error: Uncaught Error: Cannot use object of type Exception as array in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"arrays 13","source":"<?php\n$n = 1; $n[0] = 2; echo $n;","output":"\nFatal error: Uncaught Error: Cannot use a scalar value as an array in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"math 01","source":"<?php\necho abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);","output":"31312","status":0}
 {"name":"math 02","source":"<?php\necho intdiv(7, 2), intval(floor(1.5)), intval(ceil(1.2)), intval(round(1.5));","output":"3122","status":0}
 {"name":"math 03","source":"<?php\necho intval(sqrt(9));","output":"3","status":0}

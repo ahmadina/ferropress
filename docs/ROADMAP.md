@@ -76,6 +76,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] Core strings, types, `count`, `function_exists`, `class_exists`
   - [x] Math: `abs`, `min`/`max`, rounding, `intval`/`floatval`/`strval`, `intdiv`, `sqrt`
   - [x] Array literals, `count` of arrays, `implode`/`join`, `explode`
+  - [x] Array offsets: `$a[$k]`, `$a[$k] =`, `$a[] =`
   - [x] JSON: `json_encode` / `json_decode` for scalars and arrays
 - [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
       classes extend Rust-owned classes

@@ -166,6 +166,15 @@ declared. `$object instanceof Name` does not load. A class statement inside a fu
 when that statement runs. A loader that `include`s a file with a top-level class makes that class
 visible to the caller. A class already being loaded is not asked for again.
 
+## Array offsets
+
+`$a[$k]` reads the element of an array or the byte of a string. A missing array key warns
+`Undefined array key …` and yields `null`. A missing string offset warns `Uninitialized string
+offset …` and yields `""`. Reading an offset on a non-array, non-string value warns
+`Trying to access array offset on <value>` and yields `null`. `$a[$k] = $v` writes the element when
+`$a` is an array or `null` (which becomes an array); a scalar or object throws `Error`.
+`$a[] = $v` appends.
+
 ## Built-in functions
 
 These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, `gettype`,

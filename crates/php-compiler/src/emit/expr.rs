@@ -195,6 +195,7 @@ impl Emitter<'_> {
             }
             ExprKind::StaticCall { class, name, args } => self.static_call(class, name, args, used),
             ExprKind::Array { items, syntax } => self.array_literal(items, *syntax, used),
+            ExprKind::Dim { base, index } => self.fetch_dim(base, index.as_deref(), used),
             _ => self.unsupported("this expression"),
         }
     }
@@ -211,6 +212,9 @@ impl Emitter<'_> {
             }
             let value = self.expr(value)?;
             return self.store_property(object, name, value, used);
+        }
+        if let ExprKind::Dim { base, index } = &target.kind {
+            return self.store_dim(base, index.as_deref(), value, used);
         }
         let slot = self.target(target)?;
         let value = self.expr(value)?;
@@ -530,6 +534,41 @@ impl Emitter<'_> {
             }
         }
         if used { Ok(dest) } else { Ok(Operand::UNUSED) }
+    }
+
+    fn fetch_dim(&mut self, base: &Expr, index: Option<&Expr>, used: bool) -> Emit<Operand> {
+        let Some(index) = index else {
+            return self.unsupported("[] in read context");
+        };
+        let base = self.expr(base)?;
+        let index = self.expr(index)?;
+        let dest = self.result(used)?;
+        self.builder.op(Opcode::FetchDim, base, index, dest)?;
+        Ok(dest)
+    }
+
+    fn store_dim(
+        &mut self,
+        base: &Expr,
+        index: Option<&Expr>,
+        value: &Expr,
+        used: bool,
+    ) -> Emit<Operand> {
+        let ExprKind::Variable(name) = &base.kind else {
+            return self.unsupported("assignments to this target");
+        };
+        let slot = self.variable(name)?;
+        let value = self.expr(value)?;
+        let index = match index {
+            Some(index) => self.expr(index)?,
+            None => Operand::UNUSED,
+        };
+        let mut store = Instruction::new(Opcode::StoreDim);
+        store.a = slot;
+        store.b = index;
+        store.c = value;
+        self.builder.emit(store)?;
+        if used { Ok(value) } else { Ok(Operand::UNUSED) }
     }
 
     pub(crate) fn send_args(&mut self, args: &[Arg]) -> Emit {

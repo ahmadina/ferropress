@@ -357,8 +357,8 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
         ("<?php echo $this;", "$this"),
         ("<?php echo $_GET;", "superglobals"),
         ("<?php echo $$a;", "variable variables"),
-        ("<?php $a[] = 1;", "assignments to this target"),
-        ("<?php echo $a[0];", "this expression"),
+        ("<?php $a[0][1] = 1;", "assignments to this target"),
+        ("<?php echo isset($a[0]);", "this expression"),
         ("<?php eval(\"1\");", "eval"),
     ];
     for (source, construct) in cases {
@@ -488,6 +488,25 @@ fn static_calls_emit_init_static_call() -> Result<(), String> {
             "   2    1  Call T0 =",
             "   3    1  Echo T0",
             "   4    1  Return 1",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn array_offsets_emit_fetch_and_store() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php $a = [1]; echo $a[0]; $a[1] = 2; $a[] = 3;")?,
+        listing(&[
+            "code {main} temporaries=2",
+            "   0    1  NewArray T0 =",
+            "   1    1  ArrayItem T0, 1",
+            "   2    1  Assign $a, T0",
+            "   3    1  FetchDim T1 = $a, 0",
+            "   4    1  Echo T1",
+            "   5    1  StoreDim $a, 1, 2",
+            "   6    1  StoreDim $a, 3",
+            "   7    1  Return 1",
         ])
     );
     Ok(())

@@ -280,6 +280,8 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::BindClass => self.bind_class(ins),
             Opcode::NewArray => self.new_array(ins),
             Opcode::ArrayItem => self.array_item(ins),
+            Opcode::FetchDim => self.fetch_dim(ins),
+            Opcode::StoreDim => self.store_dim(ins),
             Opcode::Return => return self.return_from(ins.a),
             _ => self.operator(ins),
         };

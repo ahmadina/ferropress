@@ -630,7 +630,7 @@ mod tests {
 
     #[test]
     fn unsupported_constructs_and_undefined_functions_are_pending() {
-        match test_file(b"--FILE--\n<?php echo $a[0];\n--EXPECT--\n") {
+        match test_file(b"--FILE--\n<?php echo isset($a[0]);\n--EXPECT--\n") {
             Outcome::Pending(reason) => {
                 assert!(reason.contains("this expression"), "{reason}");
             }

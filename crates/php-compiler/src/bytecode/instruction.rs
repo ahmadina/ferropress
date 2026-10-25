@@ -129,6 +129,10 @@ pub enum Opcode {
     NewArray,
     /// Stores `b` in the array `a`: appended when `c` is unused, otherwise under the key `c`.
     ArrayItem,
+    /// `result = a[b]`.
+    FetchDim,
+    /// `a[b] = c`; `b` unused appends. `a` is the variable written back.
+    StoreDim,
 }
 
 impl Opcode {
@@ -193,6 +197,8 @@ impl Opcode {
             Self::BindClass => "BindClass",
             Self::NewArray => "NewArray",
             Self::ArrayItem => "ArrayItem",
+            Self::FetchDim => "FetchDim",
+            Self::StoreDim => "StoreDim",
         }
     }
 }
@@ -295,6 +301,8 @@ mod tests {
             Opcode::BindClass,
             Opcode::NewArray,
             Opcode::ArrayItem,
+            Opcode::FetchDim,
+            Opcode::StoreDim,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

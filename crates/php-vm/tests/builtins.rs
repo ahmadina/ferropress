@@ -137,6 +137,58 @@ fn json_encode_without_arguments_throws() -> Result<(), String> {
 }
 
 #[test]
+fn array_offsets_read_and_write() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php $a = [1, 2]; echo $a[0], $a[1]; $a[0] = 9; $a[] = 3; echo $a[0], $a[2];")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"1293");
+    Ok(())
+}
+
+#[test]
+fn array_offset_missing_key_warns() -> Result<(), String> {
+    let (output, status) = run(b"<?php $a = []; echo $a[0] === null ? \"n\" : \"x\";")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 0);
+    assert!(text.contains("Undefined array key 0"), "{text}");
+    assert!(text.contains('n'), "{text}");
+    Ok(())
+}
+
+#[test]
+fn string_offset_reads_a_byte() -> Result<(), String> {
+    let (output, status) = run(b"<?php $s = \"ab\"; echo $s[0], $s[1];")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"ab");
+    Ok(())
+}
+
+#[test]
+fn offset_on_a_scalar_warns() -> Result<(), String> {
+    let (output, status) = run(b"<?php $n = 1; echo $n[0] === null ? \"n\" : \"x\";")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 0);
+    assert!(
+        text.contains("Trying to access array offset on int"),
+        "{text}"
+    );
+    assert!(text.contains('n'), "{text}");
+    Ok(())
+}
+
+#[test]
+fn assigning_to_a_scalar_offset_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php $n = 1; $n[0] = 2;")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("Cannot use a scalar value as an array"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
 fn count_of_an_array_literal() -> Result<(), String> {
     let (output, status) = run(b"<?php echo count([1, 2, 3]);")?;
     assert_eq!(status, 0);

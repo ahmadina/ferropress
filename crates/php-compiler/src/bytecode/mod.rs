@@ -6,8 +6,10 @@
 
 mod code;
 mod instruction;
+mod literal;
 mod operand;
 
 pub use code::{Code, FunctionDecl, Parameter, Unit};
 pub use instruction::{Instruction, Opcode};
+pub use literal::Literal;
 pub use operand::{Operand, OperandKind};

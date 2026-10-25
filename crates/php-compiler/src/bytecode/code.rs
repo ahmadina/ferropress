@@ -2,9 +2,9 @@
 
 use std::fmt::{self, Write as _};
 
-use php_value::{Value, write_float};
+use php_value::write_float;
 
-use super::{Instruction, Operand, OperandKind};
+use super::{Instruction, Literal, Operand, OperandKind};
 
 /// One parameter of a function.
 #[derive(Debug, Clone, PartialEq)]
@@ -18,7 +18,7 @@ pub struct Parameter {
 }
 
 /// The compiled body of a function, method, closure or file.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Code {
     /// The name `__FUNCTION__` shows: empty for a file's main code.
     pub name: Box<[u8]>,
@@ -27,7 +27,7 @@ pub struct Code {
     /// The line of each instruction, in parallel with `instructions`.
     pub lines: Vec<u32>,
     /// The literal pool.
-    pub literals: Vec<Value>,
+    pub literals: Vec<Literal>,
     /// The name of each local slot, without `$`.
     pub slots: Vec<Box<[u8]>>,
     /// How many temporaries the code uses.
@@ -39,7 +39,7 @@ pub struct Code {
 }
 
 /// A function the file declares.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl {
     /// The namespaced name as declared.
     pub name: Box<[u8]>,
@@ -50,7 +50,7 @@ pub struct FunctionDecl {
 }
 
 /// What compiling one file produces.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Unit {
     /// The file's main code.
     pub main: Code,
@@ -69,14 +69,14 @@ impl fmt::Display for Unit {
 }
 
 /// Writes `value` as the disassembler shows literals.
-fn write_literal(out: &mut String, value: &Value) {
+fn write_literal(out: &mut String, value: &Literal) {
     match value {
-        Value::Null => out.push_str("null"),
-        Value::Bool(value) => out.push_str(if *value { "true" } else { "false" }),
-        Value::Int(value) => {
+        Literal::Null => out.push_str("null"),
+        Literal::Bool(value) => out.push_str(if *value { "true" } else { "false" }),
+        Literal::Int(value) => {
             let _ = write!(out, "{value}");
         }
-        Value::Float(value) => {
+        Literal::Float(value) => {
             let mut text = Vec::new();
             write_float(&mut text, *value);
             out.push_str(&String::from_utf8_lossy(&text));
@@ -87,9 +87,9 @@ fn write_literal(out: &mut String, value: &Value) {
                 out.push_str(".0");
             }
         }
-        Value::String(text) => {
+        Literal::String(text) => {
             out.push('"');
-            for &byte in text.as_bytes() {
+            for &byte in text {
                 match byte {
                     b'"' | b'\\' => {
                         out.push('\\');
@@ -104,10 +104,6 @@ fn write_literal(out: &mut String, value: &Value) {
             }
             out.push('"');
         }
-        Value::Array(array) => {
-            let _ = write!(out, "array({})", array.len());
-        }
-        Value::Object(_) => out.push_str("object"),
     }
 }
 
@@ -216,10 +212,8 @@ impl fmt::Display for Code {
 
 #[cfg(test)]
 mod tests {
-    use php_value::{PhpArray, PhpString, Value};
-
     use super::{Code, FunctionDecl, Parameter, Unit};
-    use crate::bytecode::{Instruction, Opcode, Operand};
+    use crate::bytecode::{Instruction, Literal, Opcode, Operand};
 
     fn operand(operand: Option<Operand>) -> Operand {
         operand.unwrap()
@@ -244,7 +238,7 @@ mod tests {
         let code = Code {
             instructions: vec![add, echo, jump, dangling, Instruction::new(Opcode::Return)],
             lines: vec![1, 1, 2, 3],
-            literals: vec![Value::Int(1), Value::Bool(false)],
+            literals: vec![Literal::Int(1), Literal::Bool(false)],
             slots: vec![b"a".to_vec().into_boxed_slice()],
             temporaries: 2,
             ..Code::default()
@@ -258,17 +252,14 @@ mod tests {
 
     #[test]
     fn literals_show_their_type() {
-        let mut array = PhpArray::new();
-        array.append(Value::Null).unwrap();
         let literals = vec![
-            Value::Null,
-            Value::Bool(true),
-            Value::Float(1.0),
-            Value::Float(0.5),
-            Value::Float(1e100),
-            Value::Float(f64::NAN),
-            Value::String(PhpString::from(&b"a\"\\\n\x01~"[..])),
-            Value::Array(array),
+            Literal::Null,
+            Literal::Bool(true),
+            Literal::Float(1.0),
+            Literal::Float(0.5),
+            Literal::Float(1e100),
+            Literal::Float(f64::NAN),
+            Literal::from(&b"a\"\\\n\x01~"[..]),
         ];
         let instructions = (0..literals.len())
             .map(|index| {
@@ -298,7 +289,6 @@ mod tests {
                 "Echo 1.0E+100",
                 "Echo NAN",
                 "Echo \"a\\\"\\\\\\n\\x01~\"",
-                "Echo array(1)",
             ]
         );
     }

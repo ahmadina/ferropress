@@ -65,6 +65,26 @@ pub enum Opcode {
     JumpIfFalse,
     /// Jumps to `b` when `a` is truthy.
     JumpIfTrue,
+    /// Converts `a` to a string.
+    ToString,
+    /// Starts a call of the function named by the literal `a` (lowercase); `b`, when used, is the
+    /// global name tried when no function `a` exists.
+    InitCall,
+    /// Passes `a` by value as the next argument of the call being prepared.
+    Send,
+    /// Passes the variable `a` as the next argument: by reference when the parameter takes one,
+    /// by value otherwise.
+    SendVar,
+    /// Calls the function being prepared; `result`, when used, receives its return value.
+    Call,
+    /// Adds one to the variable `a`; `result`, when used, receives the new value.
+    PreIncrement,
+    /// Subtracts one from the variable `a`; `result`, when used, receives the new value.
+    PreDecrement,
+    /// Adds one to the variable `a`; `result` receives the value before.
+    PostIncrement,
+    /// Subtracts one from the variable `a`; `result` receives the value before.
+    PostDecrement,
     /// Prints `a`, converted to a string.
     Echo,
     /// Returns `a` (or `null` when unused) from the code object.
@@ -105,6 +125,15 @@ impl Opcode {
             Self::Jump => "Jump",
             Self::JumpIfFalse => "JumpIfFalse",
             Self::JumpIfTrue => "JumpIfTrue",
+            Self::ToString => "ToString",
+            Self::InitCall => "InitCall",
+            Self::Send => "Send",
+            Self::SendVar => "SendVar",
+            Self::Call => "Call",
+            Self::PreIncrement => "PreIncrement",
+            Self::PreDecrement => "PreDecrement",
+            Self::PostIncrement => "PostIncrement",
+            Self::PostDecrement => "PostDecrement",
             Self::Echo => "Echo",
             Self::Return => "Return",
         }
@@ -181,6 +210,15 @@ mod tests {
             Opcode::Jump,
             Opcode::JumpIfFalse,
             Opcode::JumpIfTrue,
+            Opcode::ToString,
+            Opcode::InitCall,
+            Opcode::Send,
+            Opcode::SendVar,
+            Opcode::Call,
+            Opcode::PreIncrement,
+            Opcode::PreDecrement,
+            Opcode::PostIncrement,
+            Opcode::PostDecrement,
             Opcode::Echo,
             Opcode::Return,
         ];

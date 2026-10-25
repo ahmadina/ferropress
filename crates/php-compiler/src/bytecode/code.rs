@@ -101,17 +101,45 @@ pub struct MethodDecl {
     pub code: Code,
 }
 
-/// A class the file declares.
+/// What a class-like declaration is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassKind {
+    /// A class.
+    Class,
+    /// An interface.
+    Interface,
+    /// A trait.
+    Trait,
+    /// An enum.
+    Enum,
+}
+
+/// One case of a unit enum.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumCaseDecl {
+    /// The name as declared.
+    pub name: Box<[u8]>,
+}
+
+/// A class, interface, trait or enum the file declares.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDecl {
     /// The name as declared.
     pub name: Box<[u8]>,
-    /// The line of `class`.
+    /// What kind of class-like this is.
+    pub kind: ClassKind,
+    /// The line of the keyword.
     pub line: u32,
     /// Instance properties, in declaration order.
     pub properties: Vec<PropertyDecl>,
-    /// Instance methods, in declaration order.
+    /// Instance methods, in declaration order. Interface methods without a body are omitted.
     pub methods: Vec<MethodDecl>,
+    /// Interfaces this type implements, or the parents of an interface, as declared.
+    pub implements: Vec<Box<[u8]>>,
+    /// Traits this type uses, as declared.
+    pub uses: Vec<Box<[u8]>>,
+    /// Enum cases, in declaration order.
+    pub cases: Vec<EnumCaseDecl>,
 }
 
 /// What compiling one file produces.
@@ -286,7 +314,9 @@ impl fmt::Display for Code {
 
 #[cfg(test)]
 mod tests {
-    use super::{ClassDecl, Code, FunctionDecl, MethodDecl, Parameter, PropertyDecl, Unit};
+    use super::{
+        ClassDecl, ClassKind, Code, FunctionDecl, MethodDecl, Parameter, PropertyDecl, Unit,
+    };
     use crate::bytecode::{Instruction, Literal, Opcode, Operand};
 
     fn operand(operand: Option<Operand>) -> Operand {
@@ -414,6 +444,7 @@ mod tests {
             functions: Vec::new(),
             classes: vec![ClassDecl {
                 name: b"C".to_vec().into_boxed_slice(),
+                kind: ClassKind::Class,
                 line: 1,
                 properties: vec![PropertyDecl {
                     name: b"a".to_vec().into_boxed_slice(),
@@ -427,6 +458,9 @@ mod tests {
                         ..Code::default()
                     },
                 }],
+                implements: Vec::new(),
+                uses: Vec::new(),
+                cases: Vec::new(),
             }],
         };
         assert_eq!(

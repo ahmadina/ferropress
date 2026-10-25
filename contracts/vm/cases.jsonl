@@ -90,6 +90,15 @@
 {"name":"classes 12","source":"<?php\necho (1)->z;","output":"\nWarning: Attempt to read property \"z\" on int in %file% on line 2\n","status":0}
 {"name":"classes 13","source":"<?php\n$a = 1; $a->m();","output":"\nFatal error: Uncaught Error: Call to a member function m() on int in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"classes 14","source":"<?php\n$a = true; $a->p = 1;","output":"\nFatal error: Uncaught Error: Attempt to assign property \"p\" on true in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"classes 15","source":"<?php\ninterface A {} interface B extends A {} class C implements B {} $o = new C; echo $o instanceof C ? \"c\" : \"n\", $o instanceof B ? \"b\" : \"n\", $o instanceof A ? \"a\" : \"n\", $o instanceof Missing ? \"m\" : \"n\", 1 instanceof C ? \"y\" : \"n\";","output":"cbann","status":0}
+{"name":"classes 16","source":"<?php\n$e = new Exception(\"x\"); echo $e instanceof Exception ? \"e\" : \"n\", $e instanceof Throwable ? \"t\" : \"n\", $e instanceof Error ? \"r\" : \"n\";","output":"etn","status":0}
+{"name":"classes 17","source":"<?php\ninterface I {} new I;","output":"\nFatal error: Uncaught Error: Cannot instantiate interface I in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"classes 18","source":"<?php\ntrait U { function m() { echo \"u\"; } } trait T { use U; } class C { use T; function n() { echo \"c\"; } } $o = new C; $o->m(); $o->n();","output":"uc","status":0}
+{"name":"classes 19","source":"<?php\ntrait T { function m() { echo \"t\"; } } class C { use T; function m() { echo \"c\"; } } (new C)->m();","output":"c","status":0}
+{"name":"classes 20","source":"<?php\ntrait T {} new T;","output":"\nFatal error: Uncaught Error: Cannot instantiate trait T in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"classes 21","source":"<?php\nenum E { case A; case B; } $a = E::A; echo $a instanceof E ? \"y\" : \"n\", $a->name, $a === E::A ? \"s\" : \"d\", $a === E::B ? \"b\" : \"n\";","output":"yAsn","status":0}
+{"name":"classes 22","source":"<?php\nenum E { case A; } new E;","output":"\nFatal error: Uncaught Error: Cannot instantiate enum E in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"classes 23","source":"<?php\nenum E { case A; } echo E::Z;","output":"\nFatal error: Uncaught Error: Undefined constant E::Z in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"exceptions 01","source":"<?php\ntry { echo 1; throw new Exception(\"x\"); echo 2; } catch (Exception $e) { echo \"c\"; }","output":"1c","status":0}
 {"name":"exceptions 02","source":"<?php\nthrow new Exception(\"x\");","output":"\nFatal error: Uncaught Exception: x in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"exceptions 03","source":"<?php\ntry { echo 1 % 0; } catch (Error $e) { echo \"z\"; }","output":"z","status":0}

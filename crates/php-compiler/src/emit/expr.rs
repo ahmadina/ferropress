@@ -163,6 +163,8 @@ impl Emitter<'_> {
             ExprKind::ArrowFunction { function, .. } => self.arrow(function, used),
             ExprKind::New { class, args } => self.new_object(class, args, used),
             ExprKind::NewAnonymous { .. } => self.unsupported("anonymous classes"),
+            ExprKind::Instanceof { expr, class } => self.instanceof(expr, class),
+            ExprKind::ClassConstant { class, name } => self.class_const(class, name),
             ExprKind::Throw(value) => self.throw_value(value),
             ExprKind::Include { kind, expr } => self.include_file(*kind, expr, used),
             ExprKind::Property {

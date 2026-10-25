@@ -304,7 +304,7 @@ fn fatal_programs_have_no_unit() {
 
 #[test]
 fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
-    let cases: [(&str, &str); 41] = [
+    let cases: [(&str, &str); 40] = [
         ("<?php namespace A;", "namespaces"),
         ("<?php use A\\B;", "use imports"),
         ("<?php use A\\{B};", "use imports"),
@@ -335,13 +335,15 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
         ("<?php unset($a);", "unset"),
         ("<?php a: goto a;", "goto"),
         ("<?php declare(ticks=1);", "declare"),
-        ("<?php interface A {}", "interfaces"),
-        ("<?php trait A {}", "traits"),
-        ("<?php enum A {}", "enums"),
         (
             "<?php class A { private $a; }",
             "static, private, typed or hooked properties",
         ),
+        (
+            "<?php class A { use T { T::m as n; } }",
+            "trait adaptations",
+        ),
+        ("<?php enum E: int { case A = 1; }", "backed enums"),
         ("<?php class A { public $a = 1 + 1; }", "property defaults"),
         ("<?php class A { const C = 1; }", "class constants"),
         ("<?php abstract class A {}", "abstract and readonly classes"),
@@ -453,6 +455,51 @@ fn classes_emit_new_properties_and_methods() -> Result<(), String> {
             "   1    4  Add T1 = $x, T0",
             "   2    4  Return T1",
             "   3    4  Return",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn interfaces_traits_and_enums_emit() -> Result<(), String> {
+    assert_eq!(
+        disassemble(
+            "<?php interface I { function m(); } class C implements I { function m() { echo 1; } } echo (new C) instanceof I;"
+        )?,
+        listing(&[
+            "code {main} temporaries=2",
+            "   0    1  New T0 = \"C\"",
+            "   1    1  InstanceOf T1 = T0, \"I\"",
+            "   2    1  Echo T1",
+            "   3    1  Return 1",
+            "",
+            "code C->m temporaries=0",
+            "   0    1  Echo 1",
+            "   1    1  Return",
+        ])
+    );
+    assert_eq!(
+        disassemble("<?php trait T { function m() { echo 1; } } class C { use T; } (new C)->m();")?,
+        listing(&[
+            "code {main} temporaries=1",
+            "   0    1  New T0 = \"C\"",
+            "   1    1  InitMethodCall T0, \"m\", \"m\"",
+            "   2    1  Call",
+            "   3    1  Return 1",
+            "",
+            "code T->m temporaries=0",
+            "   0    1  Echo 1",
+            "   1    1  Return",
+        ])
+    );
+    assert_eq!(
+        disassemble("<?php enum E { case A; } echo E::A instanceof E;")?,
+        listing(&[
+            "code {main} temporaries=2",
+            "   0    1  ClassConst T0 = \"E\", \"A\"",
+            "   1    1  InstanceOf T1 = T0, \"E\"",
+            "   2    1  Echo T1",
+            "   3    1  Return 1",
         ])
     );
     Ok(())

@@ -88,9 +88,26 @@ the same argument-count rules as a function. An undefined class throws `Error` w
 `Call to undefined method Class::name()`. A method call on a non-object throws `Error` with
 `Call to a member function name() on <type>`.
 
-Interfaces, traits, enums, anonymous, abstract and readonly classes, inheritance, static, private
-and protected members, typed and hooked properties, class constants and computed names are not
-compiled yet.
+`$object instanceof Name` is true when the object's class is `Name` (case-insensitive), when that
+class implements `Name` or an interface that extends it, or when a built-in throwable matches the
+hierarchy (`Throwable`, `Error`, `ArithmeticError`). A non-object is never an instance; a name that
+is not a declared class is false.
+
+An `interface` compiles. `class C implements I` records the interface (and `interface B extends A`
+records the parent). `new I` throws `Error` with `Cannot instantiate interface I`. Interface methods
+without a body are not callable.
+
+A `trait` compiles its methods. `class C { use T; }` and `trait T { use U; }` copy methods onto the
+user, with a method declared on the class winning. `new T` throws `Error` with
+`Cannot instantiate trait T`. Adaptations (`insteadof`, `as`) are not compiled yet.
+
+A unit `enum` compiles its cases. `E::A` is a singleton object of class `E` with a public `name`
+property. `E::A === E::A` is true. `new E` throws `Error` with `Cannot instantiate enum E`. An
+unknown case throws `Error` with `Undefined constant E::A`. Backed enums are not compiled yet.
+
+Anonymous, abstract and readonly classes, class inheritance (`extends`), static, private and
+protected members, typed and hooked properties, class constants and computed names are not compiled
+yet.
 
 ## Exceptions
 

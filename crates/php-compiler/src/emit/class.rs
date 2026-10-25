@@ -1,12 +1,15 @@
-//! Classes: instance properties, instance methods and `new`.
+//! Classes, interfaces, traits and enums: members, `new`, `instanceof` and enum cases.
 
 use php_parser::ast::{
-    ClassKind, ClassLike, ClassMember, Expr, ExprKind, Function, Member, Modifiers, Name, NameKind,
-    PropertyGroup,
+    ClassKind as AstKind, ClassLike, ClassMember, Expr, ExprKind, Function, FunctionBody, Member,
+    Modifiers, Name, NameKind, PropertyGroup,
 };
 
 use super::{Emit, Emitter, Scope};
-use crate::bytecode::{ClassDecl, Instruction, Literal, MethodDecl, Opcode, Operand, PropertyDecl};
+use crate::bytecode::{
+    ClassDecl, ClassKind, EnumCaseDecl, Instruction, Literal, MethodDecl, Opcode, Operand,
+    PropertyDecl,
+};
 
 /// Modifiers this slice does not compile on a class or member.
 const UNSUPPORTED_MEMBER: Modifiers = Modifiers::STATIC
@@ -17,20 +20,34 @@ const UNSUPPORTED_MEMBER: Modifiers = Modifiers::STATIC
     .union(Modifiers::SET_VISIBILITY);
 
 impl Emitter<'_> {
-    /// Compiles an unconditional top-level class into the unit.
+    /// Compiles an unconditional top-level class-like into the unit.
     pub(super) fn class_declaration(&mut self, class: &ClassLike) -> Emit {
         self.builder.line = class.line;
-        if class.kind != ClassKind::Class {
-            return self.unsupported(match class.kind {
-                ClassKind::Interface => "interfaces",
-                ClassKind::Trait => "traits",
-                ClassKind::Enum => "enums",
-                ClassKind::Class => "classes",
-            });
-        }
+        self.reject_class_header(class)?;
         let Some(name) = class.name.as_deref() else {
             return self.unsupported("anonymous classes");
         };
+        let implements = self.implemented(class)?;
+        let mut collected = Collected::default();
+        self.ctx.current_methods.clear();
+        for member in &class.members {
+            self.class_member(name, member, &mut collected)?;
+        }
+        self.ctx.classes.push(ClassDecl {
+            name: name.into(),
+            kind: class_kind(class.kind),
+            line: class.line,
+            properties: collected.properties,
+            methods: collected.methods,
+            implements,
+            uses: collected.uses,
+            cases: collected.cases,
+        });
+        self.ctx.current_methods.clear();
+        Ok(())
+    }
+
+    fn reject_class_header(&self, class: &ClassLike) -> Emit {
         if class
             .modifiers
             .intersects(Modifiers::ABSTRACT.union(Modifiers::READONLY))
@@ -40,33 +57,71 @@ impl Emitter<'_> {
         if !class.attributes.is_empty() {
             return self.unsupported("attributes");
         }
-        if class.extends.is_some() || !class.implements.is_empty() {
+        if class.extends.is_some() && class.kind == AstKind::Class {
             return self.unsupported("inheritance");
         }
-        let mut properties = Vec::new();
-        let mut methods = Vec::new();
-        self.ctx.current_methods.clear();
-        for member in &class.members {
-            match member {
-                ClassMember::Property(group) => self.property_group(group, &mut properties)?,
-                ClassMember::Method(function) => {
-                    self.ctx
-                        .current_methods
-                        .push(function.name.as_slice().into());
-                    methods.push(self.method(name, function)?);
-                }
-                ClassMember::Constant(_) => return self.unsupported("class constants"),
-                ClassMember::EnumCase(_) => return self.unsupported("enums"),
-                ClassMember::TraitUse(_) => return self.unsupported("traits"),
-            }
+        if class.kind == AstKind::Enum && class.backing_type.is_some() {
+            return self.unsupported("backed enums");
         }
-        self.ctx.classes.push(ClassDecl {
-            name: name.into(),
-            line: class.line,
-            properties,
-            methods,
-        });
-        self.ctx.current_methods.clear();
+        Ok(())
+    }
+
+    fn implemented(&self, class: &ClassLike) -> Emit<Vec<Box<[u8]>>> {
+        let mut names = Vec::with_capacity(class.implements.len());
+        for name in &class.implements {
+            if name.kind == NameKind::Relative {
+                return self.unsupported("namespace-relative names");
+            }
+            names.push(name.bytes.clone().into());
+        }
+        Ok(names)
+    }
+
+    fn class_member(&mut self, class: &[u8], member: &ClassMember, out: &mut Collected) -> Emit {
+        match member {
+            ClassMember::Property(group) => self.property_group(group, &mut out.properties),
+            ClassMember::Method(function) => {
+                if matches!(function.body, FunctionBody::Absent) {
+                    return Ok(());
+                }
+                self.ctx
+                    .current_methods
+                    .push(function.name.as_slice().into());
+                out.methods.push(self.method(class, function)?);
+                Ok(())
+            }
+            ClassMember::Constant(_) => self.unsupported("class constants"),
+            ClassMember::EnumCase(item) => {
+                if item.value.is_some() {
+                    return self.unsupported("backed enums");
+                }
+                if !item.attributes.is_empty() {
+                    return self.unsupported("attributes");
+                }
+                out.cases.push(EnumCaseDecl {
+                    name: item.name.as_slice().into(),
+                });
+                Ok(())
+            }
+            ClassMember::TraitUse(used) => self.trait_use(used, &mut out.uses),
+        }
+    }
+
+    fn trait_use(&mut self, used: &php_parser::ast::TraitUse, names: &mut Vec<Box<[u8]>>) -> Emit {
+        self.builder.line = used.line;
+        if used
+            .adaptations
+            .as_ref()
+            .is_some_and(|items| !items.is_empty())
+        {
+            return self.unsupported("trait adaptations");
+        }
+        for name in &used.traits {
+            if name.kind == NameKind::Relative {
+                return self.unsupported("namespace-relative names");
+            }
+            names.push(name.bytes.clone().into());
+        }
         Ok(())
     }
 
@@ -209,6 +264,41 @@ impl Emitter<'_> {
         }
     }
 
+    /// `expr instanceof Name`.
+    pub(super) fn instanceof(&mut self, expr: &Expr, class: &Expr) -> Emit<Operand> {
+        let ExprKind::Name(name) = &class.kind else {
+            return self.unsupported("dynamic class names");
+        };
+        if name.kind == NameKind::Relative {
+            return self.unsupported("namespace-relative names");
+        }
+        let value = self.expr(expr)?;
+        let class_name = self.builder.string(&name.bytes)?;
+        let dest = self.builder.temp()?;
+        self.builder
+            .op(Opcode::InstanceOf, value, class_name, dest)?;
+        Ok(dest)
+    }
+
+    /// `Class::NAME`.
+    pub(super) fn class_const(&mut self, class: &Expr, name: &Member) -> Emit<Operand> {
+        let ExprKind::Name(class_name) = &class.kind else {
+            return self.unsupported("dynamic class names");
+        };
+        if class_name.kind == NameKind::Relative {
+            return self.unsupported("namespace-relative names");
+        }
+        let Member::Name(member) = name else {
+            return self.unsupported("computed constant names");
+        };
+        let dest = self.builder.temp()?;
+        let class_op = self.builder.string(&class_name.bytes)?;
+        let member_op = self.builder.string(member)?;
+        self.builder
+            .op(Opcode::ClassConst, class_op, member_op, dest)?;
+        Ok(dest)
+    }
+
     /// `$object->name(args)`.
     pub(super) fn method_call(
         &mut self,
@@ -248,6 +338,23 @@ impl Emitter<'_> {
                 .rev()
                 .find(|decl| decl.name.eq_ignore_ascii_case(class))
                 .is_some_and(|decl| decl.methods.iter().any(|method| named(&method.name)))
+    }
+}
+
+#[derive(Default)]
+struct Collected {
+    properties: Vec<PropertyDecl>,
+    methods: Vec<MethodDecl>,
+    uses: Vec<Box<[u8]>>,
+    cases: Vec<EnumCaseDecl>,
+}
+
+fn class_kind(kind: AstKind) -> ClassKind {
+    match kind {
+        AstKind::Class => ClassKind::Class,
+        AstKind::Interface => ClassKind::Interface,
+        AstKind::Trait => ClassKind::Trait,
+        AstKind::Enum => ClassKind::Enum,
     }
 }
 

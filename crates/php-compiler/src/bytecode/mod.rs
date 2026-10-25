@@ -10,8 +10,8 @@ mod literal;
 mod operand;
 
 pub use code::{
-    CatchHandler, ClassDecl, Code, FinallyHandler, FunctionDecl, MethodDecl, Parameter,
-    PropertyDecl, Unit,
+    CatchHandler, ClassDecl, ClassKind, Code, EnumCaseDecl, FinallyHandler, FunctionDecl,
+    MethodDecl, Parameter, PropertyDecl, Unit,
 };
 pub use instruction::{Instruction, Opcode};
 pub use literal::Literal;

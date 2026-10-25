@@ -234,6 +234,8 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::Throw => return self.throw_value(ins),
             Opcode::Include => self.include_file(ins),
             Opcode::EndFinally => return self.end_finally(),
+            Opcode::InstanceOf => self.instance_of(ins),
+            Opcode::ClassConst => self.class_const(ins),
             Opcode::Return => return self.return_from(ins.a),
             _ => self.operator(ins),
         };

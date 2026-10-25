@@ -113,6 +113,10 @@ pub enum Opcode {
     Include,
     /// Ends a `finally` body: rethrows or returns what the `try`/`catch` left pending.
     EndFinally,
+    /// `result = a instanceof b`, where `b` is the class name.
+    InstanceOf,
+    /// `result = a::b`, an enum case named `b` of the class named by the literal `a`.
+    ClassConst,
 }
 
 impl Opcode {
@@ -170,6 +174,8 @@ impl Opcode {
             Self::Throw => "Throw",
             Self::Include => "Include",
             Self::EndFinally => "EndFinally",
+            Self::InstanceOf => "InstanceOf",
+            Self::ClassConst => "ClassConst",
         }
     }
 }
@@ -265,6 +271,8 @@ mod tests {
             Opcode::Throw,
             Opcode::Include,
             Opcode::EndFinally,
+            Opcode::InstanceOf,
+            Opcode::ClassConst,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

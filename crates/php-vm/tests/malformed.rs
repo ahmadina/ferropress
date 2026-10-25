@@ -112,6 +112,18 @@ fn malformed_cases() -> Vec<(Vec<Instruction>, &'static str)> {
             "function name is not a string",
         ),
         (
+            vec![op(Opcode::Throw, None, None, None)],
+            "operand holds no value",
+        ),
+    ]
+}
+
+fn class_malformed_cases() -> Vec<(Vec<Instruction>, &'static str)> {
+    let slot = |index| Operand::slot(index);
+    let temp = |index| Operand::temp(index);
+    let literal = |index| Operand::literal(index);
+    vec![
+        (
             vec![op(Opcode::New, literal(0), None, temp(0))],
             "class name is not a string",
         ),
@@ -132,15 +144,23 @@ fn malformed_cases() -> Vec<(Vec<Instruction>, &'static str)> {
             "method name is not a string",
         ),
         (
-            vec![op(Opcode::Throw, None, None, None)],
-            "operand holds no value",
+            vec![op(Opcode::InstanceOf, literal(0), literal(0), temp(0))],
+            "class name is not a string",
+        ),
+        (
+            vec![op(Opcode::ClassConst, literal(0), literal(1), temp(0))],
+            "class name is not a string",
+        ),
+        (
+            vec![op(Opcode::ClassConst, literal(1), literal(0), temp(0))],
+            "constant name is not a string",
         ),
     ]
 }
 
 #[test]
 fn malformed_operands_are_errors() -> Result<(), String> {
-    for (instructions, reason) in malformed_cases() {
+    for (instructions, reason) in malformed_cases().into_iter().chain(class_malformed_cases()) {
         let unit = main_code(
             instructions,
             vec![Literal::Int(1), Literal::from(&b"f"[..])],

@@ -147,6 +147,110 @@ fn calling_a_method_on_a_non_object_throws() -> Result<(), String> {
 }
 
 #[test]
+fn instanceof_matches_the_class_and_interfaces() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php interface A {} interface B extends A {} class C implements B {} $o = new C; echo $o instanceof C ? \"c\" : \"n\", $o instanceof B ? \"b\" : \"n\", $o instanceof A ? \"a\" : \"n\", $o instanceof Missing ? \"m\" : \"n\", 1 instanceof C ? \"y\" : \"n\";",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"cbann");
+    Ok(())
+}
+
+#[test]
+fn a_built_in_error_is_an_instance_of_its_parents() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php $e = new Exception(\"x\"); echo $e instanceof Exception ? \"e\" : \"n\", $e instanceof Throwable ? \"t\" : \"n\", $e instanceof Error ? \"r\" : \"n\";",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"etn");
+    Ok(())
+}
+
+#[test]
+fn an_interface_cannot_be_instantiated() -> Result<(), String> {
+    let (output, status) = run(b"<?php interface I {} new I;")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("Cannot instantiate interface I"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn a_trait_supplies_methods_to_the_class() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php trait U { function m() { echo \"u\"; } } trait T { use U; } class C { use T; function n() { echo \"c\"; } } $o = new C; $o->m(); $o->n();",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"uc");
+    Ok(())
+}
+
+#[test]
+fn a_class_method_overrides_a_trait_method() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php trait T { function m() { echo \"t\"; } } class C { use T; function m() { echo \"c\"; } } (new C)->m();",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"c");
+    Ok(())
+}
+
+#[test]
+fn a_trait_cannot_be_instantiated() -> Result<(), String> {
+    let (output, status) = run(b"<?php trait T {} new T;")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("Cannot instantiate trait T"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn an_enum_case_is_a_singleton_with_a_name() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php enum E { case A; case B; } $a = E::A; echo $a instanceof E ? \"y\" : \"n\", $a->name, $a === E::A ? \"s\" : \"d\", $a === E::B ? \"b\" : \"n\";",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"yAsn");
+    Ok(())
+}
+
+#[test]
+fn an_enum_cannot_be_instantiated() -> Result<(), String> {
+    let (output, status) = run(b"<?php enum E { case A; } new E;")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("Cannot instantiate enum E"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn a_missing_trait_is_skipped() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php class C { use Missing; } echo (new C) instanceof C ? \"y\" : \"n\";")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"y");
+    Ok(())
+}
+
+#[test]
+fn a_class_constant_on_a_class_is_undefined() -> Result<(), String> {
+    let (output, status) = run(b"<?php class C {} echo C::A;")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("Undefined constant C::A"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn an_undefined_enum_case_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php enum E { case A; } echo E::Z;")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("Undefined constant E::Z"), "{text}");
+    Ok(())
+}
+
+#[test]
 fn assigning_on_true_and_false_names_the_type() -> Result<(), String> {
     for (source, expected) in [
         (

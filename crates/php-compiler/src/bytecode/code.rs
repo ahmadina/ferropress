@@ -15,6 +15,8 @@ pub struct Parameter {
     pub by_ref: bool,
     /// Whether it collects the remaining arguments.
     pub variadic: bool,
+    /// The line it is declared on.
+    pub line: u32,
 }
 
 /// The compiled body of a function, method, closure or file.
@@ -306,11 +308,13 @@ mod tests {
                     slot: 0,
                     by_ref: true,
                     variadic: false,
+                    line: 1,
                 },
                 Parameter {
                     slot: 1,
                     by_ref: false,
                     variadic: true,
+                    line: 1,
                 },
             ],
             by_ref: true,

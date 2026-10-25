@@ -105,6 +105,9 @@ impl Emitter {
     /// Compiles the top-level function `function` into the unit's declarations.
     fn function_declaration(&mut self, function: &Function) -> Emit {
         self.builder.line = function.line;
+        if function.by_ref {
+            return self.unsupported("functions returning by reference");
+        }
         if function.return_type.is_some() {
             return self.unsupported("return types");
         }
@@ -125,17 +128,20 @@ impl Emitter {
             if !param.attributes.is_empty() {
                 return inner.unsupported("attributes");
             }
+            if param.by_ref && param.variadic {
+                return inner.unsupported("by-reference variadic parameters");
+            }
             let slot = inner.builder.slot(&param.name)?.index();
             inner.builder.code_mut().params.push(Parameter {
                 slot,
                 by_ref: param.by_ref,
                 variadic: param.variadic,
+                line: param.line,
             });
         }
         if function.is_generator {
             return inner.unsupported("generators");
         }
-        inner.builder.code_mut().by_ref = function.by_ref;
         match &function.body {
             FunctionBody::Block(stmts) => inner.stmts(stmts)?,
             FunctionBody::Expr(_) | FunctionBody::Absent => {

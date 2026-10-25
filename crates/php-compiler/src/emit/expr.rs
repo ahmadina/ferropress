@@ -9,7 +9,7 @@ use php_parser::ast::{
 };
 
 use super::{Emit, Emitter};
-use crate::bytecode::{Literal, Opcode, Operand};
+use crate::bytecode::{Instruction, Literal, Opcode, Operand};
 
 /// The variables every scope shares, which the compiler does not give slots.
 const SUPERGLOBALS: [&[u8]; 9] = [
@@ -374,8 +374,11 @@ impl Emitter {
             return self.unsupported("first-class callables");
         };
         let function = self.builder.string(&name.bytes.to_ascii_lowercase())?;
-        self.builder
-            .op(Opcode::InitCall, function, Operand::UNUSED, Operand::UNUSED)?;
+        let written = self.builder.string(&name.bytes)?;
+        let mut init = Instruction::new(Opcode::InitCall);
+        init.a = function;
+        init.c = written;
+        self.builder.emit(init)?;
         for arg in args {
             let Arg::Positional(value) = arg else {
                 return self.unsupported("named and unpacked arguments");

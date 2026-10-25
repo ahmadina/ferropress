@@ -252,23 +252,23 @@ fn breaks_leave_nested_loops() -> Result<(), String> {
 fn functions_and_calls() -> Result<(), String> {
     assert_eq!(
         disassemble(
-            "<?php\nfunction &Add($a, &$b, ...$c) {\n  return $a + $b;\n}\necho add(1, $x);\n\
+            "<?php\nfunction Add($a, &$b, ...$c) {\n  return $a + $b;\n}\necho add(1, $x);\n\
              \\Add($x + 1);\nfunction g() {}\n"
         )?,
         listing(&[
             "code {main} temporaries=2",
-            "   0    5  InitCall \"add\"",
+            "   0    5  InitCall \"add\", \"add\"",
             "   1    5  Send 1",
             "   2    5  SendVar $x",
             "   3    5  Call T0 =",
             "   4    5  Echo T0",
-            "   5    6  InitCall \"add\"",
+            "   5    6  InitCall \"add\", \"Add\"",
             "   6    6  Add T1 = $x, 1",
             "   7    6  Send T1",
             "   8    6  Call",
             "   9    7  Return 1",
             "",
-            "code Add &($a, &$b, ...$c) temporaries=1",
+            "code Add($a, &$b, ...$c) temporaries=1",
             "   0    3  Add T0 = $a, $b",
             "   1    3  Return T0",
             "   2    3  Return",
@@ -287,16 +287,21 @@ fn fatal_programs_have_no_unit() {
 
 #[test]
 fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
-    let cases: [(&str, &str); 31] = [
+    let cases: [(&str, &str); 33] = [
         ("<?php namespace A;", "namespaces"),
         ("<?php use A\\B;", "use imports"),
         ("<?php use A\\{B};", "use imports"),
         ("<?php const A = 1;", "constant declarations"),
+        ("<?php function &f() {}", "functions returning by reference"),
         ("<?php function f(): int {}", "return types"),
         ("<?php #[A] function f() {}", "attributes"),
         ("<?php function f(int $a) {}", "parameter types"),
         ("<?php function f($a = 1) {}", "parameter defaults"),
         ("<?php function f(#[A] $a) {}", "attributes"),
+        (
+            "<?php function f(&...$a) {}",
+            "by-reference variadic parameters",
+        ),
         ("<?php function f() { yield; }", "generators"),
         (
             "<?php if (1) { function f() {} }",

@@ -68,7 +68,7 @@ pub enum Opcode {
     /// Converts `a` to a string.
     ToString,
     /// Starts a call of the function named by the literal `a` (lowercase); `b`, when used, is the
-    /// global name tried when no function `a` exists.
+    /// global name tried when no function `a` exists; `c` is the name as written, for messages.
     InitCall,
     /// Passes `a` by value as the next argument of the call being prepared.
     Send,

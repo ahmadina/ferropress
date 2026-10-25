@@ -33,6 +33,8 @@ impl Emitter<'_> {
         for member in &class.members {
             self.class_member(name, member, &mut collected)?;
         }
+        let deferred = !matches!(self.scope, Scope::File) || self.conditional != 0;
+        let index = self.ctx.classes.len();
         self.ctx.classes.push(ClassDecl {
             name: name.into(),
             kind: class_kind(class.kind),
@@ -42,9 +44,18 @@ impl Emitter<'_> {
             implements,
             uses: collected.uses,
             cases: collected.cases,
+            deferred,
         });
         self.ctx.current_methods.clear();
-        Ok(())
+        if !deferred {
+            return Ok(());
+        }
+        let index = i64::try_from(index)
+            .map_err(|_overflow| super::Failure::TooLarge { line: class.line })?;
+        let index = self.builder.literal(Literal::Int(index))?;
+        self.builder
+            .op(Opcode::BindClass, index, Operand::UNUSED, Operand::UNUSED)
+            .map(drop)
     }
 
     fn reject_class_header(&self, class: &ClassLike) -> Emit {

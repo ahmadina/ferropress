@@ -329,7 +329,7 @@ impl<O: Output> Machine<'_, '_, O> {
     }
 }
 
-fn inject_sent(loaded: &crate::machine::Loaded<'_>, frame: &mut Frame, sent: Value) -> Exec {
+fn inject_sent(loaded: &crate::machine::Loaded, frame: &mut Frame, sent: Value) -> Exec {
     if frame.pc == 0 {
         return Ok(());
     }

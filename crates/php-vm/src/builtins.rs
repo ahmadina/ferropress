@@ -25,6 +25,7 @@ pub(crate) enum Native {
     IsNumeric,
     FunctionExists,
     ClassExists,
+    SplAutoloadRegister,
 }
 
 /// The built-in named by `key`, compared lowercase.
@@ -45,6 +46,7 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"is_numeric" => Native::IsNumeric,
         b"function_exists" => Native::FunctionExists,
         b"class_exists" => Native::ClassExists,
+        b"spl_autoload_register" => Native::SplAutoloadRegister,
         _ => return None,
     })
 }
@@ -92,6 +94,7 @@ impl<O: Output> Machine<'_, '_, O> {
             Native::IsNumeric => self.native_is("is_numeric", args, result, is_numeric),
             Native::FunctionExists => self.native_function_exists(args, result),
             Native::ClassExists => self.native_class_exists(args, result),
+            Native::SplAutoloadRegister => self.native_spl_autoload_register(args, result),
         }
     }
 }
@@ -190,6 +193,13 @@ impl<O: Output> Machine<'_, '_, O> {
     fn native_class_exists(&mut self, args: &[Argument], result: Operand) -> Exec {
         let value = self.native_one("class_exists", args)?;
         let name = self.string_arg("class_exists", &value)?;
+        let autoload = match args.get(1) {
+            Some(arg) => self.compute(|cx| arg.slot.value().to_bool(cx))?,
+            None => true,
+        };
+        if autoload {
+            self.autoload(&name)?;
+        }
         let key = name.to_ascii_lowercase();
         self.write(
             result,

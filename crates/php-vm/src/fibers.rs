@@ -418,7 +418,7 @@ fn method_name(method: FiberMethod) -> &'static str {
     }
 }
 
-fn inject_call_result(loaded: &crate::machine::Loaded<'_>, frame: &mut Frame, sent: Value) -> Exec {
+fn inject_call_result(loaded: &crate::machine::Loaded, frame: &mut Frame, sent: Value) -> Exec {
     if frame.pc == 0 {
         return Ok(());
     }

@@ -177,6 +177,13 @@ function vm_topic_cases(): array {
 			'new Generator;',
 			'function g() { yield 1; } g()->missing();',
 		),
+		'autoload'      => array(
+			'spl_autoload_register(function($c) { if ($c === "Foo") { class Foo { function m() { echo 7; } } } }); $o = new Foo; $o->m();',
+			'spl_autoload_register(function($c) {}); new Missing;',
+			'echo class_exists("Foo") ? "y" : "n"; spl_autoload_register(function($c) { if ($c === "Foo") { class Foo {} } }); echo class_exists("Foo") ? "y" : "n"; echo class_exists("Foo", false) ? "y" : "n";',
+			'class A {} $o = new A; spl_autoload_register(function($c) { if ($c === "Foo") { class Foo {} } }); echo $o instanceof Foo ? "y" : "n"; echo class_exists("Foo", false) ? "y" : "n";',
+			'spl_autoload_register(1);',
+		),
 		'fibers'        => array(
 			'$f = new Fiber(function() { Fiber::suspend(1); return 2; }); echo $f->start(); echo $f->resume(); echo $f->getReturn();',
 			'$f = new Fiber(function() { $x = Fiber::suspend(1); Fiber::suspend($x); }); echo $f->start(); echo $f->resume("z");',

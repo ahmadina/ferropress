@@ -1,6 +1,7 @@
 //! The interpreter loop: frames, operands and the instructions that compute values.
 
 use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 
 use php_compiler::bytecode::{Code, Instruction, Literal, Opcode, Operand, OperandKind, Unit};
 use php_value::ops::{self, Collect, OpError};
@@ -10,8 +11,8 @@ use crate::thrown::{Thrown, TraceEntry};
 use crate::{Output, VmError};
 
 /// A code object with its literals as runtime values, built once per run.
-pub(crate) struct Loaded<'u> {
-    pub(crate) code: &'u Code,
+pub(crate) struct Loaded {
+    pub(crate) code: Code,
     pub(crate) literals: Vec<Value>,
 }
 
@@ -37,7 +38,7 @@ pub(crate) struct Frame {
 }
 
 impl Frame {
-    pub(crate) fn new(code: usize, loaded: &Loaded<'_>) -> Self {
+    pub(crate) fn new(code: usize, loaded: &Loaded) -> Self {
         Self {
             code,
             pc: 0,
@@ -77,7 +78,8 @@ pub(crate) enum Flow {
 }
 
 pub(crate) struct Machine<'u, 'o, O: Output> {
-    pub(crate) codes: Vec<Loaded<'u>>,
+    pub(crate) codes: Vec<Loaded>,
+    _unit: PhantomData<&'u Unit>,
     /// User functions by lowercase name: indices into `codes`.
     pub(crate) functions: HashMap<Box<[u8]>, usize>,
     pub(crate) file: Box<[u8]>,
@@ -102,6 +104,12 @@ pub(crate) struct Machine<'u, 'o, O: Output> {
     pub(crate) fibers: HashMap<ObjectId, crate::fibers::Fiber>,
     /// The fiber whose callback is on the frame stack.
     pub(crate) current_fiber: Option<ObjectId>,
+    /// Callables registered with `spl_autoload_register`, in call order.
+    pub(crate) autoloaders: Vec<Value>,
+    /// Class names currently being loaded, to stop recursive autoload.
+    pub(crate) loading: HashSet<Box<[u8]>>,
+    /// Classes compiled as deferred, keyed by their index in the unit.
+    pub(crate) deferred_classes: HashMap<u32, crate::classes::Class>,
 }
 
 /// `literal` as a runtime value.
@@ -115,9 +123,9 @@ pub(crate) fn value_of(literal: &Literal) -> Value {
     }
 }
 
-pub(crate) fn load(code: &Code) -> Loaded<'_> {
+pub(crate) fn load(code: &Code) -> Loaded {
     Loaded {
-        code,
+        code: code.clone(),
         literals: code.literals.iter().map(value_of).collect(),
     }
 }
@@ -140,10 +148,23 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             }
             codes.push(load(&function.code));
         }
-        let mut classes = crate::classes::bind_classes(&unit.classes, &mut codes);
-        crate::classes::register_throwables(&mut classes);
-        crate::generators::register_generator(&mut classes);
-        crate::fibers::register_fiber(&mut classes);
+        let mut bound = crate::classes::bind_classes(&unit.classes, &mut codes);
+        let mut deferred_classes = HashMap::new();
+        for (index, decl) in unit.classes.iter().enumerate() {
+            if !decl.deferred {
+                continue;
+            }
+            let key = decl.name.to_ascii_lowercase();
+            if let Some(class) = bound.remove(key.as_slice())
+                && let Ok(index) = u32::try_from(index)
+            {
+                deferred_classes.insert(index, class);
+            }
+        }
+        crate::classes::register_throwables(&mut bound);
+        crate::generators::register_generator(&mut bound);
+        crate::fibers::register_fiber(&mut bound);
+        let classes = bound;
         Self {
             codes,
             functions,
@@ -161,6 +182,10 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             generators: HashMap::new(),
             fibers: HashMap::new(),
             current_fiber: None,
+            autoloaders: Vec::new(),
+            loading: HashSet::new(),
+            deferred_classes,
+            _unit: PhantomData,
         }
     }
 
@@ -207,7 +232,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
 
     pub(crate) fn step(&mut self) -> Exec<Flow> {
         let frame = self.frame()?;
-        let code = self.codes[frame.code].code;
+        let code = &self.codes[frame.code].code;
         let pc = frame.pc;
         let instruction = *code
             .instructions
@@ -252,6 +277,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::ClassConst => self.class_const(ins),
             Opcode::Yield => return self.yield_value(ins),
             Opcode::InitStaticCall => self.init_static_call(ins),
+            Opcode::BindClass => self.bind_class(ins),
             Opcode::Return => return self.return_from(ins.a),
             _ => self.operator(ins),
         };
@@ -563,7 +589,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
     /// The arguments a stack trace shows for `frame`: the current values of the parameters that
     /// were passed, then the arguments past the parameters.
     fn trace_args(&self, frame: &Frame) -> Vec<Value> {
-        let code = self.codes[frame.code].code;
+        let code = &self.codes[frame.code].code;
         let declared = code.params.iter().filter(|param| !param.variadic);
         let mut args: Vec<Value> = declared
             .take(frame.passed)

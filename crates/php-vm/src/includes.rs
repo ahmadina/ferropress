@@ -60,6 +60,7 @@ impl<O: Output> Machine<'_, '_, O> {
         let Some(unit) = compiled.unit else {
             return Err(self.throw("Error", b"include failed".to_vec()));
         };
+        self.absorb_classes(&unit)?;
         let mut output = Vec::new();
         let mut nested = Machine::new(&unit, file, &mut output);
         nested.included.clone_from(&self.included);

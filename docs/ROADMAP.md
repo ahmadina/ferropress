@@ -60,7 +60,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] VM core: runs compiled units with the reference's output and errors (`contracts/vm/`,
         recorded by `xtask lab vm`; `xtask lab vm-phpt` reports how many upstream tests pass,
         fail or use constructs not compiled yet)
-- [ ] 18. Language features: functions and closures; classes, interfaces, traits, enums; exceptions;
+- [x] 18. Language features: functions and closures; classes, interfaces, traits, enums; exceptions;
       generators and fibers; include/require and autoloading
   - [x] Closures and arrow functions, including `use` captures and computed callees
   - [x] Classes: public instance properties, methods, `new` and `$this`
@@ -70,7 +70,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] Generators
   - [x] Fibers
   - [x] include/require and their `_once` forms
-  - [ ] Autoloading
+  - [x] Autoloading
 - [ ] 19. Built-in function families: strings, arrays, math, JSON, PCRE, mbstring, date/time, streams,
       mysqli/PDO, and the rest required by the certified plugin set
   - [x] Core strings, types, `count`, `function_exists`, `class_exists`

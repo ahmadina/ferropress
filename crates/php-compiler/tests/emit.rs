@@ -494,6 +494,24 @@ fn static_calls_emit_init_static_call() -> Result<(), String> {
 }
 
 #[test]
+fn a_class_inside_a_closure_emits_bind_class() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php $f = function() { class C {} };")?,
+        listing(&[
+            "code {main} temporaries=1",
+            "   0    1  MakeClosure T0 = 0",
+            "   1    1  Assign $f, T0",
+            "   2    1  Return 1",
+            "",
+            "code {closure:/t.php:1} temporaries=0",
+            "   0    1  BindClass 0",
+            "   1    1  Return",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
 fn interfaces_traits_and_enums_emit() -> Result<(), String> {
     assert_eq!(
         disassemble(

@@ -150,11 +150,21 @@ the fiber has returned each throw `FiberError` (`Cannot get fiber return value: 
 returned`). A non-callable constructor argument throws `TypeError` (`no array or string given`
 unless the value is a string naming a missing function).
 
+## Autoloading
+
+`spl_autoload_register($callback)` stores a `Closure` or a string naming a function and returns
+`true`. A missing class on `new Name` or `class_exists($name)` (the second argument defaults to
+true) runs the registered callbacks in order, passing the name as written, until the class is
+declared. `$object instanceof Name` does not load. A class statement inside a function or closure is registered
+when that statement runs. A loader that `include`s a file with a top-level class makes that class
+visible to the caller. A class already being loaded is not asked for again.
+
 ## Built-in functions
 
 These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, `gettype`,
 `is_null`, `is_bool`, `is_int` / `is_integer`, `is_float` / `is_double` / `is_real`, `is_string`,
-`is_array`, `is_object`, `is_numeric`, `function_exists`, `class_exists`. Too few arguments throw
+`is_array`, `is_object`, `is_numeric`, `function_exists`, `class_exists`, `spl_autoload_register`.
+Too few arguments throw
 `ArgumentCountError` from the function (`name() expects exactly N argument(s), M given`). `strlen`
 and the case mappers take a string (other scalars are converted; an array or object throws
 `TypeError`). `count` of a non-array throws `TypeError`. `function_exists` sees user functions and

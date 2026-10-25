@@ -123,6 +123,8 @@ pub enum Opcode {
     /// Starts a static call of method `b` (lowercase) on the class named by `a`; `c` is the name
     /// as written.
     InitStaticCall,
+    /// Registers the class at unit index `a` that was compiled as deferred.
+    BindClass,
 }
 
 impl Opcode {
@@ -184,6 +186,7 @@ impl Opcode {
             Self::ClassConst => "ClassConst",
             Self::Yield => "Yield",
             Self::InitStaticCall => "InitStaticCall",
+            Self::BindClass => "BindClass",
         }
     }
 }
@@ -283,6 +286,7 @@ mod tests {
             Opcode::ClassConst,
             Opcode::Yield,
             Opcode::InitStaticCall,
+            Opcode::BindClass,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

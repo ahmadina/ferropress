@@ -23,11 +23,37 @@ pub(crate) struct Class {
 }
 
 impl<O: Output> Machine<'_, '_, O> {
+    /// Registers the deferred class named by `a`.
+    pub(crate) fn bind_class(&mut self, ins: &Instruction) -> Exec {
+        let Value::Int(index) = self.read(ins.a)? else {
+            return Err(VmError::Malformed("class index is not an integer").into());
+        };
+        let Ok(index) = u32::try_from(index) else {
+            return Err(VmError::Malformed("class index out of range").into());
+        };
+        let Some(class) = self.deferred_classes.remove(&index) else {
+            return Err(self.throw(
+                "Error",
+                b"Cannot declare class, because the name is already in use".to_vec(),
+            ));
+        };
+        let key = class.name.to_ascii_lowercase();
+        if self.classes.contains_key(key.as_slice()) {
+            let mut message = b"Cannot declare class ".to_vec();
+            message.extend_from_slice(&class.name);
+            message.extend_from_slice(b", because the name is already in use");
+            return Err(self.throw("Error", message));
+        }
+        self.classes.insert(key.into(), class);
+        Ok(())
+    }
+
     /// `result` is a new instance of the class named by `a`.
     pub(crate) fn new_object(&mut self, ins: &Instruction) -> Exec {
         let Value::String(name) = self.read(ins.a)? else {
             return Err(VmError::Malformed("class name is not a string").into());
         };
+        self.autoload(name.as_bytes())?;
         let key = name.as_bytes().to_ascii_lowercase();
         let Some(class) = self.classes.get(key.as_slice()) else {
             let mut message = b"Class \"".to_vec();
@@ -360,9 +386,9 @@ pub(crate) fn register_throwables(table: &mut HashMap<Box<[u8]>, Class>) {
 }
 
 /// Loads methods of `classes` onto `codes` and returns the class table.
-pub(crate) fn bind_classes<'u>(
-    classes: &'u [ClassDecl],
-    codes: &mut Vec<crate::machine::Loaded<'u>>,
+pub(crate) fn bind_classes(
+    classes: &[ClassDecl],
+    codes: &mut Vec<crate::machine::Loaded>,
 ) -> HashMap<Box<[u8]>, Class> {
     let mut table = HashMap::with_capacity(classes.len());
     for class in classes {

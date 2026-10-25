@@ -142,6 +142,8 @@ pub struct ClassDecl {
     pub uses: Vec<Box<[u8]>>,
     /// Enum cases, in declaration order.
     pub cases: Vec<EnumCaseDecl>,
+    /// Whether the class is registered when a `BindClass` instruction runs, not when the unit starts.
+    pub deferred: bool,
 }
 
 /// What compiling one file produces.
@@ -466,6 +468,7 @@ mod tests {
                 implements: Vec::new(),
                 uses: Vec::new(),
                 cases: Vec::new(),
+                deferred: false,
             }],
         };
         assert_eq!(

@@ -126,6 +126,15 @@ object. A throw inside a called function unwinds to a matching `catch` in a call
 a caught throw, before an uncaught throw is displayed, and before a `return` from the `try` or a
 `catch`. A throw or return from the `finally` body itself replaces the pending leave.
 
+## Generators
+
+A function that contains `yield` is a generator. Calling it returns a `Generator` object without
+running the body. `yield`, `yield value` and `yield key => value` suspend the body; `current()`,
+`key()` and `valid()` start it if needed and report the current yield. `next()` and `send($v)`
+resume; `send` makes `$v` the value of the `yield` expression. `getReturn()` is the function's
+`return` after the generator has finished. `rewind()` starts an unstarted generator and throws
+`Exception` if it has already run. `yield from` and fibers are not compiled yet.
+
 ## Include
 
 `include`, `include_once`, `require` and `require_once` take a string path. A relative path is

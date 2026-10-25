@@ -78,6 +78,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 env: None,
                 this: None,
                 implicit_ctor: None,
+                generator_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -98,6 +99,7 @@ impl<O: Output> Machine<'_, '_, O> {
             env: Some(object),
             this: None,
             implicit_ctor: None,
+            generator_method: None,
             args: Vec::new(),
         });
         Ok(())

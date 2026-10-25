@@ -319,7 +319,7 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
             "<?php function f(&...$a) {}",
             "by-reference variadic parameters",
         ),
-        ("<?php function f() { yield; }", "generators"),
+        ("<?php function f() { yield from 1; }", "yield from"),
         (
             "<?php if (1) { function f() {} }",
             "conditional function declarations",
@@ -455,6 +455,23 @@ fn classes_emit_new_properties_and_methods() -> Result<(), String> {
             "   1    4  Add T1 = $x, T0",
             "   2    4  Return T1",
             "   3    4  Return",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_generator_yields_and_marks_the_code() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php function g() { yield 1; yield $k => 2; }")?,
+        listing(&[
+            "code {main} temporaries=0",
+            "   0    1  Return 1",
+            "",
+            "code g generator temporaries=0",
+            "   0    1  Yield 1",
+            "   1    1  Yield 2, $k",
+            "   2    1  Return",
         ])
     );
     Ok(())

@@ -68,6 +68,8 @@ pub struct Code {
     pub handlers: Vec<CatchHandler>,
     /// `finally` blocks, inner ranges first.
     pub finallys: Vec<FinallyHandler>,
+    /// Whether calling this code returns a `Generator` instead of running the body.
+    pub is_generator: bool,
 }
 
 /// A function the file declares.
@@ -298,6 +300,9 @@ impl fmt::Display for Code {
                 })
                 .collect();
             write!(f, "({})", params.join(", "))?;
+        }
+        if self.is_generator {
+            f.write_str(" generator")?;
         }
         writeln!(f, " temporaries={}", self.temporaries)?;
         for (index, instruction) in self.instructions.iter().enumerate() {

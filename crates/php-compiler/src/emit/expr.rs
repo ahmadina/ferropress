@@ -166,6 +166,10 @@ impl Emitter<'_> {
             ExprKind::Instanceof { expr, class } => self.instanceof(expr, class),
             ExprKind::ClassConstant { class, name } => self.class_const(class, name),
             ExprKind::Throw(value) => self.throw_value(value),
+            ExprKind::Yield { key, value } => {
+                self.yield_expr(key.as_deref(), value.as_deref(), used)
+            }
+            ExprKind::YieldFrom(_) => self.unsupported("yield from"),
             ExprKind::Include { kind, expr } => self.include_file(*kind, expr, used),
             ExprKind::Property {
                 object,
@@ -467,6 +471,25 @@ impl Emitter<'_> {
         self.builder
             .op(Opcode::Throw, value, Operand::UNUSED, Operand::UNUSED)?;
         Ok(Operand::UNUSED)
+    }
+
+    fn yield_expr(
+        &mut self,
+        key: Option<&Expr>,
+        value: Option<&Expr>,
+        used: bool,
+    ) -> Emit<Operand> {
+        let value = match value {
+            Some(expr) => self.expr(expr)?,
+            None => self.builder.literal(Literal::Null)?,
+        };
+        let key = match key {
+            Some(expr) => self.expr(expr)?,
+            None => Operand::UNUSED,
+        };
+        let dest = self.result(used)?;
+        self.builder.op(Opcode::Yield, value, key, dest)?;
+        Ok(dest)
     }
 
     pub(crate) fn send_args(&mut self, args: &[Arg]) -> Emit {

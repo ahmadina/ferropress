@@ -35,6 +35,12 @@ impl<O: Output> Machine<'_, '_, O> {
             message.extend_from_slice(b"\" not found");
             return Err(self.throw("Error", message));
         };
+        if class.name.eq_ignore_ascii_case(b"Generator") {
+            return Err(self.throw(
+                "Error",
+                b"The \"Generator\" class is reserved for internal use and cannot be manually instantiated".to_vec(),
+            ));
+        }
         if let Some(message) = cannot_instantiate(class) {
             return Err(self.throw("Error", message));
         }
@@ -121,6 +127,27 @@ impl<O: Output> Machine<'_, '_, O> {
             message.extend_from_slice(value_type_name(&object).as_bytes());
             return Err(self.throw("Error", message));
         };
+        if handle
+            .class_name()
+            .as_bytes()
+            .eq_ignore_ascii_case(b"Generator")
+        {
+            let Some(method) = crate::generators::GenMethod::from_name(key.as_bytes()) else {
+                let mut message = b"Call to undefined method Generator::".to_vec();
+                message.extend_from_slice(written.as_bytes());
+                message.extend_from_slice(b"()");
+                return Err(self.throw("Error", message));
+            };
+            self.pending.push(Pending {
+                code: 0,
+                env: None,
+                this: Some(handle.clone()),
+                implicit_ctor: None,
+                generator_method: Some((handle, method)),
+                args: Vec::new(),
+            });
+            return Ok(());
+        }
         let class_key = handle.class_name().as_bytes().to_ascii_lowercase();
         if let Some(&code) = self
             .classes
@@ -132,6 +159,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 env: None,
                 this: Some(handle),
                 implicit_ctor: None,
+                generator_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -143,6 +171,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 env: None,
                 this: Some(handle),
                 implicit_ctor: Some(class_name),
+                generator_method: None,
                 args: Vec::new(),
             });
             return Ok(());

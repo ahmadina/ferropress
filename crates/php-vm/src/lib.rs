@@ -12,6 +12,7 @@ mod classes;
 mod closures;
 mod error;
 mod exceptions;
+mod generators;
 mod includes;
 mod machine;
 mod thrown;

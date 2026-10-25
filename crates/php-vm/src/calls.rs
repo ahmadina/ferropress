@@ -9,7 +9,7 @@ use crate::{Output, VmError};
 /// An argument prepared for a call.
 #[derive(Debug)]
 pub(crate) struct Argument {
-    slot: Slot,
+    pub(crate) slot: Slot,
     /// Whether the value is a call's result, which a by-reference parameter accepts with a notice.
     from_call: bool,
 }
@@ -21,6 +21,8 @@ pub(crate) struct Pending {
     pub(crate) this: Option<Object>,
     /// The class name when this call is the implicit constructor of a class that declares none.
     pub(crate) implicit_ctor: Option<Box<[u8]>>,
+    /// A native `Generator` method, when this call is one.
+    pub(crate) generator_method: Option<(Object, crate::generators::GenMethod)>,
     pub(crate) args: Vec<Argument>,
 }
 
@@ -38,6 +40,7 @@ impl<O: Output> Machine<'_, '_, O> {
                 env: None,
                 this: None,
                 implicit_ctor: None,
+                generator_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -101,11 +104,15 @@ impl<O: Output> Machine<'_, '_, O> {
             env,
             this,
             implicit_ctor,
+            generator_method,
             args,
         } = self
             .pending
             .pop()
             .ok_or(VmError::Malformed("call without a prepared function"))?;
+        if let Some((object, method)) = generator_method {
+            return self.dispatch_generator(&object, method, &args, result);
+        }
         if let Some(class) = implicit_ctor {
             return self.finish_implicit(&class, this, &args);
         }
@@ -162,6 +169,9 @@ impl<O: Output> Machine<'_, '_, O> {
         frame.extra.extend(args.map(|arg| arg.slot.value()));
         let required = params.iter().filter(|param| !param.variadic).count();
         let call_line = self.line;
+        if self.codes[code].code.is_generator {
+            return self.start_generator(frame, result);
+        }
         self.frames.push(frame);
         let Some(line) = missing else {
             return Ok(());
@@ -209,6 +219,9 @@ impl<O: Output> Machine<'_, '_, O> {
             self.finally_leave = Some(crate::exceptions::FinallyLeave::Return(value));
             self.frame_mut()?.pc = finally.target as usize;
             return Ok(Flow::Continue);
+        }
+        if let Some(id) = self.frame()?.generator {
+            return self.finish_generator(id, value);
         }
         let frame = self
             .frames

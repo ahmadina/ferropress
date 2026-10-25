@@ -67,7 +67,8 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] Interfaces, traits and enums
   - [x] Exceptions: `throw`, `try`/`catch`, built-in `Exception`/`Error`
   - [x] `finally`
-  - [ ] Generators and fibers
+  - [x] Generators
+  - [ ] Fibers
   - [x] include/require and their `_once` forms
   - [ ] Autoloading
 - [ ] 19. Built-in function families: strings, arrays, math, JSON, PCRE, mbstring, date/time, streams,

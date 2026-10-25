@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 use php_compiler::bytecode::{Code, Instruction, Literal, Opcode, Operand, OperandKind, Unit};
 use php_value::ops::{self, Collect, OpError};
-use php_value::{ObjectStore, PhpString, Slot, Value};
+use php_value::{ObjectId, ObjectStore, PhpString, Slot, Value};
 
 use crate::thrown::{Thrown, TraceEntry};
 use crate::{Output, VmError};
@@ -32,6 +32,8 @@ pub(crate) struct Frame {
     pub(crate) passed: usize,
     /// Arguments past the declared parameters, which the stack trace shows.
     pub(crate) extra: Vec<Value>,
+    /// The generator this frame is running, when the call is a resume.
+    pub(crate) generator: Option<ObjectId>,
 }
 
 impl Frame {
@@ -47,6 +49,7 @@ impl Frame {
             call_line: 0,
             passed: 0,
             extra: Vec::new(),
+            generator: None,
         }
     }
 }
@@ -93,6 +96,8 @@ pub(crate) struct Machine<'u, 'o, O: Output> {
     pub(crate) return_value: Value,
     /// What to do after the `finally` body that is running.
     pub(crate) finally_leave: Option<crate::exceptions::FinallyLeave>,
+    /// Live generators, keyed by the `Generator` object's identity.
+    pub(crate) generators: HashMap<ObjectId, crate::generators::Generator>,
 }
 
 /// `literal` as a runtime value.
@@ -133,6 +138,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
         }
         let mut classes = crate::classes::bind_classes(&unit.classes, &mut codes);
         crate::classes::register_throwables(&mut classes);
+        crate::generators::register_generator(&mut classes);
         Self {
             codes,
             functions,
@@ -147,6 +153,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             included: HashSet::new(),
             return_value: Value::Null,
             finally_leave: None,
+            generators: HashMap::new(),
         }
     }
 
@@ -236,6 +243,7 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::EndFinally => return self.end_finally(),
             Opcode::InstanceOf => self.instance_of(ins),
             Opcode::ClassConst => self.class_const(ins),
+            Opcode::Yield => return self.yield_value(ins),
             Opcode::Return => return self.return_from(ins.a),
             _ => self.operator(ins),
         };
@@ -492,6 +500,31 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
                 self.thrown(class.as_bytes(), message, object)
             }
             Err(_full) => VmError::Unsupported("this many objects").into(),
+        }
+    }
+
+    /// Throws with an extra innermost frame, used for native methods that have no bytecode frame.
+    pub(crate) fn throw_from(
+        &self,
+        class: &'static str,
+        message: Vec<u8>,
+        function: &[u8],
+        args: Vec<Value>,
+    ) -> Stop {
+        match self.throw(class, message) {
+            Stop::Thrown(mut thrown) => {
+                thrown.trace.insert(
+                    0,
+                    TraceEntry {
+                        file: self.file.clone(),
+                        line: self.line,
+                        function: function.into(),
+                        args,
+                    },
+                );
+                Stop::Thrown(thrown)
+            }
+            other @ Stop::Vm(_) => other,
         }
     }
 

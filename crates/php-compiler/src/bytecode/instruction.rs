@@ -117,6 +117,9 @@ pub enum Opcode {
     InstanceOf,
     /// `result = a::b`, an enum case named `b` of the class named by the literal `a`.
     ClassConst,
+    /// Suspends a generator: `a` is the yielded value, `b` the key when used; `result` is the
+    /// value later sent into the `yield`.
+    Yield,
 }
 
 impl Opcode {
@@ -176,6 +179,7 @@ impl Opcode {
             Self::EndFinally => "EndFinally",
             Self::InstanceOf => "InstanceOf",
             Self::ClassConst => "ClassConst",
+            Self::Yield => "Yield",
         }
     }
 }
@@ -273,6 +277,7 @@ mod tests {
             Opcode::EndFinally,
             Opcode::InstanceOf,
             Opcode::ClassConst,
+            Opcode::Yield,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

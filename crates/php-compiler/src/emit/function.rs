@@ -59,12 +59,11 @@ impl Emitter<'_> {
         for use_var in uses {
             self.builder.slot(&use_var.name)?;
         }
-        if function.is_generator {
-            return self.unsupported("generators");
-        }
         self.emit_body(function)?;
         let builder = std::mem::replace(&mut self.builder, super::builder::Builder::new(&[]));
-        Ok(builder.finish())
+        let mut code = builder.finish();
+        code.is_generator = function.is_generator;
+        Ok(code)
     }
 
     fn reject_signature(&self, function: &Function) -> Emit {

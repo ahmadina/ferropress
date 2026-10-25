@@ -72,6 +72,8 @@ pub(crate) enum LabCommand {
     Operators,
     /// Record what short scripts print when the reference PHP runs them into contracts/vm
     Vm,
+    /// Run the upstream PHP test suite against the VM (needs lab/upstream)
+    VmPhpt,
     /// Run contracts/scenarios/SCENARIO.toml twice from fresh installs and require identical results
     Check {
         /// Scenario id
@@ -119,6 +121,7 @@ mod tests {
             ("compiler-corpus", LabCommand::CompilerCorpus),
             ("operators", LabCommand::Operators),
             ("vm", LabCommand::Vm),
+            ("vm-phpt", LabCommand::VmPhpt),
         ];
         for (name, command) in lab {
             assert_eq!(parse(&["lab", name]), Ok(Command::Lab(command)), "{name}");

@@ -63,28 +63,37 @@ fn is_section_marker(line: &[u8]) -> bool {
             .all(|&byte| byte.is_ascii_uppercase() || byte == b'_')
 }
 
-/// The FILE section of a test: the lines after `--FILE--` up to the next section marker line, or
-/// `None` when the test has none.
-pub(crate) fn file_section(text: &[u8]) -> Option<Vec<u8>> {
+/// The named section of a test: the lines after `--NAME--` up to the next section marker, or `None`
+/// when the test has no such section.
+pub(crate) fn section(text: &[u8], name: &[u8]) -> Option<Vec<u8>> {
+    let mut marker = Vec::with_capacity(name.len() + 4);
+    marker.extend_from_slice(b"--");
+    marker.extend_from_slice(name);
+    marker.extend_from_slice(b"--");
     let lines: Vec<&[u8]> = text.split(|&byte| byte == b'\n').collect();
     let start = lines.iter().position(|line| {
         let end = line
             .iter()
             .rposition(|&byte| byte != b'\r')
             .map_or(0, |last| last + 1);
-        &line[..end] == b"--FILE--"
+        line[..end] == marker
     })? + 1;
     for (index, line) in lines.iter().enumerate().skip(start) {
         if is_section_marker(line) {
-            let mut section = Vec::new();
+            let mut body = Vec::new();
             for kept in &lines[start..index] {
-                section.extend_from_slice(kept);
-                section.push(b'\n');
+                body.extend_from_slice(kept);
+                body.push(b'\n');
             }
-            return Some(section);
+            return Some(body);
         }
     }
     Some(lines[start..].join(&b'\n'))
+}
+
+/// The FILE section of a test, or `None` when the test has none.
+pub(crate) fn file_section(text: &[u8]) -> Option<Vec<u8>> {
+    section(text, b"FILE").or_else(|| section(text, b"FILEEOF"))
 }
 
 /// Why our reading of `text` (the file's contents) differs from `entry`, if it does.
@@ -217,8 +226,16 @@ mod tests {
             Some(b"<?php\n-- not --\n--lower--\n".to_vec())
         );
         assert_eq!(file_section(b"--FILE--\n--EXPECT--"), Some(Vec::new()));
+        assert_eq!(
+            file_section(b"--FILEEOF--\n<?php echo 1;\n--EXPECT--\n"),
+            Some(b"<?php echo 1;\n".to_vec())
+        );
         assert_eq!(file_section(b"--TEST--\n"), None);
         assert!(!is_section_marker(b"----"));
+        assert_eq!(
+            section(b"--EXPECT--\n1\n--CLEAN--\n", b"EXPECT"),
+            Some(b"1\n".to_vec())
+        );
     }
 
     #[test]

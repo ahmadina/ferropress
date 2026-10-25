@@ -28,6 +28,7 @@ cargo xtask lab compiler                  # record compile-time diagnostics into
 cargo xtask lab compiler-corpus           # compare our compile-time diagnostics on the upstream sources
 cargo xtask lab operators                 # record operator and conversion results into contracts/operators/
 cargo xtask lab vm                        # record what short scripts print into contracts/vm/
+cargo xtask lab vm-phpt                   # run the upstream PHP test suite against the VM
 ```
 
 `lab fetch` checks every clone against its pinned commit and every archive against its SHA-256 before
@@ -254,6 +255,15 @@ run. The cases are hand-written scripts that only use what the Ferropress VM run
 
 The result is written to `contracts/vm/cases.jsonl` (a header line recording the PHP version, then one
 case per line, byte strings encoded as above), and `crates/php-vm` replays every case.
+
+## VM PHP test suite
+
+`lab vm-phpt` walks every `.phpt` test under `lab/upstream/php` (from `lab fetch`), compiles its FILE
+section and runs the unit on `php-vm`. A test whose output matches its `EXPECT` or `EXPECTF` section
+passes. One that uses a construct the compiler does not emit yet, or a built-in the VM does not bind
+yet, is pending. Tests that need a SAPI, `ini` settings or `EXPECTREGEX` are skipped. The command
+fails only when a test the VM can run produces the wrong output. Failed and pending tests are listed
+in `captures/vm-phpt.txt`. Nothing from the suite is committed.
 
 ## Operators
 

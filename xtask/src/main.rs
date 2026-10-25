@@ -22,6 +22,7 @@ mod process;
 mod serialize;
 mod value;
 mod vm;
+mod vm_phpt;
 mod workspace;
 
 use std::fs;
@@ -455,6 +456,38 @@ fn run_lab_compiler(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Resul
     })
 }
 
+fn run_lab_vm_phpt(repo_root: &Path) -> anyhow::Result<Report> {
+    match load_valid_manifest(repo_root)? {
+        Ok(_) => {}
+        Err(report) => return Ok(report),
+    }
+    let php = repo_root.join(vm_phpt::UPSTREAM_PHP);
+    anyhow::ensure!(
+        php.is_dir(),
+        "{} is missing; run cargo xtask lab fetch",
+        vm_phpt::UPSTREAM_PHP
+    );
+    let summary = vm_phpt::check(&php)?;
+    let report_path = repo_root.join(vm_phpt::REPORT);
+    if let Some(parent) = report_path.parent() {
+        fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
+    }
+    fs::write(&report_path, summary.render())
+        .with_context(|| format!("writing {}", report_path.display()))?;
+    Ok(Report {
+        text: format!(
+            "lab vm-phpt: {} tests, {} passed, {} failed, {} pending, {} skipped (listed in {})",
+            summary.tests,
+            summary.passed,
+            summary.failed,
+            summary.pending,
+            summary.skipped,
+            vm_phpt::REPORT
+        ),
+        success: summary.failed == 0,
+    })
+}
+
 fn run_lab_vm(repo_root: &Path, runner: &mut impl Runner) -> anyhow::Result<Report> {
     let manifest = match load_valid_manifest(repo_root)? {
         Ok(manifest) => manifest,
@@ -778,6 +811,7 @@ fn run(command: &Command) -> anyhow::Result<Report> {
                     return run_lab_operators(repo_root(), &mut system_runner());
                 }
                 LabCommand::Vm => return run_lab_vm(repo_root(), &mut system_runner()),
+                LabCommand::VmPhpt => return run_lab_vm_phpt(repo_root()),
                 LabCommand::ParserCorpus => {
                     return run_lab_parser_corpus(repo_root(), &mut system_runner());
                 }
@@ -1861,6 +1895,63 @@ path = "/"
         let blocked = TempRepo::new("vm-blocked", Some(&lab_manifest_text()));
         fs::write(blocked.0.join("contracts/vm"), b"not a directory").unwrap();
         let error = run_lab_vm(&blocked.0, &mut vm_runner(VM_OUTPUT)).unwrap_err();
+        assert!(error.to_string().starts_with("creating "), "{error}");
+    }
+
+    fn vm_phpt_repo(name: &str) -> TempRepo {
+        let repo = TempRepo::new(name, Some(&lab_manifest_text()));
+        let tests = repo.0.join("lab/upstream/php/Zend");
+        fs::create_dir_all(&tests).unwrap();
+        fs::write(
+            tests.join("echo.phpt"),
+            b"--FILE--\n<?php echo 1;\n--EXPECT--\n1",
+        )
+        .unwrap();
+        repo
+    }
+
+    #[test]
+    fn lab_vm_phpt_runs_the_suite_and_writes_the_report() {
+        let repo = vm_phpt_repo("vm-phpt-ok");
+        let report = run_lab_vm_phpt(&repo.0).unwrap();
+        assert_eq!(
+            report,
+            Report {
+                text: "lab vm-phpt: 1 tests, 1 passed, 0 failed, 0 pending, 0 skipped (listed in lab/captures/vm-phpt.txt)"
+                    .to_owned(),
+                success: true,
+            }
+        );
+        assert_eq!(
+            fs::read_to_string(repo.0.join(vm_phpt::REPORT)).unwrap(),
+            ""
+        );
+    }
+
+    #[test]
+    fn lab_vm_phpt_refuses_invalid_input_and_missing_trees() {
+        let invalid = TempRepo::new("vm-phpt-invalid", Some(&manifest_text(5)));
+        let report = run_lab_vm_phpt(&invalid.0).unwrap();
+        assert!(!report.success);
+
+        let missing = TempRepo::new("vm-phpt-missing", Some(&lab_manifest_text()));
+        let error = run_lab_vm_phpt(&missing.0).unwrap_err();
+        assert!(
+            error.to_string().contains("lab/upstream/php is missing"),
+            "{error}"
+        );
+
+        let empty = TempRepo::new("vm-phpt-empty", Some(&lab_manifest_text()));
+        fs::create_dir_all(empty.0.join("lab/upstream/php")).unwrap();
+        let error = run_lab_vm_phpt(&empty.0).unwrap_err();
+        assert!(
+            error.to_string().starts_with("no .phpt tests under "),
+            "{error}"
+        );
+
+        let blocked = vm_phpt_repo("vm-phpt-blocked");
+        fs::write(blocked.0.join("lab/captures"), b"not a directory").unwrap();
+        let error = run_lab_vm_phpt(&blocked.0).unwrap_err();
         assert!(error.to_string().starts_with("creating "), "{error}");
     }
 

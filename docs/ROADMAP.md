@@ -46,7 +46,7 @@ Status legend: `[x]` done · `[ ]` not started
 
 - [x] 15. `php-serialize`: byte-exact serialize/unserialize with property tests and fuzzing
 - [x] 16. `php-value`: value model (ordered arrays, references, copy-on-write, object handles)
-- [ ] 17. Lexer → parser → bytecode compiler → VM core (one step each), checked against the PHP test suite
+- [x] 17. Lexer → parser → bytecode compiler → VM core (one step each), checked against the PHP test suite
   - [x] Lexer: `php-lexer`, byte-exact tokens, lines and scanner diagnostics (`contracts/lexer/`,
         recorded by `xtask lab lexer`; `xtask lab lexer-corpus` matches every upstream source file)
   - [x] Parser: `php-parser`, syntax tree with the reference's errors, warnings and `assert()`
@@ -56,8 +56,10 @@ Status legend: `[x]` done · `[ ]` not started
         deprecations on their lines (`contracts/compiler/`, recorded by `xtask lab compiler`;
         `xtask lab compiler-corpus` matches every upstream source file except those listed as
         awaiting class linking, step 18, or built-in function descriptions, step 19)
-  - [ ] Bytecode compiler: code objects, instructions and a disassembler (ADR-0007)
-  - [ ] VM core
+  - [x] Bytecode compiler: code objects, instructions and a disassembler (ADR-0007)
+  - [x] VM core: runs compiled units with the reference's output and errors (`contracts/vm/`,
+        recorded by `xtask lab vm`; `xtask lab vm-phpt` reports how many upstream tests pass,
+        fail or use constructs not compiled yet)
 - [ ] 18. Language features: functions and closures; classes, interfaces, traits, enums; exceptions;
       generators and fibers; include/require and autoloading
 - [ ] 19. Built-in function families: strings, arrays, math, JSON, PCRE, mbstring, date/time, streams,

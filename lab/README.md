@@ -238,8 +238,10 @@ one is compiled again one file per process, where the error can only belong to t
 diagnostics compiling it reported. xtask parses and checks the same files with `crates/php-parser` and
 `crates/php-compiler` and writes every difference to `captures/compiler-corpus.txt`. A file whose first
 missing diagnostic comes from linking a class to its parent, interfaces or traits is listed apart, with
-a `linking:` prefix, until the class linker exists (ADR-0007); the command fails when any other file
-differs. Nothing from the corpus is committed.
+a `linking:` prefix, until the class linker exists (ADR-0007). One whose first missing diagnostic
+depends on the built-in functions (redeclaring one, writing through one's result, the deprecated
+`$http_response_header` reads) is listed with a `built-ins:` prefix until they are described. The
+command fails when any other file differs. Nothing from the corpus is committed.
 
 ## Operators
 

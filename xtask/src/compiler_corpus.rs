@@ -50,6 +50,45 @@ const LINKING: [&str; 19] = [
     " with set hook may not return by reference",
 ];
 
+/// Fragments found only in diagnostics that depend on the built-in functions, which our compiler
+/// does not describe yet (roadmap step 19): their results as temporaries, and the deprecated
+/// `$http_response_header` reads that depend on how known callees take arguments.
+const BUILT_INS: [&str; 2] = [
+    "Cannot use result of built-in function in write context",
+    "The predefined locally scoped $http_response_header variable is deprecated",
+];
+
+/// Why a file differs only by a diagnostic the compiler cannot produce yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Cause {
+    /// Linking classes to their parents, interfaces and traits.
+    Linking,
+    /// Descriptions of the built-in functions.
+    BuiltIns,
+}
+
+impl Cause {
+    /// The cause of a diagnostic we lack, when it is one of these.
+    fn of(message: &str) -> Option<Self> {
+        if LINKING.iter().any(|fragment| message.contains(fragment)) {
+            return Some(Self::Linking);
+        }
+        let redeclares_built_in = message
+            .strip_prefix("Cannot redeclare function ")
+            .is_some_and(|rest| rest.ends_with("()"));
+        (redeclares_built_in || BUILT_INS.iter().any(|fragment| message.contains(fragment)))
+            .then_some(Self::BuiltIns)
+    }
+
+    /// The prefix of the report lines with this cause.
+    const fn prefix(self) -> &'static str {
+        match self {
+            Self::Linking => "linking",
+            Self::BuiltIns => "built-ins",
+        }
+    }
+}
+
 /// What the reference PHP reported for one file.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -138,31 +177,33 @@ fn ours(source: &[u8]) -> Result<Vec<Diagnostic>, String> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Difference {
     pub(crate) reason: String,
-    /// Whether everything before the reference's first diagnostic we lack matches, and that
-    /// diagnostic comes from linking classes.
-    pub(crate) linking: bool,
+    /// Set when everything before the reference's first diagnostic we lack matches, and that
+    /// diagnostic needs what the compiler cannot do yet.
+    pub(crate) cause: Option<Cause>,
 }
 
 impl Difference {
     fn other(reason: &str) -> Self {
         Self {
             reason: reason.to_owned(),
-            linking: false,
+            cause: None,
         }
     }
 }
 
-/// Whether `got` matches `expected` up to a missing diagnostic that comes from linking classes.
-fn differs_by_linking(got: &[Diagnostic], expected: &[Diagnostic]) -> bool {
+/// Why `got` differs from `expected`, when only by a missing diagnostic with a known cause.
+fn missing_cause(got: &[Diagnostic], expected: &[Diagnostic]) -> Option<Cause> {
     let matching = got
         .iter()
         .zip(expected)
         .take_while(|(got, expected)| got == expected)
         .count();
-    got.len() == matching
-        && expected.get(matching).is_some_and(|(_, message, _)| {
-            LINKING.iter().any(|fragment| message.contains(fragment))
-        })
+    if got.len() != matching {
+        return None;
+    }
+    expected
+        .get(matching)
+        .and_then(|(_, message, _)| Cause::of(message))
 }
 
 /// How our diagnostics for `text` (the file's contents) differ from `entry`'s, if they do.
@@ -195,7 +236,7 @@ pub(crate) fn difference(entry: &Entry, text: &[u8]) -> Option<Difference> {
         .collect();
     (got != expected).then(|| Difference {
         reason: format!("diagnostics {got:?}, reference {expected:?}"),
-        linking: differs_by_linking(&got, &expected),
+        cause: missing_cause(&got, &expected),
     })
 }
 
@@ -205,21 +246,30 @@ pub(crate) struct Summary {
     pub(crate) files: usize,
     /// Files the reference stops with a fatal or parse error.
     pub(crate) rejected: usize,
-    /// `path: reason` for every file that differs other than by linking, in the script's order.
+    /// `path: reason` for every file that differs without a known cause, in the script's order.
     pub(crate) differences: Vec<String>,
-    /// `path: reason` for every file that differs only by linking, in the script's order.
-    pub(crate) linking: Vec<String>,
+    /// `path: reason` for every file that differs only by a diagnostic with a known cause, in the
+    /// script's order, with that cause.
+    pub(crate) deferred: Vec<(Cause, String)>,
 }
 
 impl Summary {
-    /// The report file's contents: the differences, then those that come from linking.
+    /// How many files differ only because of `cause`.
+    pub(crate) fn count(&self, cause: Cause) -> usize {
+        self.deferred
+            .iter()
+            .filter(|(deferred, _)| *deferred == cause)
+            .count()
+    }
+
+    /// The report file's contents: the differences, then those with a known cause, prefixed by it.
     pub(crate) fn render(&self) -> String {
         let mut out = String::new();
         for line in &self.differences {
             let _ = writeln!(out, "{line}");
         }
-        for line in &self.linking {
-            let _ = writeln!(out, "linking: {line}");
+        for (cause, line) in &self.deferred {
+            let _ = writeln!(out, "{}: {line}", cause.prefix());
         }
         out
     }
@@ -231,15 +281,14 @@ pub(crate) fn check(
     mut read: impl FnMut(&str) -> std::io::Result<Vec<u8>>,
 ) -> anyhow::Result<Summary> {
     let mut differences = Vec::new();
-    let mut linking = Vec::new();
+    let mut deferred = Vec::new();
     for entry in entries {
         let text = read(&entry.path).with_context(|| format!("reading {}", entry.path))?;
         if let Some(difference) = difference(entry, &text) {
             let line = format!("{}: {}", entry.path, difference.reason);
-            if difference.linking {
-                linking.push(line);
-            } else {
-                differences.push(line);
+            match difference.cause {
+                Some(cause) => deferred.push((cause, line)),
+                None => differences.push(line),
             }
         }
     }
@@ -247,7 +296,7 @@ pub(crate) fn check(
         files: entries.len(),
         rejected: entries.iter().filter(|entry| entry.is_rejected()).count(),
         differences,
-        linking,
+        deferred,
     })
 }
 
@@ -338,7 +387,7 @@ mod tests {
     }
 
     #[test]
-    fn linking_differences_are_told_apart() {
+    fn deferred_differences_are_told_apart() {
         let linking = diagnostic(
             "Fatal error",
             "Declaration of B::f() must be compatible with A::f($a)",
@@ -348,19 +397,43 @@ mod tests {
             "Return type of B::f() should either be compatible with A::f(): int, or ...",
         );
         let warning = diagnostic("Warning", "w");
-        let other = diagnostic("Fatal error", "Cannot redeclare function f()");
-        assert!(differs_by_linking(&[], std::slice::from_ref(&linking)));
-        assert!(differs_by_linking(&[], std::slice::from_ref(&deprecated)));
-        assert!(differs_by_linking(
-            std::slice::from_ref(&warning),
-            &[warning.clone(), linking.clone()]
-        ));
-        assert!(!differs_by_linking(
-            std::slice::from_ref(&other),
-            std::slice::from_ref(&linking)
-        ));
-        assert!(!differs_by_linking(&[], std::slice::from_ref(&other)));
-        assert!(!differs_by_linking(std::slice::from_ref(&warning), &[]));
+        let built_in = diagnostic("Fatal error", "Cannot redeclare function strlen()");
+        let written = diagnostic(
+            "Fatal error",
+            "Cannot use result of built-in function in write context",
+        );
+        let other = diagnostic(
+            "Fatal error",
+            "Cannot redeclare function f() (previously declared in a.php:1)",
+        );
+        let linked = Some(Cause::Linking);
+        assert_eq!(missing_cause(&[], std::slice::from_ref(&linking)), linked);
+        assert_eq!(
+            missing_cause(&[], std::slice::from_ref(&deprecated)),
+            linked
+        );
+        assert_eq!(
+            missing_cause(
+                std::slice::from_ref(&warning),
+                &[warning.clone(), linking.clone()]
+            ),
+            linked
+        );
+        assert_eq!(
+            missing_cause(&[], std::slice::from_ref(&built_in)),
+            Some(Cause::BuiltIns)
+        );
+        assert_eq!(
+            missing_cause(&[], std::slice::from_ref(&written)),
+            Some(Cause::BuiltIns)
+        );
+        assert_eq!(
+            missing_cause(std::slice::from_ref(&other), std::slice::from_ref(&linking)),
+            None
+        );
+        assert_eq!(missing_cause(&[], std::slice::from_ref(&other)), None);
+        assert_eq!(missing_cause(std::slice::from_ref(&warning), &[]), None);
+        assert_eq!(Cause::BuiltIns.prefix(), "built-ins");
     }
 
     #[test]
@@ -374,7 +447,7 @@ mod tests {
         let line = "b.php: diagnostics [], reference [(\"Parse error\", \"m\", 1)]";
         assert_eq!(summary.differences, [line]);
         assert_eq!(summary.render(), format!("{line}\n"));
-        assert!(summary.linking.is_empty());
+        assert!(summary.deferred.is_empty());
         let error = check(&[good], |_| Err(std::io::Error::other("gone"))).unwrap_err();
         assert_eq!(error.to_string(), "reading a.php");
 
@@ -384,7 +457,9 @@ mod tests {
         assert!(summary.differences.is_empty());
         let line =
             format!("c.php: diagnostics [], reference [(\"Fatal error\", \"{message}\", 1)]");
-        assert_eq!(summary.linking, std::slice::from_ref(&line));
+        assert_eq!(summary.deferred, [(Cause::Linking, line.clone())]);
+        assert_eq!(summary.count(Cause::Linking), 1);
+        assert_eq!(summary.count(Cause::BuiltIns), 0);
         assert_eq!(summary.render(), format!("linking: {line}\n"));
     }
 }

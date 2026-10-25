@@ -608,11 +608,13 @@ fn run_lab_compiler_corpus(repo_root: &Path, runner: &mut impl Runner) -> anyhow
         .with_context(|| format!("writing {}", report_path.display()))?;
     Ok(Report {
         text: format!(
-            "lab compiler-corpus: {} files, {} rejected, {} differ, {} more only by linking (listed in {})",
+            "lab compiler-corpus: {} files, {} rejected, {} differ, {} more only by linking, {} by \
+             built-ins (listed in {})",
             summary.files,
             summary.rejected,
             summary.differences.len(),
-            summary.linking.len(),
+            summary.count(compiler_corpus::Cause::Linking),
+            summary.count(compiler_corpus::Cause::BuiltIns),
             compiler_corpus::REPORT
         ),
         success: summary.differences.is_empty(),
@@ -2047,7 +2049,7 @@ path = "/"
         assert_eq!(
             report,
             Report {
-                text: "lab compiler-corpus: 1 files, 0 rejected, 0 differ, 0 more only by linking (listed in lab/captures/compiler-corpus.txt)"
+                text: "lab compiler-corpus: 1 files, 0 rejected, 0 differ, 0 more only by linking, 0 by built-ins (listed in lab/captures/compiler-corpus.txt)"
                     .to_owned(),
                 success: true,
             }
@@ -2070,7 +2072,7 @@ path = "/"
         assert!(!report.success);
         assert_eq!(
             report.text,
-            "lab compiler-corpus: 1 files, 1 rejected, 1 differ, 0 more only by linking (listed in lab/captures/compiler-corpus.txt)"
+            "lab compiler-corpus: 1 files, 1 rejected, 1 differ, 0 more only by linking, 0 by built-ins (listed in lab/captures/compiler-corpus.txt)"
         );
         assert_eq!(
             fs::read_to_string(differing.0.join(compiler_corpus::REPORT)).unwrap(),

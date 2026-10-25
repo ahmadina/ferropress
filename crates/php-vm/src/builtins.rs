@@ -52,6 +52,10 @@ pub(crate) enum Native {
     Trim,
     Ltrim,
     Rtrim,
+    MbStrlen,
+    MbSubstr,
+    Gmdate,
+    Strtotime,
 }
 
 /// The built-in named by `key`, compared lowercase.
@@ -99,6 +103,10 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"trim" => Native::Trim,
         b"ltrim" => Native::Ltrim,
         b"rtrim" => Native::Rtrim,
+        b"mb_strlen" => Native::MbStrlen,
+        b"mb_substr" => Native::MbSubstr,
+        b"gmdate" => Native::Gmdate,
+        b"strtotime" => Native::Strtotime,
         _ => return None,
     })
 }
@@ -173,6 +181,10 @@ impl<O: Output> Machine<'_, '_, O> {
             Native::Trim => self.native_trim(args, result, crate::strings::Trim::Both),
             Native::Ltrim => self.native_trim(args, result, crate::strings::Trim::Left),
             Native::Rtrim => self.native_trim(args, result, crate::strings::Trim::Right),
+            Native::MbStrlen => self.native_mb_strlen(args, result),
+            Native::MbSubstr => self.native_mb_substr(args, result),
+            Native::Gmdate => self.native_gmdate(args, result),
+            Native::Strtotime => self.native_strtotime(args, result),
         }
     }
 }

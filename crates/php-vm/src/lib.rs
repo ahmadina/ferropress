@@ -13,6 +13,7 @@ mod builtins;
 mod calls;
 mod classes;
 mod closures;
+mod datetime;
 mod error;
 mod exceptions;
 mod fibers;
@@ -21,6 +22,7 @@ mod includes;
 mod json;
 mod machine;
 mod math;
+mod mbstring;
 mod strings;
 mod thrown;
 

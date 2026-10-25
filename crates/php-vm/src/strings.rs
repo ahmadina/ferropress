@@ -79,7 +79,7 @@ impl Trim {
     }
 }
 
-fn substr_range(len: usize, offset: i64, length: Option<i64>) -> Option<(usize, usize)> {
+pub(crate) fn substr_range(len: usize, offset: i64, length: Option<i64>) -> Option<(usize, usize)> {
     let len_i = i64::try_from(len).ok()?;
     let start = if offset >= 0 {
         if offset >= len_i {

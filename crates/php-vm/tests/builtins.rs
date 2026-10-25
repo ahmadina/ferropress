@@ -187,6 +187,24 @@ fn array_lookups_and_merge() -> Result<(), String> {
 }
 
 #[test]
+fn mbstring_counts_and_slices_codepoints() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo mb_strlen(\"\\u{e9}\"), mb_substr(\"\\u{e9}a\", 0, 1) === \"\\u{e9}\" ? \"y\" : \"n\";")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"1y");
+    Ok(())
+}
+
+#[test]
+fn gmdate_and_strtotime_use_utc_civil_time() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo gmdate(\"Y-m-d H:i:s\", 0), gmdate(\"Y-m-d\", 1609459200), strtotime(\"2021-01-01 00:00:00\");",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"1970-01-01 00:00:002021-01-011609459200");
+    Ok(())
+}
+
+#[test]
 fn array_key_exists_rejects_a_non_array() -> Result<(), String> {
     let (output, status) = run(b"<?php array_key_exists(\"a\", 1);")?;
     let text = String::from_utf8_lossy(&output);

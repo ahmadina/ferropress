@@ -190,6 +190,10 @@ function vm_topic_cases(): array {
 			'echo substr("abcd", 1, 2), strpos("abcd", "c"), str_contains("abcd", "bc") ? "y" : "n", trim(" a ");',
 			'echo ltrim(" a "), rtrim(" a ");',
 			'echo strpos("abcd", "z") === false ? "f" : "x";',
+			'echo mb_strlen("\u{e9}"), mb_substr("\u{e9}a", 0, 1);',
+			'echo gmdate("Y-m-d H:i:s", 0), gmdate("Y-m-d", 1609459200);',
+			'echo strtotime("2021-01-01 00:00:00");',
+			'echo strtotime("nope") === false ? "f" : "x";',
 		),
 		'math'          => array(
 			'echo abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);',

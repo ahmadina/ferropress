@@ -79,6 +79,8 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] Array offsets: `$a[$k]`, `$a[$k] =`, `$a[] =`
   - [x] More arrays: `array_key_exists`, `in_array`, `array_merge`, `array_keys`/`array_values`
   - [x] More strings: `substr`, `strpos`, `str_contains`, `trim`/`ltrim`/`rtrim`
+  - [x] mbstring: `mb_strlen` / `mb_substr` (UTF-8)
+  - [x] Date/time: `gmdate` and `strtotime` for civil UTC timestamps
   - [x] JSON: `json_encode` / `json_decode` for scalars and arrays
 - [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
       classes extend Rust-owned classes

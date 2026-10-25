@@ -144,6 +144,10 @@
 {"name":"arrays 16","source":"<?php\necho substr(\"abcd\", 1, 2), strpos(\"abcd\", \"c\"), str_contains(\"abcd\", \"bc\") ? \"y\" : \"n\", trim(\" a \");","output":"bc2ya","status":0}
 {"name":"arrays 17","source":"<?php\necho ltrim(\" a \"), rtrim(\" a \");","output":"a  a","status":0}
 {"name":"arrays 18","source":"<?php\necho strpos(\"abcd\", \"z\") === false ? \"f\" : \"x\";","output":"f","status":0}
+{"name":"arrays 19","source":"<?php\necho mb_strlen(\"\\u{e9}\"), mb_substr(\"\\u{e9}a\", 0, 1);","output":"1Ã©","status":0}
+{"name":"arrays 20","source":"<?php\necho gmdate(\"Y-m-d H:i:s\", 0), gmdate(\"Y-m-d\", 1609459200);","output":"1970-01-01 00:00:002021-01-01","status":0}
+{"name":"arrays 21","source":"<?php\necho strtotime(\"2021-01-01 00:00:00\");","output":"1609459200","status":0}
+{"name":"arrays 22","source":"<?php\necho strtotime(\"nope\") === false ? \"f\" : \"x\";","output":"f","status":0}
 {"name":"math 01","source":"<?php\necho abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);","output":"31312","status":0}
 {"name":"math 02","source":"<?php\necho intdiv(7, 2), intval(floor(1.5)), intval(ceil(1.2)), intval(round(1.5));","output":"3122","status":0}
 {"name":"math 03","source":"<?php\necho intval(sqrt(9));","output":"3","status":0}

@@ -14,7 +14,7 @@ const HTML_DEFAULT_FLAGS: i64 = 11;
 impl<O: Output> Machine<'_, '_, O> {
     pub(crate) fn native_str_replace(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 3 {
-            return Err(self.too_few_at_least("str_replace", args.len(), 3));
+            return Err(self.too_few_at_least("str_replace", args.len(), 3, args));
         }
         if args.len() > 3 {
             return Err(VmError::Unsupported("str_replace count").into());
@@ -37,7 +37,7 @@ impl<O: Output> Machine<'_, '_, O> {
 
     pub(crate) fn native_htmlspecialchars(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.is_empty() {
-            return Err(self.too_few_at_least("htmlspecialchars", 0, 1));
+            return Err(self.too_few_at_least("htmlspecialchars", 0, 1, args));
         }
         let value = args[0].slot.value();
         if matches!(value, Value::Null) {

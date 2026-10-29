@@ -1,4 +1,4 @@
-//! `file_exists`, `file_get_contents` and `file_put_contents`.
+//! `file_exists`, `file_get_contents`, `file_put_contents`, `is_file` and `is_dir`.
 
 use php_compiler::bytecode::Operand;
 use php_value::{PhpString, Value};
@@ -30,7 +30,7 @@ impl<O: Output> Machine<'_, '_, O> {
 
     pub(crate) fn native_file_put_contents(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 2 {
-            return Err(self.too_few("file_put_contents", args.len(), 2));
+            return Err(self.too_few("file_put_contents", args.len(), 2, args));
         }
         let path = self.string_arg("file_put_contents", &args[0].slot.value())?;
         let data = self.stringify(&args[1].slot.value())?;
@@ -42,6 +42,33 @@ impl<O: Output> Machine<'_, '_, O> {
             self.failed_stream("file_put_contents", path.as_slice(), &resolved);
             self.write(result, Value::Bool(false))
         }
+    }
+
+    pub(crate) fn native_is_file(&mut self, args: &[Argument], result: Operand) -> Exec {
+        self.native_path_kind("is_file", args, result, std::path::Path::is_file)
+    }
+
+    pub(crate) fn native_is_dir(&mut self, args: &[Argument], result: Operand) -> Exec {
+        self.native_path_kind("is_dir", args, result, std::path::Path::is_dir)
+    }
+
+    fn native_path_kind(
+        &mut self,
+        name: &'static str,
+        args: &[Argument],
+        result: Operand,
+        test: fn(&std::path::Path) -> bool,
+    ) -> Exec {
+        if args.len() != 1 {
+            return Err(if args.is_empty() {
+                self.too_few(name, 0, 1, args)
+            } else {
+                self.too_many(name, args.len(), 1, args)
+            });
+        }
+        let path = self.typed_string(name, 1, "filename", &args[0].slot.value(), args)?;
+        let resolved = resolve_path(&self.file, &path);
+        self.write(result, Value::Bool(test(&resolved)))
     }
 
     fn failed_stream(&mut self, name: &str, path: &[u8], resolved: &std::path::Path) {

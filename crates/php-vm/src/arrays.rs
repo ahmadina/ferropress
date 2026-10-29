@@ -130,7 +130,7 @@ impl<O: Output> Machine<'_, '_, O> {
 
     pub(crate) fn native_implode(&mut self, args: &[Argument], result: Operand) -> Exec {
         let (glue, array) = match args {
-            [] => return Err(self.too_few("implode", 0, 1)),
+            [] => return Err(self.too_few("implode", 0, 1, args)),
             [one] => match one.slot.value() {
                 Value::Array(array) => (PhpString::new(&[]), array),
                 other => {
@@ -177,7 +177,7 @@ impl<O: Output> Machine<'_, '_, O> {
 
     pub(crate) fn native_explode(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 2 {
-            return Err(self.too_few("explode", args.len(), 2));
+            return Err(self.too_few("explode", args.len(), 2, args));
         }
         let sep = self.string_arg("explode", &args[0].slot.value())?;
         let text = self.string_arg("explode", &args[1].slot.value())?;
@@ -214,7 +214,7 @@ impl<O: Output> Machine<'_, '_, O> {
 
     pub(crate) fn native_array_key_exists(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 2 {
-            return Err(self.too_few("array_key_exists", args.len(), 2));
+            return Err(self.too_few("array_key_exists", args.len(), 2, args));
         }
         let key_value = args[0].slot.value();
         let Some(key) = self.compute(|cx| Ok(array_key(&key_value, cx)))? else {
@@ -233,7 +233,7 @@ impl<O: Output> Machine<'_, '_, O> {
 
     pub(crate) fn native_in_array(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 2 {
-            return Err(self.too_few("in_array", args.len(), 2));
+            return Err(self.too_few("in_array", args.len(), 2, args));
         }
         let needle = args[0].slot.value();
         let array = self.need_array("in_array", 2, "haystack", args[1].slot.value())?;

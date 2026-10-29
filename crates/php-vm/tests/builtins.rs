@@ -195,6 +195,114 @@ fn mbstring_counts_and_slices_codepoints() -> Result<(), String> {
 }
 
 #[test]
+fn time_returns_unix_seconds() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo gettype(time()), time() > 0 ? \"y\" : \"n\";")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"integery");
+    Ok(())
+}
+
+#[test]
+fn time_rejects_arguments() -> Result<(), String> {
+    let (output, status) = run(b"<?php time(1);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("expects exactly 0 arguments"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn dirname_and_basename_split_unix_paths() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo dirname(\"/a/b/c\"), dirname(\"/a/b/c\", 2), dirname(\"foo\"), basename(\"/a/b/c.txt\", \".txt\");",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"/a/b/a.c");
+    Ok(())
+}
+
+#[test]
+fn dirname_rejects_zero_levels() -> Result<(), String> {
+    let (output, status) = run(b"<?php dirname(\"/a/b\", 0);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("must be greater than or equal to 1"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn dirname_rejects_too_many_arguments() -> Result<(), String> {
+    let (output, status) = run(b"<?php dirname(\"/a\", 1, 2);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("expects at most 2 arguments"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn dirname_rejects_a_non_int_level() -> Result<(), String> {
+    let (output, status) = run(b"<?php dirname(\"/a/b\", []);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("must be of type int, array given"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn dirname_without_arguments_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php dirname();")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("expects at least 1 argument"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn dirname_accepts_a_numeric_string_level() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo dirname(\"/a/b/c\", \"2\");")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"/a");
+    Ok(())
+}
+
+#[test]
+fn dirname_warns_when_levels_is_null() -> Result<(), String> {
+    let (output, status) = run(b"<?php dirname(\"/a/b\", null);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("Passing null to parameter #2"), "{text}");
+    assert!(
+        text.contains("must be greater than or equal to 1"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn basename_rejects_too_many_arguments() -> Result<(), String> {
+    let (output, status) = run(b"<?php basename(\"/a\", \"a\", 1);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("expects at most 2 arguments"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn dirname_rejects_a_non_string_path() -> Result<(), String> {
+    let (output, status) = run(b"<?php dirname([]);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("must be of type string, array given"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
 fn gmdate_and_strtotime_use_utc_civil_time() -> Result<(), String> {
     let (output, status) = run(
         b"<?php echo gmdate(\"Y-m-d H:i:s\", 0), gmdate(\"Y-m-d\", 1609459200), date(\"Y-m-d H:i:s\", 0), strtotime(\"2021-01-01 00:00:00\");",

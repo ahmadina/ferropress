@@ -38,7 +38,7 @@ enum FormatError {
 impl<O: Output> Machine<'_, '_, O> {
     pub(crate) fn native_sprintf(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.is_empty() {
-            return Err(self.too_few_at_least("sprintf", 0, 1));
+            return Err(self.too_few_at_least("sprintf", 0, 1, args));
         }
         let format = self.string_arg("sprintf", &args[0].slot.value())?;
         let needed = 1 + count_values(&format);

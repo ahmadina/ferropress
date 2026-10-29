@@ -1,4 +1,4 @@
-//! UTC `gmdate` / `date` and a small `strtotime` for civil timestamps.
+//! UTC `gmdate` / `date`, `time`, and a small `strtotime` for civil timestamps.
 
 use php_compiler::bytecode::Operand;
 use php_value::{PhpString, Value};
@@ -25,6 +25,13 @@ impl<O: Output> Machine<'_, '_, O> {
         };
         let text = format_utc(&format, stamp);
         self.write(result, Value::String(PhpString::new(&text)))
+    }
+
+    pub(crate) fn native_time(&mut self, args: &[Argument], result: Operand) -> Exec {
+        if !args.is_empty() {
+            return Err(self.too_many("time", args.len(), 0, args));
+        }
+        self.write(result, Value::Int(current_unix()))
     }
 
     pub(crate) fn native_strtotime(&mut self, args: &[Argument], result: Operand) -> Exec {

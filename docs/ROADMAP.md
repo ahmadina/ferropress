@@ -81,8 +81,9 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] More arrays: `array_key_exists`, `in_array`, `array_merge`, `array_keys`/`array_values`
   - [x] More strings: `substr`, `strpos`, `str_contains`, `trim`/`ltrim`/`rtrim`
   - [x] mbstring: `mb_strlen` / `mb_substr` (UTF-8)
-  - [x] Date/time: `gmdate`, `date` and `strtotime` for civil UTC timestamps
-  - [x] Streams: `file_exists`, `file_get_contents`, `file_put_contents`
+  - [x] Date/time: `gmdate`, `date`, `time` and `strtotime` for civil UTC timestamps
+  - [x] Streams: `file_exists`, `file_get_contents`, `file_put_contents`, `is_file`, `is_dir`
+  - [x] Paths: `dirname` and `basename` for `/`-separated paths
   - [x] JSON: `json_encode` / `json_decode` for scalars and arrays
   - [x] `isset` and `empty` of variables, offsets and expressions
   - [x] More strings: `str_replace` and `htmlspecialchars`

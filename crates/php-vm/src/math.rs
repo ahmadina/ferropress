@@ -25,7 +25,7 @@ impl<O: Output> Machine<'_, '_, O> {
     pub(crate) fn native_minmax(&mut self, args: &[Argument], result: Operand, min: bool) -> Exec {
         let name = if min { "min" } else { "max" };
         if args.is_empty() {
-            return Err(self.too_few_at_least(name, 0, 1));
+            return Err(self.too_few_at_least(name, 0, 1, args));
         }
         let mut best = args[0].slot.value();
         for arg in args.iter().skip(1) {
@@ -77,7 +77,7 @@ impl<O: Output> Machine<'_, '_, O> {
 
     pub(crate) fn native_intdiv(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 2 {
-            return Err(self.too_few("intdiv", args.len(), 2));
+            return Err(self.too_few("intdiv", args.len(), 2, args));
         }
         let left = self.compute(|cx| args[0].slot.value().to_int(cx))?;
         let right = self.compute(|cx| args[1].slot.value().to_int(cx))?;

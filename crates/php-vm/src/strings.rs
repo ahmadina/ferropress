@@ -12,7 +12,7 @@ const TRIM_DEFAULT: &[u8] = b" \t\n\r\0\x0b";
 impl<O: Output> Machine<'_, '_, O> {
     pub(crate) fn native_substr(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 2 {
-            return Err(self.too_few("substr", args.len(), 2));
+            return Err(self.too_few("substr", args.len(), 2, args));
         }
         let text = self.string_arg("substr", &args[0].slot.value())?;
         let offset = self.compute(|cx| args[1].slot.value().to_int(cx))?;
@@ -27,7 +27,7 @@ impl<O: Output> Machine<'_, '_, O> {
 
     pub(crate) fn native_strpos(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 2 {
-            return Err(self.too_few("strpos", args.len(), 2));
+            return Err(self.too_few("strpos", args.len(), 2, args));
         }
         let haystack = self.string_arg("strpos", &args[0].slot.value())?;
         let needle = self.string_arg("strpos", &args[1].slot.value())?;
@@ -41,7 +41,7 @@ impl<O: Output> Machine<'_, '_, O> {
 
     pub(crate) fn native_str_contains(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 2 {
-            return Err(self.too_few("str_contains", args.len(), 2));
+            return Err(self.too_few("str_contains", args.len(), 2, args));
         }
         let haystack = self.string_arg("str_contains", &args[0].slot.value())?;
         let needle = self.string_arg("str_contains", &args[1].slot.value())?;

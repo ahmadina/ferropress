@@ -18,7 +18,7 @@ impl<O: Output> Machine<'_, '_, O> {
 
     pub(crate) fn native_mb_substr(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 2 {
-            return Err(self.too_few("mb_substr", args.len(), 2));
+            return Err(self.too_few("mb_substr", args.len(), 2, args));
         }
         let text = self.string_arg("mb_substr", &args[0].slot.value())?;
         let offset = self.compute(|cx| args[1].slot.value().to_int(cx))?;

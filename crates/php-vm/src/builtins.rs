@@ -57,9 +57,14 @@ pub(crate) enum Native {
     Gmdate,
     Date,
     Strtotime,
+    Time,
     FileExists,
     FileGetContents,
     FilePutContents,
+    IsFile,
+    IsDir,
+    Dirname,
+    Basename,
     StrReplace,
     HtmlSpecialChars,
     Sprintf,
@@ -115,9 +120,14 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"gmdate" => Native::Gmdate,
         b"date" => Native::Date,
         b"strtotime" => Native::Strtotime,
+        b"time" => Native::Time,
         b"file_exists" => Native::FileExists,
         b"file_get_contents" => Native::FileGetContents,
         b"file_put_contents" => Native::FilePutContents,
+        b"is_file" => Native::IsFile,
+        b"is_dir" => Native::IsDir,
+        b"dirname" => Native::Dirname,
+        b"basename" => Native::Basename,
         b"str_replace" => Native::StrReplace,
         b"htmlspecialchars" => Native::HtmlSpecialChars,
         b"sprintf" => Native::Sprintf,
@@ -200,9 +210,14 @@ impl<O: Output> Machine<'_, '_, O> {
             Native::Gmdate => self.native_gmdate(args, result),
             Native::Date => self.native_date(args, result),
             Native::Strtotime => self.native_strtotime(args, result),
+            Native::Time => self.native_time(args, result),
             Native::FileExists => self.native_file_exists(args, result),
             Native::FileGetContents => self.native_file_get_contents(args, result),
             Native::FilePutContents => self.native_file_put_contents(args, result),
+            Native::IsFile => self.native_is_file(args, result),
+            Native::IsDir => self.native_is_dir(args, result),
+            Native::Dirname => self.native_dirname(args, result),
+            Native::Basename => self.native_basename(args, result),
             Native::StrReplace => self.native_str_replace(args, result),
             Native::HtmlSpecialChars => self.native_htmlspecialchars(args, result),
             Native::Sprintf => self.native_sprintf(args, result),
@@ -213,7 +228,7 @@ impl<O: Output> Machine<'_, '_, O> {
 impl<O: Output> Machine<'_, '_, O> {
     pub(crate) fn native_one(&mut self, name: &'static str, args: &[Argument]) -> Exec<Value> {
         let Some(arg) = args.first() else {
-            return Err(self.too_few(name, 0, 1));
+            return Err(self.too_few(name, 0, 1, args));
         };
         Ok(arg.slot.value())
     }
@@ -223,18 +238,9 @@ impl<O: Output> Machine<'_, '_, O> {
         name: &str,
         passed: usize,
         expected: usize,
+        args: &[Argument],
     ) -> crate::machine::Stop {
-        let mut message = name.as_bytes().to_vec();
-        message.extend_from_slice(b"() expects exactly ");
-        message.extend_from_slice(expected.to_string().as_bytes());
-        message.extend_from_slice(if expected == 1 {
-            b" argument, "
-        } else {
-            b" arguments, "
-        });
-        message.extend_from_slice(passed.to_string().as_bytes());
-        message.extend_from_slice(b" given");
-        self.throw_from("ArgumentCountError", message, name.as_bytes(), Vec::new())
+        self.count_error(name, passed, expected, b"() expects exactly ", args)
     }
 
     pub(crate) fn too_few_at_least(
@@ -242,9 +248,41 @@ impl<O: Output> Machine<'_, '_, O> {
         name: &str,
         passed: usize,
         expected: usize,
+        args: &[Argument],
+    ) -> crate::machine::Stop {
+        self.count_error(name, passed, expected, b"() expects at least ", args)
+    }
+
+    pub(crate) fn too_many(
+        &self,
+        name: &str,
+        passed: usize,
+        expected: usize,
+        args: &[Argument],
+    ) -> crate::machine::Stop {
+        self.count_error(name, passed, expected, b"() expects exactly ", args)
+    }
+
+    pub(crate) fn too_many_at_most(
+        &self,
+        name: &str,
+        passed: usize,
+        expected: usize,
+        args: &[Argument],
+    ) -> crate::machine::Stop {
+        self.count_error(name, passed, expected, b"() expects at most ", args)
+    }
+
+    fn count_error(
+        &self,
+        name: &str,
+        passed: usize,
+        expected: usize,
+        phrase: &[u8],
+        args: &[Argument],
     ) -> crate::machine::Stop {
         let mut message = name.as_bytes().to_vec();
-        message.extend_from_slice(b"() expects at least ");
+        message.extend_from_slice(phrase);
         message.extend_from_slice(expected.to_string().as_bytes());
         message.extend_from_slice(if expected == 1 {
             b" argument, "
@@ -253,7 +291,86 @@ impl<O: Output> Machine<'_, '_, O> {
         });
         message.extend_from_slice(passed.to_string().as_bytes());
         message.extend_from_slice(b" given");
-        self.throw_from("ArgumentCountError", message, name.as_bytes(), Vec::new())
+        let values: Vec<Value> = args.iter().map(|arg| arg.slot.value()).collect();
+        self.throw_from("ArgumentCountError", message, name.as_bytes(), values)
+    }
+
+    pub(crate) fn typed_string(
+        &mut self,
+        name: &str,
+        index: usize,
+        param: &str,
+        value: &Value,
+        args: &[Argument],
+    ) -> Exec<Vec<u8>> {
+        match value {
+            Value::Array(_) | Value::Object(_) => {
+                Err(self.type_error_arg(name, index, param, b"string", value, args))
+            }
+            Value::Null => {
+                self.null_deprecated(name, index, param, b"string");
+                Ok(Vec::new())
+            }
+            other => Ok(self.stringify(other)?.as_bytes().to_vec()),
+        }
+    }
+
+    pub(crate) fn typed_int(
+        &mut self,
+        name: &str,
+        index: usize,
+        param: &str,
+        value: &Value,
+        args: &[Argument],
+    ) -> Exec<i64> {
+        match value {
+            Value::Int(number) => Ok(*number),
+            Value::Bool(flag) => Ok(i64::from(*flag)),
+            Value::Float(_) => self.compute(|cx| value.to_int(cx)),
+            Value::Null => {
+                self.null_deprecated(name, index, param, b"int");
+                Ok(0)
+            }
+            Value::String(text) if php_value::ops::whole_numeric(text.as_bytes()).is_some() => {
+                self.compute(|cx| value.to_int(cx))
+            }
+            other => Err(self.type_error_arg(name, index, param, b"int", other, args)),
+        }
+    }
+
+    fn null_deprecated(&mut self, name: &str, index: usize, param: &str, ty: &[u8]) {
+        let mut message = name.as_bytes().to_vec();
+        message.extend_from_slice(b"(): Passing null to parameter #");
+        message.extend_from_slice(index.to_string().as_bytes());
+        message.extend_from_slice(b" ($");
+        message.extend_from_slice(param.as_bytes());
+        message.extend_from_slice(b") of type ");
+        message.extend_from_slice(ty);
+        message.extend_from_slice(b" is deprecated");
+        self.display(b"Deprecated", &message);
+    }
+
+    fn type_error_arg(
+        &self,
+        name: &str,
+        index: usize,
+        param: &str,
+        expected: &[u8],
+        value: &Value,
+        args: &[Argument],
+    ) -> crate::machine::Stop {
+        let mut message = name.as_bytes().to_vec();
+        message.extend_from_slice(b"(): Argument #");
+        message.extend_from_slice(index.to_string().as_bytes());
+        message.extend_from_slice(b" ($");
+        message.extend_from_slice(param.as_bytes());
+        message.extend_from_slice(b") must be of type ");
+        message.extend_from_slice(expected);
+        message.extend_from_slice(b", ");
+        message.extend_from_slice(value.type_name().as_bytes());
+        message.extend_from_slice(b" given");
+        let values: Vec<Value> = args.iter().map(|arg| arg.slot.value()).collect();
+        self.throw_from("TypeError", message, name.as_bytes(), values)
     }
 
     fn native_strlen(&mut self, args: &[Argument], result: Operand) -> Exec {

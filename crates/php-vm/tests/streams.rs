@@ -48,6 +48,38 @@ fn file_put_get_and_exists_round_trip() -> Result<(), String> {
 }
 
 #[test]
+fn is_file_and_is_dir_distinguish_paths() -> Result<(), String> {
+    let dir = temp_dir()?;
+    let file = dir.join("x.txt");
+    fs::write(&file, b"hi").map_err(|error| error.to_string())?;
+    let quoted_file = file.to_string_lossy().replace('\\', "\\\\");
+    let quoted_dir = dir.to_string_lossy().replace('\\', "\\\\");
+    let source = format!(
+        "<?php echo is_file('{quoted_file}') ? 'y' : 'n', is_dir('{quoted_file}') ? 'y' : 'n', is_file('{quoted_dir}') ? 'y' : 'n', is_dir('{quoted_dir}') ? 'y' : 'n', is_file('{quoted_file}.no') ? 'y' : 'n';"
+    );
+    let (output, status) = run(source.as_bytes(), b"/t.php")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"ynnyn");
+    Ok(())
+}
+
+#[test]
+fn is_file_rejects_wrong_argument_count() -> Result<(), String> {
+    let (output, status) = run(b"<?php is_file();", b"/t.php")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("expects exactly 1 argument"), "{text}");
+    let (output, status) = run(b"<?php is_file(\"a\", 1);", b"/t.php")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("expects exactly 1 argument, 2 given"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
 fn missing_file_get_contents_warns_and_is_false() -> Result<(), String> {
     let (output, status) = run(
         b"<?php echo file_get_contents(\"/tmp/ferropress-missing-stream-xyz\") === false ? \"f\" : \"x\";",

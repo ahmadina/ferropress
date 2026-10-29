@@ -25,6 +25,7 @@ mod json;
 mod machine;
 mod math;
 mod mbstring;
+mod paths;
 mod replace;
 mod sprintf;
 mod streams;

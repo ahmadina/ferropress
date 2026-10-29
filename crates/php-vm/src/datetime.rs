@@ -1,4 +1,4 @@
-//! UTC `gmdate` and a small `strtotime` for civil timestamps.
+//! UTC `gmdate` / `date` and a small `strtotime` for civil timestamps.
 
 use php_compiler::bytecode::Operand;
 use php_value::{PhpString, Value};
@@ -9,8 +9,16 @@ use crate::machine::{Exec, Machine};
 
 impl<O: Output> Machine<'_, '_, O> {
     pub(crate) fn native_gmdate(&mut self, args: &[Argument], result: Operand) -> Exec {
-        let value = self.native_one("gmdate", args)?;
-        let format = self.string_arg("gmdate", &value)?;
+        self.format_stamp("gmdate", args, result)
+    }
+
+    pub(crate) fn native_date(&mut self, args: &[Argument], result: Operand) -> Exec {
+        self.format_stamp("date", args, result)
+    }
+
+    fn format_stamp(&mut self, name: &'static str, args: &[Argument], result: Operand) -> Exec {
+        let value = self.native_one(name, args)?;
+        let format = self.string_arg(name, &value)?;
         let stamp = match args.get(1) {
             Some(arg) => self.compute(|cx| arg.slot.value().to_int(cx))?,
             None => current_unix(),

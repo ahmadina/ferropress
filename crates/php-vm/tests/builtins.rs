@@ -197,10 +197,13 @@ fn mbstring_counts_and_slices_codepoints() -> Result<(), String> {
 #[test]
 fn gmdate_and_strtotime_use_utc_civil_time() -> Result<(), String> {
     let (output, status) = run(
-        b"<?php echo gmdate(\"Y-m-d H:i:s\", 0), gmdate(\"Y-m-d\", 1609459200), strtotime(\"2021-01-01 00:00:00\");",
+        b"<?php echo gmdate(\"Y-m-d H:i:s\", 0), gmdate(\"Y-m-d\", 1609459200), date(\"Y-m-d H:i:s\", 0), strtotime(\"2021-01-01 00:00:00\");",
     )?;
     assert_eq!(status, 0);
-    assert_eq!(output, b"1970-01-01 00:00:002021-01-011609459200");
+    assert_eq!(
+        output,
+        b"1970-01-01 00:00:002021-01-011970-01-01 00:00:001609459200"
+    );
     Ok(())
 }
 

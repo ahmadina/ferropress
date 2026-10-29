@@ -17,6 +17,7 @@ mod datetime;
 mod error;
 mod exceptions;
 mod fibers;
+mod foreach;
 mod generators;
 mod includes;
 mod json;

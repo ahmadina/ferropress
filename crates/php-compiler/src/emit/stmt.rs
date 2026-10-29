@@ -1,10 +1,10 @@
 //! Statements: control flow, `echo` and `return`.
 
-use php_parser::ast::{Expr, ExprKind, NameKind, Stmt, StmtKind, Try};
+use php_parser::ast::{Expr, ExprKind, Foreach, NameKind, Stmt, StmtKind, Try};
 
 use super::builder::Field;
 use super::{Emit, Emitter, Loop};
-use crate::bytecode::{CatchHandler, FinallyHandler, Opcode, Operand};
+use crate::bytecode::{CatchHandler, FinallyHandler, Literal, Opcode, Operand};
 
 impl Emitter<'_> {
     pub(super) fn stmts(&mut self, stmts: &[Stmt]) -> Emit {
@@ -92,7 +92,7 @@ impl Emitter<'_> {
                 self.function_declaration(function)
             }
             StmtKind::Function(_) => self.unsupported("conditional function declarations"),
-            StmtKind::Foreach(_) => self.unsupported("foreach"),
+            StmtKind::Foreach(foreach) => self.foreach_loop(foreach),
             StmtKind::Switch { .. } => self.unsupported("switch"),
             StmtKind::Global(_) => self.unsupported("global"),
             StmtKind::Static { .. } => self.unsupported("static variables"),
@@ -246,5 +246,50 @@ impl Emitter<'_> {
             }
         }
         Ok(())
+    }
+
+    fn foreach_loop(&mut self, foreach: &Foreach) -> Emit {
+        let value_target = match &foreach.value.kind {
+            ExprKind::Variable(name) => self.variable(name)?,
+            ExprKind::Reference(_) => return self.unsupported("foreach by reference"),
+            _ => return self.unsupported("assignments to this target"),
+        };
+        let key_target = match &foreach.key {
+            Some(key) => match &key.kind {
+                ExprKind::Variable(name) => Some(self.variable(name)?),
+                _ => return self.unsupported("assignments to this target"),
+            },
+            None => None,
+        };
+        let subject = self.expr(&foreach.subject)?;
+        let cursor = self.builder.temp()?;
+        let zero = self.builder.literal(Literal::Int(0))?;
+        self.builder
+            .op(Opcode::Copy, zero, Operand::UNUSED, cursor)?;
+        let ready = self.builder.here()?;
+        let has = self.builder.temp()?;
+        self.builder.op(Opcode::IterReady, subject, cursor, has)?;
+        let exit = self
+            .builder
+            .op(Opcode::JumpIfFalse, has, Operand::UNUSED, Operand::UNUSED)?;
+        if let Some(key) = key_target {
+            let mut pick = crate::bytecode::Instruction::new(Opcode::IterPick);
+            pick.flags = 1;
+            pick.a = subject;
+            pick.b = cursor;
+            pick.result = key;
+            self.builder.emit(pick)?;
+        }
+        let mut pick = crate::bytecode::Instruction::new(Opcode::IterPick);
+        pick.a = subject;
+        pick.b = cursor;
+        pick.result = value_target;
+        self.builder.emit(pick)?;
+        self.loops.push(Loop::default());
+        self.nested(|emitter| emitter.stmt(&foreach.body))?;
+        let step = self.builder.here()?;
+        let one = self.builder.literal(Literal::Int(1))?;
+        self.builder.op(Opcode::Add, cursor, one, cursor)?;
+        self.close_loop(ready, step, Some(exit))
     }
 }

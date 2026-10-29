@@ -233,7 +233,7 @@ impl Emitter<'_> {
     }
 
     /// The slot of the local variable `name`.
-    fn variable(&mut self, name: &VarName) -> Emit<Operand> {
+    pub(super) fn variable(&mut self, name: &VarName) -> Emit<Operand> {
         match name {
             VarName::Name(name) if name.as_slice() == b"this" => {
                 if matches!(self.scope, super::Scope::Method { .. }) {

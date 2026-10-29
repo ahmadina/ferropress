@@ -71,6 +71,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] Fibers
   - [x] include/require and their `_once` forms
   - [x] Autoloading
+  - [x] `foreach` over arrays and object properties
 - [ ] 19. Built-in function families: strings, arrays, math, JSON, PCRE, mbstring, date/time, streams,
       mysqli/PDO, and the rest required by the certified plugin set
   - [x] Core strings, types, `count`, `function_exists`, `class_exists`

@@ -155,9 +155,8 @@ impl PhpArray {
         self.0.iter().flat_map(|data| data.table.iter())
     }
 
-    /// The first element at or after `position`, with its own position, for walking an array that is
-    /// not modified meanwhile.
-    pub(crate) fn entry_from(&self, position: usize) -> Option<(usize, &ArrayKey, &Slot)> {
+    /// The first live element at or after `position`, with that element's position.
+    pub fn entry_from(&self, position: usize) -> Option<(usize, &ArrayKey, &Slot)> {
         self.0.as_ref()?.table.entry_from(position)
     }
 

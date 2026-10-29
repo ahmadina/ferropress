@@ -150,6 +150,11 @@
 {"name":"arrays 22","source":"<?php\necho strtotime(\"nope\") === false ? \"f\" : \"x\";","output":"f","status":0}
 {"name":"arrays 23","source":"<?php\n$p = \"/tmp/ferropress-vm-stream.txt\"; echo file_put_contents($p, \"hi\"); echo file_get_contents($p); echo file_exists($p) ? \"y\" : \"n\"; echo file_exists($p . \".no\") ? \"y\" : \"n\";","output":"2hiyn","status":0}
 {"name":"arrays 24","source":"<?php\necho file_get_contents(\"/tmp/ferropress-missing-stream-xyz\") === false ? \"f\" : \"x\";","output":"\nWarning: file_get_contents(/tmp/ferropress-missing-stream-xyz): Failed to open stream: No such file or directory in %file% on line 2\nf","status":0}
+{"name":"foreach 01","source":"<?php\n$s = \"\"; foreach ([1, 2, 3] as $v) { $s = $s . $v; } echo $s;","output":"123","status":0}
+{"name":"foreach 02","source":"<?php\n$s = \"\"; foreach ([\"a\" => 1, \"b\" => 2] as $k => $v) { $s = $s . $k . $v; } echo $s;","output":"a1b2","status":0}
+{"name":"foreach 03","source":"<?php\nclass C { public $x = 9; } $s = \"\"; foreach (new C as $v) { $s = $s . $v; } echo $s;","output":"9","status":0}
+{"name":"foreach 04","source":"<?php\nforeach (1 as $v) {}","output":"\nWarning: foreach() argument must be of type array|object, int given in %file% on line 2\n","status":0}
+{"name":"foreach 05","source":"<?php\nforeach ([] as $v) { echo \"x\"; } echo \"z\";","output":"z","status":0}
 {"name":"math 01","source":"<?php\necho abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);","output":"31312","status":0}
 {"name":"math 02","source":"<?php\necho intdiv(7, 2), intval(floor(1.5)), intval(ceil(1.2)), intval(round(1.5));","output":"3122","status":0}
 {"name":"math 03","source":"<?php\necho intval(sqrt(9));","output":"3","status":0}

@@ -298,6 +298,28 @@ fn min_without_arguments_throws() -> Result<(), String> {
 }
 
 #[test]
+fn foreach_walks_arrays_and_objects() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php $s = \"\"; foreach ([1, 2] as $v) { $s = $s . $v; } foreach ([\"a\" => 3] as $k => $v) { $s = $s . $k . $v; } class C { public $x = 9; } foreach (new C as $v) { $s = $s . $v; } echo $s;",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"12a39");
+    Ok(())
+}
+
+#[test]
+fn foreach_of_a_scalar_warns() -> Result<(), String> {
+    let (output, status) = run(b"<?php foreach (1 as $v) {}")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 0);
+    assert!(
+        text.contains("foreach() argument must be of type array|object"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
 fn strlen_without_arguments_throws() -> Result<(), String> {
     let (output, status) = run(b"<?php strlen();")?;
     let text = String::from_utf8_lossy(&output);

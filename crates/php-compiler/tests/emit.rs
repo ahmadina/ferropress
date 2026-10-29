@@ -328,7 +328,7 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
             "<?php function f() { function g() {} }",
             "conditional function declarations",
         ),
-        ("<?php foreach ($a as $b) {}", "foreach"),
+        ("<?php foreach ($a as &$b) {}", "foreach by reference"),
         ("<?php switch ($a) {}", "switch"),
         ("<?php function f() { global $a; }", "global"),
         ("<?php function f() { static $a; }", "static variables"),
@@ -488,6 +488,26 @@ fn static_calls_emit_init_static_call() -> Result<(), String> {
             "   2    1  Call T0 =",
             "   3    1  Echo T0",
             "   4    1  Return 1",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn foreach_emits_ready_pick_and_step() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php foreach ($a as $k => $v) { echo $v; }")?,
+        listing(&[
+            "code {main} temporaries=2",
+            "   0    1  Copy T0 = 0",
+            "   1    1  IterReady T1 = $a, T0",
+            "   2    1  JumpIfFalse T1, @8",
+            "   3    1  IterPick/1 $k = $a, T0",
+            "   4    1  IterPick $v = $a, T0",
+            "   5    1  Echo $v",
+            "   6    1  Add T0 = T0, 1",
+            "   7    1  Jump @1",
+            "   8    1  Return 1",
         ])
     );
     Ok(())

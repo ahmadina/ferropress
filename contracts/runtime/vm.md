@@ -166,6 +166,12 @@ declared. `$object instanceof Name` does not load. A class statement inside a fu
 when that statement runs. A loader that `include`s a file with a top-level class makes that class
 visible to the caller. A class already being loaded is not asked for again.
 
+## Foreach
+
+`foreach ($a as $v)` and `foreach ($a as $k => $v)` walk an array in insertion order, or an object's
+visible properties. A scalar warns `foreach() argument must be of type array|object` and skips the
+loop. `foreach` by reference is not compiled yet.
+
 ## Array offsets
 
 `$a[$k]` reads the element of an array or the byte of a string. A missing array key warns

@@ -197,6 +197,13 @@ function vm_topic_cases(): array {
 			'$p = "/tmp/ferropress-vm-stream.txt"; echo file_put_contents($p, "hi"); echo file_get_contents($p); echo file_exists($p) ? "y" : "n"; echo file_exists($p . ".no") ? "y" : "n";',
 			'echo file_get_contents("/tmp/ferropress-missing-stream-xyz") === false ? "f" : "x";',
 		),
+		'foreach'       => array(
+			'$s = ""; foreach ([1, 2, 3] as $v) { $s = $s . $v; } echo $s;',
+			'$s = ""; foreach (["a" => 1, "b" => 2] as $k => $v) { $s = $s . $k . $v; } echo $s;',
+			'class C { public $x = 9; } $s = ""; foreach (new C as $v) { $s = $s . $v; } echo $s;',
+			'foreach (1 as $v) {}',
+			'foreach ([] as $v) { echo "x"; } echo "z";',
+		),
 		'math'          => array(
 			'echo abs(-3), min(3, 1, 2), max(3, 1, 2), intval(1.9), strval(2);',
 			'echo intdiv(7, 2), intval(floor(1.5)), intval(ceil(1.2)), intval(round(1.5));',

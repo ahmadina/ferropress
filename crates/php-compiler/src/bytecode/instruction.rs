@@ -133,6 +133,10 @@ pub enum Opcode {
     FetchDim,
     /// `a[b] = c`; `b` unused appends. `a` is the variable written back.
     StoreDim,
+    /// `result` is whether `a` has an element at or after cursor `b`; `b` becomes that position.
+    IterReady,
+    /// `result = a[b]` as a foreach pick; flag bit 0 yields the key instead of the value.
+    IterPick,
 }
 
 impl Opcode {
@@ -199,6 +203,8 @@ impl Opcode {
             Self::ArrayItem => "ArrayItem",
             Self::FetchDim => "FetchDim",
             Self::StoreDim => "StoreDim",
+            Self::IterReady => "IterReady",
+            Self::IterPick => "IterPick",
         }
     }
 }
@@ -303,6 +309,8 @@ mod tests {
             Opcode::ArrayItem,
             Opcode::FetchDim,
             Opcode::StoreDim,
+            Opcode::IterReady,
+            Opcode::IterPick,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

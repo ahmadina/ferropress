@@ -18,6 +18,83 @@ fn run(source: &[u8]) -> Result<(Vec<u8>, u8), String> {
 }
 
 #[test]
+fn preg_match_and_replace_common_patterns() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo preg_match(\"/a/\", \"ba\"), preg_match(\"/z/\", \"ba\"), preg_match(\"/A/i\", \"a\"), preg_replace(\"/a/\", \"x\", \"aba\");",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"101xbx");
+    Ok(())
+}
+
+#[test]
+fn preg_match_rejects_a_bad_pattern() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php echo preg_match(\"/(/\", \"b\") === false ? \"f\" : \"x\";")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 0);
+    assert!(text.contains("Compilation failed"), "{text}");
+    assert!(text.contains('f'), "{text}");
+    Ok(())
+}
+
+#[test]
+fn preg_replace_of_a_bad_pattern_is_null() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php echo preg_replace(\"/(/\", \"x\", \"a\") === null ? \"n\" : \"x\";")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 0);
+    assert!(text.contains("Compilation failed"), "{text}");
+    assert!(text.contains('n'), "{text}");
+    Ok(())
+}
+
+#[test]
+fn preg_dollar_endonly_is_not_bound_yet() -> Result<(), String> {
+    let program = parse(
+        b"<?php preg_match(\"/a$/D\", \"a\");",
+        ParseOptions::default(),
+    )
+    .map_err(|error| error.to_string())?
+    .result
+    .map_err(|error| format!("{error:?}"))?;
+    let compiled = compile(&program, b"/t.php").map_err(|error| error.to_string())?;
+    let unit = compiled
+        .unit
+        .ok_or_else(|| format!("compile error {:?}", compiled.diagnostics.fatal))?;
+    let mut output = Vec::new();
+    let error = php_vm::run(&unit, b"/t.php", &mut output).expect_err("D");
+    assert!(error.to_string().contains("preg modifier"), "{error}");
+    Ok(())
+}
+
+#[test]
+fn preg_replace_rewrites_capture_groups() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo preg_replace(\"/(a)(b)/\", \"$2$1\", \"ab\");")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"ba");
+    Ok(())
+}
+
+#[test]
+fn preg_replace_without_enough_arguments_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php preg_replace(\"/a/\", \"x\");")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("expects at least 3 arguments"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn preg_match_without_enough_arguments_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php preg_match(\"/a/\");")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("expects at least 2 arguments"), "{text}");
+    Ok(())
+}
+
+#[test]
 fn strlen_and_case_map_strings() -> Result<(), String> {
     let (output, status) =
         run(b"<?php echo strlen(\"AbC\"), strtolower(\"AbC\"), strtoupper(\"AbC\");")?;

@@ -202,10 +202,14 @@ These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, 
 `htmlspecialchars`, `mb_strlen`,
 `mb_substr`, `gmdate`, `date`, `time`, `strtotime`, `file_exists`,
 `file_get_contents`, `file_put_contents`, `is_file`, `is_dir`, `dirname`,
-`basename`, `serialize`, `unserialize`, `sprintf`. `date` formats the same UTC civil time as `gmdate`
+`basename`, `serialize`, `unserialize`, `preg_match`, `preg_replace`,
+`sprintf`. `date` formats the same UTC civil time as `gmdate`
 until timezones are bound. `dirname` and `basename` split `/`-separated
 paths. `serialize` and `unserialize` write and read scalars, arrays and
 objects. Options, references, custom objects and enums are not bound yet.
+`preg_match` takes a delimited pattern and a subject and returns `1`, `0`
+or `false`. `preg_replace` rewrites a string subject. The matches argument,
+a replace limit, array patterns and the `D` modifier are not bound yet.
 Too few arguments throw
 `ArgumentCountError` from the function (`name() expects exactly N argument(s), M given`, or
 `expects at least` when the function takes a variable number). `str_replace` walks each search

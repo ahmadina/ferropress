@@ -70,6 +70,8 @@ pub(crate) enum Native {
     StrReplace,
     HtmlSpecialChars,
     Sprintf,
+    PregMatch,
+    PregReplace,
 }
 
 /// The built-in named by `key`, compared lowercase.
@@ -135,6 +137,8 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"str_replace" => Native::StrReplace,
         b"htmlspecialchars" => Native::HtmlSpecialChars,
         b"sprintf" => Native::Sprintf,
+        b"preg_match" => Native::PregMatch,
+        b"preg_replace" => Native::PregReplace,
         _ => return None,
     })
 }
@@ -227,6 +231,8 @@ impl<O: Output> Machine<'_, '_, O> {
             Native::StrReplace => self.native_str_replace(args, result),
             Native::HtmlSpecialChars => self.native_htmlspecialchars(args, result),
             Native::Sprintf => self.native_sprintf(args, result),
+            Native::PregMatch => self.native_preg_match(args, result),
+            Native::PregReplace => self.native_preg_replace(args, result),
         }
     }
 }

@@ -213,6 +213,15 @@ function vm_topic_cases(): array {
 			'unserialize();',
 			'class C { public $a = 1; } echo serialize(new C); $o = unserialize(\'O:1:"C":1:{s:1:"a";i:1;}\'); echo $o->a;',
 		),
+		'preg'          => array(
+			'echo preg_match("/a/", "ba"), preg_match("/z/", "ba"), preg_match("/A/i", "a"), preg_match("/^b/m", "a\nb");',
+			'echo preg_replace("/a/", "x", "aba"), preg_replace("/(a)(b)/", "$2$1", "ab");',
+			'echo preg_match("/(/", "b") === false ? "f" : "x";',
+			'echo preg_replace("/(/", "x", "a") === null ? "n" : "x";',
+			'preg_match("/a/");',
+			'echo preg_match("a", "b") === false ? "f" : "x";',
+			'echo preg_match("/a/z", "a") === false ? "f" : "x";',
+		),
 		'sprintf'       => array(
 			'echo sprintf("<%s %d>", "a", 2), sprintf("%% %s", "z"), sprintf("%05d", 3);',
 			'echo sprintf("%s %s", "a", "b", "c"), sprintf("%d %d", 1.9, true), sprintf("%x %X %u", 255, 255, -1);',

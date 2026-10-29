@@ -26,6 +26,7 @@ mod machine;
 mod math;
 mod mbstring;
 mod paths;
+mod preg;
 mod replace;
 mod serialize;
 mod sprintf;

@@ -197,6 +197,14 @@ function vm_topic_cases(): array {
 			'$p = "/tmp/ferropress-vm-stream.txt"; echo file_put_contents($p, "hi"); echo file_get_contents($p); echo file_exists($p) ? "y" : "n"; echo file_exists($p . ".no") ? "y" : "n";',
 			'echo file_get_contents("/tmp/ferropress-missing-stream-xyz") === false ? "f" : "x";',
 		),
+		'sprintf'       => array(
+			'echo sprintf("<%s %d>", "a", 2), sprintf("%% %s", "z"), sprintf("%05d", 3);',
+			'echo sprintf("%s %s", "a", "b", "c"), sprintf("%d %d", 1.9, true), sprintf("%x %X %u", 255, 255, -1);',
+			'echo sprintf("%f", 1.5);',
+			'sprintf("%s %s", "a");',
+			'sprintf();',
+			'sprintf("%q", 1);',
+		),
 		'replace'       => array(
 			'echo str_replace("a", "b", "aAa"), str_replace(["a", "A"], "x", "aAa"), str_replace(["a", "A"], ["x", "y"], "aAa");',
 			'echo implode(",", str_replace("a", "b", ["a", "xa"]));',

@@ -201,12 +201,16 @@ These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, 
 `substr`, `strpos`, `str_contains`, `trim` / `ltrim` / `rtrim`, `str_replace`,
 `htmlspecialchars`, `mb_strlen`,
 `mb_substr`, `gmdate`, `strtotime`, `file_exists`, `file_get_contents`,
-`file_put_contents`. Too few arguments throw
+`file_put_contents`, `sprintf`. Too few arguments throw
 `ArgumentCountError` from the function (`name() expects exactly N argument(s), M given`, or
 `expects at least` when the function takes a variable number). `str_replace` walks each search
 string through a string or one-level array subject; a string search with an array replace throws
 `TypeError`. The count argument is not bound yet. `htmlspecialchars` encodes `<>&` and, with the
-default flags, quotes; `false` as the fourth argument leaves existing entities. `strlen`
+default flags, quotes; `false` as the fourth argument leaves existing entities. `sprintf`
+formats `%s`, `%d`, `%u`, `%x`/`%X` and `%f` (width, `0`/`-`/`+` flags, and `%f` precision). Too
+few values throw `ArgumentCountError` (`N arguments are required, M given`). An unknown or
+incomplete specifier throws `ValueError`. Other letters (`%e`, `%o`, …) are not bound yet.
+`strlen`
 and the case mappers take a string (other scalars are converted; an array or object throws
 `TypeError`). `count` of a non-array throws `TypeError`. `function_exists` sees user functions and
 these built-ins;

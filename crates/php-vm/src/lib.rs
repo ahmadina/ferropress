@@ -26,6 +26,7 @@ mod machine;
 mod math;
 mod mbstring;
 mod replace;
+mod sprintf;
 mod streams;
 mod strings;
 mod thrown;

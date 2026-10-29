@@ -340,6 +340,24 @@ fn str_replace_rejects_a_string_search_with_array_replace() -> Result<(), String
 }
 
 #[test]
+fn sprintf_formats_common_specifiers() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php echo sprintf(\"<%s %05d %% %x>\", \"a\", 3, 255); echo sprintf(\"%+d\", 3);")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"<a 00003 % ff>+3");
+    Ok(())
+}
+
+#[test]
+fn sprintf_counts_arguments() -> Result<(), String> {
+    let (output, status) = run(b"<?php sprintf(\"%s %s\", \"a\");")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("3 arguments are required, 2 given"), "{text}");
+    Ok(())
+}
+
+#[test]
 fn htmlspecialchars_without_arguments_throws() -> Result<(), String> {
     let (output, status) = run(b"<?php htmlspecialchars();")?;
     let text = String::from_utf8_lossy(&output);

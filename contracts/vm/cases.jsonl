@@ -150,6 +150,12 @@
 {"name":"arrays 22","source":"<?php\necho strtotime(\"nope\") === false ? \"f\" : \"x\";","output":"f","status":0}
 {"name":"arrays 23","source":"<?php\n$p = \"/tmp/ferropress-vm-stream.txt\"; echo file_put_contents($p, \"hi\"); echo file_get_contents($p); echo file_exists($p) ? \"y\" : \"n\"; echo file_exists($p . \".no\") ? \"y\" : \"n\";","output":"2hiyn","status":0}
 {"name":"arrays 24","source":"<?php\necho file_get_contents(\"/tmp/ferropress-missing-stream-xyz\") === false ? \"f\" : \"x\";","output":"\nWarning: file_get_contents(/tmp/ferropress-missing-stream-xyz): Failed to open stream: No such file or directory in %file% on line 2\nf","status":0}
+{"name":"sprintf 01","source":"<?php\necho sprintf(\"<%s %d>\", \"a\", 2), sprintf(\"%% %s\", \"z\"), sprintf(\"%05d\", 3);","output":"<a 2>% z00003","status":0}
+{"name":"sprintf 02","source":"<?php\necho sprintf(\"%s %s\", \"a\", \"b\", \"c\"), sprintf(\"%d %d\", 1.9, true), sprintf(\"%x %X %u\", 255, 255, -1);","output":"a b1 1ff FF 18446744073709551615","status":0}
+{"name":"sprintf 03","source":"<?php\necho sprintf(\"%f\", 1.5);","output":"1.500000","status":0}
+{"name":"sprintf 04","source":"<?php\nsprintf(\"%s %s\", \"a\");","output":"\nFatal error: Uncaught ArgumentCountError: 3 arguments are required, 2 given in %file%:2\nStack trace:\n#0 %file%(2): sprintf('%s %s', 'a')\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"sprintf 05","source":"<?php\nsprintf();","output":"\nFatal error: Uncaught ArgumentCountError: sprintf() expects at least 1 argument, 0 given in %file%:2\nStack trace:\n#0 %file%(2): sprintf()\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
+{"name":"sprintf 06","source":"<?php\nsprintf(\"%q\", 1);","output":"\nFatal error: Uncaught ValueError: Unknown format specifier \"q\" in %file%:2\nStack trace:\n#0 %file%(2): sprintf('%q', 1)\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"replace 01","source":"<?php\necho str_replace(\"a\", \"b\", \"aAa\"), str_replace([\"a\", \"A\"], \"x\", \"aAa\"), str_replace([\"a\", \"A\"], [\"x\", \"y\"], \"aAa\");","output":"bAbxxxxyx","status":0}
 {"name":"replace 02","source":"<?php\necho implode(\",\", str_replace(\"a\", \"b\", [\"a\", \"xa\"]));","output":"b,xb","status":0}
 {"name":"replace 03","source":"<?php\necho htmlspecialchars(\"<a & \\\"b\\\" 'c'>\"), htmlspecialchars(\"&amp;\"), htmlspecialchars(\"&amp;\", 11, null, false);","output":"&lt;a &amp; &quot;b&quot; &#039;c&#039;&gt;&amp;amp;&amp;","status":0}

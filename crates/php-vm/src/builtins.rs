@@ -61,6 +61,7 @@ pub(crate) enum Native {
     FilePutContents,
     StrReplace,
     HtmlSpecialChars,
+    Sprintf,
 }
 
 /// The built-in named by `key`, compared lowercase.
@@ -117,6 +118,7 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"file_put_contents" => Native::FilePutContents,
         b"str_replace" => Native::StrReplace,
         b"htmlspecialchars" => Native::HtmlSpecialChars,
+        b"sprintf" => Native::Sprintf,
         _ => return None,
     })
 }
@@ -200,6 +202,7 @@ impl<O: Output> Machine<'_, '_, O> {
             Native::FilePutContents => self.native_file_put_contents(args, result),
             Native::StrReplace => self.native_str_replace(args, result),
             Native::HtmlSpecialChars => self.native_htmlspecialchars(args, result),
+            Native::Sprintf => self.native_sprintf(args, result),
         }
     }
 }

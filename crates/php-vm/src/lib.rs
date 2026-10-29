@@ -27,6 +27,7 @@ mod math;
 mod mbstring;
 mod paths;
 mod replace;
+mod serialize;
 mod sprintf;
 mod streams;
 mod strings;

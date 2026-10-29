@@ -88,6 +88,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `isset` and `empty` of variables, offsets and expressions
   - [x] More strings: `str_replace` and `htmlspecialchars`
   - [x] `sprintf` for `%s`, `%d`, `%u`, `%x`, `%X` and `%f`
+  - [x] `serialize` / `unserialize` for scalars, arrays and objects
 - [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
       classes extend Rust-owned classes
 

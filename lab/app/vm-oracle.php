@@ -205,6 +205,14 @@ function vm_topic_cases(): array {
 			'echo file_get_contents("/tmp/ferropress-missing-stream-xyz") === false ? "f" : "x";',
 			'$p = "/tmp/ferropress-vm-path-file.txt"; file_put_contents($p, "hi"); echo is_file($p) ? "y" : "n", is_dir($p) ? "y" : "n", is_dir("/tmp") ? "y" : "n", is_file("/tmp") ? "y" : "n", is_file($p . ".no") ? "y" : "n";',
 		),
+		'serialize'     => array(
+			'echo serialize(null), serialize(true), serialize(5), serialize("ab"), serialize([1, 2]);',
+			'echo unserialize("N;") === null ? "n" : "x", unserialize("a:1:{i:0;i:3;}")[0], unserialize("x") === false ? "f" : "x";',
+			'echo unserialize("i:1;xx");',
+			'serialize();',
+			'unserialize();',
+			'class C { public $a = 1; } echo serialize(new C); $o = unserialize(\'O:1:"C":1:{s:1:"a";i:1;}\'); echo $o->a;',
+		),
 		'sprintf'       => array(
 			'echo sprintf("<%s %d>", "a", 2), sprintf("%% %s", "z"), sprintf("%05d", 3);',
 			'echo sprintf("%s %s", "a", "b", "c"), sprintf("%d %d", 1.9, true), sprintf("%x %X %u", 255, 255, -1);',

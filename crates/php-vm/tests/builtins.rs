@@ -195,6 +195,110 @@ fn mbstring_counts_and_slices_codepoints() -> Result<(), String> {
 }
 
 #[test]
+fn serialize_and_unserialize_round_trip_scalars_and_arrays() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo serialize(null), serialize(true), serialize(5), serialize(\"ab\"), serialize([1, 2]); echo unserialize(\"a:1:{i:0;i:3;}\")[0];",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"N;b:1;i:5;s:2:\"ab\";a:2:{i:0;i:1;i:1;i:2;}3");
+    Ok(())
+}
+
+#[test]
+fn unserialize_warns_on_invalid_and_extra_data() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo unserialize(\"x\") === false ? \"f\" : \"x\"; echo unserialize(\"i:1;xx\");",
+    )?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 0);
+    assert!(text.contains("Error at offset 0 of 1 bytes"), "{text}");
+    assert!(text.contains("Extra data starting at offset 4"), "{text}");
+    assert!(text.contains('f'), "{text}");
+    assert!(text.contains('1'), "{text}");
+    Ok(())
+}
+
+#[test]
+fn serialize_and_unserialize_objects() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php class C { public $a = 1; } echo serialize(new C); $o = unserialize('O:1:\"C\":1:{s:1:\"a\";i:1;}'); echo $o->a;",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"O:1:\"C\":1:{s:1:\"a\";i:1;}1");
+    Ok(())
+}
+
+#[test]
+fn unserialize_empty_is_false() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo unserialize(\"\") === false ? \"f\" : \"x\";")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"f");
+    Ok(())
+}
+
+#[test]
+fn unserialize_unsupported_tokens_stop_the_vm() -> Result<(), String> {
+    for source in [
+        b"<?php unserialize('C:1:\"X\":0:{}');".as_slice(),
+        b"<?php unserialize('E:3:\"A:B\";');",
+        b"<?php unserialize('a:1:{i:0;R:1;}');",
+    ] {
+        let program = parse(source, ParseOptions::default())
+            .map_err(|error| error.to_string())?
+            .result
+            .map_err(|error| format!("{error:?}"))?;
+        let compiled = compile(&program, b"/t.php").map_err(|error| error.to_string())?;
+        let unit = compiled
+            .unit
+            .ok_or_else(|| format!("compile error {:?}", compiled.diagnostics.fatal))?;
+        let mut output = Vec::new();
+        let error = php_vm::run(&unit, b"/t.php", &mut output).expect_err("token");
+        assert!(
+            error.to_string().contains("is not supported yet"),
+            "{error}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn unserialize_options_are_not_bound_yet() -> Result<(), String> {
+    let program = parse(
+        b"<?php unserialize(\"N;\", false);",
+        ParseOptions::default(),
+    )
+    .map_err(|error| error.to_string())?
+    .result
+    .map_err(|error| format!("{error:?}"))?;
+    let compiled = compile(&program, b"/t.php").map_err(|error| error.to_string())?;
+    let unit = compiled
+        .unit
+        .ok_or_else(|| format!("compile error {:?}", compiled.diagnostics.fatal))?;
+    let mut output = Vec::new();
+    let error = php_vm::run(&unit, b"/t.php", &mut output).expect_err("options");
+    assert!(error.to_string().contains("unserialize options"), "{error}");
+    Ok(())
+}
+
+#[test]
+fn unserialize_without_arguments_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php unserialize();")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("expects at least 1 argument"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn serialize_without_arguments_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php serialize();")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("expects exactly 1 argument"), "{text}");
+    Ok(())
+}
+
+#[test]
 fn time_returns_unix_seconds() -> Result<(), String> {
     let (output, status) = run(b"<?php echo gettype(time()), time() > 0 ? \"y\" : \"n\";")?;
     assert_eq!(status, 0);

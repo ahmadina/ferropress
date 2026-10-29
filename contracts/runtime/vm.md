@@ -202,9 +202,11 @@ These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, 
 `htmlspecialchars`, `mb_strlen`,
 `mb_substr`, `gmdate`, `date`, `time`, `strtotime`, `file_exists`,
 `file_get_contents`, `file_put_contents`, `is_file`, `is_dir`, `dirname`,
-`basename`, `sprintf`. `date` formats the same UTC civil time as `gmdate`
+`basename`, `serialize`, `unserialize`, `sprintf`. `date` formats the same UTC civil time as `gmdate`
 until timezones are bound. `dirname` and `basename` split `/`-separated
-paths. Too few arguments throw
+paths. `serialize` and `unserialize` write and read scalars, arrays and
+objects. Options, references, custom objects and enums are not bound yet.
+Too few arguments throw
 `ArgumentCountError` from the function (`name() expects exactly N argument(s), M given`, or
 `expects at least` when the function takes a variable number). `str_replace` walks each search
 string through a string or one-level array subject; a string search with an array replace throws

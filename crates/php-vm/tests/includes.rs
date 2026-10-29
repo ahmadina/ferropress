@@ -2,6 +2,9 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
 use php_compiler::compile;
 use php_parser::{ParseOptions, parse};
@@ -22,8 +25,9 @@ fn compile_run(source: &[u8], file: &[u8]) -> Result<(Vec<u8>, u8), String> {
 
 fn temp_pair(main: &[u8], included: &[u8]) -> Result<(PathBuf, PathBuf), String> {
     let dir = std::env::temp_dir().join(format!(
-        "ferropress-inc-{}-{}",
+        "ferropress-inc-{}-{}-{}",
         std::process::id(),
+        NEXT_DIR.fetch_add(1, Ordering::Relaxed),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_err(|error| error.to_string())?

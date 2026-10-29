@@ -8,6 +8,7 @@
 //! behind PHP's `&`, held by [`Slot`]s. Everything is reference-counted with `Rc`, so values belong to
 //! one request on one thread and cannot be sent elsewhere.
 //!
+//! [`Invoke`] is the port the native core uses to run a PHP callable without copying it (ADR-0003).
 //! [`ops`] holds PHP's conversions and operators over these values, with the diagnostics they raise.
 //! Object conversions and handlers, offsets of other types than integers and strings, string
 //! offsets, cycle collection and destructors belong to the engine and are not modeled here.
@@ -24,6 +25,7 @@
 
 mod array;
 mod float;
+mod invoke;
 mod key;
 mod object;
 pub mod ops;
@@ -34,6 +36,7 @@ mod value;
 
 pub use array::{NextIndex, NextIndexOccupied, PhpArray};
 pub use float::{Precision, write_float, write_float_with};
+pub use invoke::Invoke;
 pub use key::ArrayKey;
 pub use object::{Object, ObjectId, ObjectIdsExhausted, ObjectStore, Properties};
 pub use reference::{Reference, Slot};

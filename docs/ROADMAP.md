@@ -92,6 +92,11 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] PCRE: `preg_match` and `preg_replace` for delimited patterns (no matches/limit yet)
 - [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
       classes extend Rust-owned classes
+  - [x] `php-value` invoke port (ADR-0003)
+  - [ ] `php-abi-bridge` calls PHP functions and closures from Rust
+  - [ ] By-reference arguments and object identity survive a round trip
+  - [ ] Reentrant core → PHP → core calls
+  - [ ] PHP classes extend Rust-owned classes
 
 ## Phase 4 — Native CMS kernel
 

@@ -109,6 +109,14 @@ Other diagnostics:
   engine's cycle collector, which the model does not include; until then they keep their object ids.
   The reference PHP only collects cycles once enough candidates accumulate, so short scenarios agree.
 
+## Callables
+
+A callable is a live engine value (a function name, a `Closure`, or later a callable object). The
+native core does not copy it: it holds the same value and asks the engine to run it through the
+invoke port. Arguments that are references stay references; writes the callable makes through them
+are visible to the caller. Nested core → PHP → core calls share one request and one call stack. The
+engine, not this model, decides what is callable.
+
 ## Owned by the engine
 
 Float/bool/null offsets, string offsets, `ArrayAccess`, destructors, the cycle collector, and

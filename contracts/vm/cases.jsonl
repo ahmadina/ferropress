@@ -150,6 +150,13 @@
 {"name":"arrays 22","source":"<?php\necho strtotime(\"nope\") === false ? \"f\" : \"x\";","output":"f","status":0}
 {"name":"arrays 23","source":"<?php\n$p = \"/tmp/ferropress-vm-stream.txt\"; echo file_put_contents($p, \"hi\"); echo file_get_contents($p); echo file_exists($p) ? \"y\" : \"n\"; echo file_exists($p . \".no\") ? \"y\" : \"n\";","output":"2hiyn","status":0}
 {"name":"arrays 24","source":"<?php\necho file_get_contents(\"/tmp/ferropress-missing-stream-xyz\") === false ? \"f\" : \"x\";","output":"\nWarning: file_get_contents(/tmp/ferropress-missing-stream-xyz): Failed to open stream: No such file or directory in %file% on line 2\nf","status":0}
+{"name":"isset 01","source":"<?php\necho isset($u) ? \"y\" : \"n\"; echo empty($u) ? \"y\" : \"n\";","output":"ny","status":0}
+{"name":"isset 02","source":"<?php\n$a = 0; echo isset($a) ? \"y\" : \"n\"; echo empty($a) ? \"y\" : \"n\"; $a = 1; echo empty($a) ? \"y\" : \"n\";","output":"yyn","status":0}
+{"name":"isset 03","source":"<?php\n$a = [1, null]; echo isset($a[0]) ? \"y\" : \"n\"; echo isset($a[1]) ? \"y\" : \"n\"; echo isset($a[2]) ? \"y\" : \"n\"; echo empty($a[2]) ? \"y\" : \"n\";","output":"ynny","status":0}
+{"name":"isset 04","source":"<?php\necho isset($u[0]) ? \"y\" : \"n\"; echo empty($u[0]) ? \"y\" : \"n\";","output":"ny","status":0}
+{"name":"isset 05","source":"<?php\n$s = \"ab\"; echo isset($s[0]) ? \"y\" : \"n\"; echo isset($s[5]) ? \"y\" : \"n\"; echo empty($s[5]) ? \"y\" : \"n\"; echo isset($s[-1]) ? \"y\" : \"n\";","output":"ynyy","status":0}
+{"name":"isset 06","source":"<?php\n$n = 1; echo isset($n[0]) ? \"y\" : \"n\"; echo empty($n[0]) ? \"y\" : \"n\"; echo empty(0) ? \"y\" : \"n\"; echo empty(1) ? \"y\" : \"n\"; echo empty(\"0\") ? \"y\" : \"n\";","output":"nyyny","status":0}
+{"name":"isset 07","source":"<?php\nclass C { public $x = 1; } $o = new C; isset($o[0]);","output":"\nFatal error: Uncaught Error: Cannot use object of type C as array in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"foreach 01","source":"<?php\n$s = \"\"; foreach ([1, 2, 3] as $v) { $s = $s . $v; } echo $s;","output":"123","status":0}
 {"name":"foreach 02","source":"<?php\n$s = \"\"; foreach ([\"a\" => 1, \"b\" => 2] as $k => $v) { $s = $s . $k . $v; } echo $s;","output":"a1b2","status":0}
 {"name":"foreach 03","source":"<?php\nclass C { public $x = 9; } $s = \"\"; foreach (new C as $v) { $s = $s . $v; } echo $s;","output":"9","status":0}

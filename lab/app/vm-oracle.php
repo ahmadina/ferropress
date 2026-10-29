@@ -197,6 +197,15 @@ function vm_topic_cases(): array {
 			'$p = "/tmp/ferropress-vm-stream.txt"; echo file_put_contents($p, "hi"); echo file_get_contents($p); echo file_exists($p) ? "y" : "n"; echo file_exists($p . ".no") ? "y" : "n";',
 			'echo file_get_contents("/tmp/ferropress-missing-stream-xyz") === false ? "f" : "x";',
 		),
+		'isset'         => array(
+			'echo isset($u) ? "y" : "n"; echo empty($u) ? "y" : "n";',
+			'$a = 0; echo isset($a) ? "y" : "n"; echo empty($a) ? "y" : "n"; $a = 1; echo empty($a) ? "y" : "n";',
+			'$a = [1, null]; echo isset($a[0]) ? "y" : "n"; echo isset($a[1]) ? "y" : "n"; echo isset($a[2]) ? "y" : "n"; echo empty($a[2]) ? "y" : "n";',
+			'echo isset($u[0]) ? "y" : "n"; echo empty($u[0]) ? "y" : "n";',
+			'$s = "ab"; echo isset($s[0]) ? "y" : "n"; echo isset($s[5]) ? "y" : "n"; echo empty($s[5]) ? "y" : "n"; echo isset($s[-1]) ? "y" : "n";',
+			'$n = 1; echo isset($n[0]) ? "y" : "n"; echo empty($n[0]) ? "y" : "n"; echo empty(0) ? "y" : "n"; echo empty(1) ? "y" : "n"; echo empty("0") ? "y" : "n";',
+			'class C { public $x = 1; } $o = new C; isset($o[0]);',
+		),
 		'foreach'       => array(
 			'$s = ""; foreach ([1, 2, 3] as $v) { $s = $s . $v; } echo $s;',
 			'$s = ""; foreach (["a" => 1, "b" => 2] as $k => $v) { $s = $s . $k . $v; } echo $s;',

@@ -308,6 +308,28 @@ fn foreach_walks_arrays_and_objects() -> Result<(), String> {
 }
 
 #[test]
+fn isset_and_empty_are_quiet() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo isset($u) ? \"n\" : \"u\"; echo empty($u) ? \"e\" : \"x\"; $a = [1, null]; echo isset($a[0]) ? \"y\" : \"n\"; echo isset($a[1]) ? \"y\" : \"n\"; echo isset($a[2]) ? \"y\" : \"n\"; echo empty($a[2]) ? \"e\" : \"x\"; echo isset($m[0]) ? \"y\" : \"n\"; echo empty(0) ? \"z\" : \"x\"; echo empty(1) ? \"y\" : \"n\";",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"ueynnenzn");
+    Ok(())
+}
+
+#[test]
+fn isset_of_an_object_offset_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php class C { public $x = 1; } $o = new C; isset($o[0]);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("Cannot use object of type C as array"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
 fn foreach_of_a_scalar_warns() -> Result<(), String> {
     let (output, status) = run(b"<?php foreach (1 as $v) {}")?;
     let text = String::from_utf8_lossy(&output);

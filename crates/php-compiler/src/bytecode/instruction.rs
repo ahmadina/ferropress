@@ -137,6 +137,10 @@ pub enum Opcode {
     IterReady,
     /// `result = a[b]` as a foreach pick; flag bit 0 yields the key instead of the value.
     IterPick,
+    /// `result` is whether `a` is set and not `null`. Flag bit 0 asks whether `a` is empty instead.
+    Isset,
+    /// `result` is whether `a[b]` is set and not `null`. Flag bit 0 asks whether `a[b]` is empty.
+    IssetDim,
 }
 
 impl Opcode {
@@ -205,6 +209,8 @@ impl Opcode {
             Self::StoreDim => "StoreDim",
             Self::IterReady => "IterReady",
             Self::IterPick => "IterPick",
+            Self::Isset => "Isset",
+            Self::IssetDim => "IssetDim",
         }
     }
 }
@@ -311,6 +317,8 @@ mod tests {
             Opcode::StoreDim,
             Opcode::IterReady,
             Opcode::IterPick,
+            Opcode::Isset,
+            Opcode::IssetDim,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

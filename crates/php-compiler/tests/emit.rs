@@ -358,7 +358,7 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
         ("<?php echo $_GET;", "superglobals"),
         ("<?php echo $$a;", "variable variables"),
         ("<?php $a[0][1] = 1;", "assignments to this target"),
-        ("<?php echo isset($a[0]);", "this expression"),
+        ("<?php echo isset($a[0][1]);", "isset of this target"),
         ("<?php eval(\"1\");", "eval"),
     ];
     for (source, construct) in cases {
@@ -507,6 +507,26 @@ fn foreach_emits_ready_pick_and_step() -> Result<(), String> {
             "   5    1  Echo $v",
             "   6    1  Add T0 = T0, 1",
             "   7    1  Jump @1",
+            "   8    1  Return 1",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn isset_and_empty_emit_quiet_checks() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php echo isset($a); echo isset($a[0]); echo empty($a); echo empty(0);")?,
+        listing(&[
+            "code {main} temporaries=4",
+            "   0    1  Isset T0 = $a",
+            "   1    1  Echo T0",
+            "   2    1  IssetDim T1 = $a, 0",
+            "   3    1  Echo T1",
+            "   4    1  Isset/1 T2 = $a",
+            "   5    1  Echo T2",
+            "   6    1  Isset/1 T3 = 0",
+            "   7    1  Echo T3",
             "   8    1  Return 1",
         ])
     );

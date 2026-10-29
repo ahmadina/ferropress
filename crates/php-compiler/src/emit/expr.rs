@@ -196,6 +196,8 @@ impl Emitter<'_> {
             ExprKind::StaticCall { class, name, args } => self.static_call(class, name, args, used),
             ExprKind::Array { items, syntax } => self.array_literal(items, *syntax, used),
             ExprKind::Dim { base, index } => self.fetch_dim(base, index.as_deref(), used),
+            ExprKind::Isset(operand) => self.isset(operand, used),
+            ExprKind::Empty(operand) => self.empty(operand, used),
             _ => self.unsupported("this expression"),
         }
     }
@@ -569,6 +571,74 @@ impl Emitter<'_> {
         store.c = value;
         self.builder.emit(store)?;
         if used { Ok(value) } else { Ok(Operand::UNUSED) }
+    }
+
+    fn isset(&mut self, operand: &Expr, used: bool) -> Emit<Operand> {
+        match &operand.kind {
+            ExprKind::Variable(name) => {
+                let slot = self.variable(name)?;
+                self.isset_op(Opcode::Isset, slot, Operand::UNUSED, false, used)
+            }
+            ExprKind::Dim { base, index } => self.isset_dim(base, index.as_deref(), false, used),
+            _ => self.unsupported("isset of this target"),
+        }
+    }
+
+    fn empty(&mut self, operand: &Expr, used: bool) -> Emit<Operand> {
+        match &operand.kind {
+            ExprKind::Variable(name) => {
+                let slot = self.variable(name)?;
+                self.isset_op(Opcode::Isset, slot, Operand::UNUSED, true, used)
+            }
+            ExprKind::Dim { base, index } => self.isset_dim(base, index.as_deref(), true, used),
+            ExprKind::Property { .. } | ExprKind::StaticProperty { .. } => {
+                self.unsupported("empty of this target")
+            }
+            _ => {
+                let value = self.expr(operand)?;
+                self.isset_op(Opcode::Isset, value, Operand::UNUSED, true, used)
+            }
+        }
+    }
+
+    fn isset_dim(
+        &mut self,
+        base: &Expr,
+        index: Option<&Expr>,
+        empty: bool,
+        used: bool,
+    ) -> Emit<Operand> {
+        let Some(index) = index else {
+            return self.unsupported("[] in read context");
+        };
+        let ExprKind::Variable(name) = &base.kind else {
+            return self.unsupported(if empty {
+                "empty of this target"
+            } else {
+                "isset of this target"
+            });
+        };
+        let base = self.variable(name)?;
+        let index = self.expr(index)?;
+        self.isset_op(Opcode::IssetDim, base, index, empty, used)
+    }
+
+    fn isset_op(
+        &mut self,
+        opcode: Opcode,
+        a: Operand,
+        b: Operand,
+        empty: bool,
+        used: bool,
+    ) -> Emit<Operand> {
+        let dest = self.result(used)?;
+        let mut check = Instruction::new(opcode);
+        check.flags = u8::from(empty);
+        check.a = a;
+        check.b = b;
+        check.result = dest;
+        self.builder.emit(check)?;
+        Ok(dest)
     }
 
     pub(crate) fn send_args(&mut self, args: &[Arg]) -> Emit {

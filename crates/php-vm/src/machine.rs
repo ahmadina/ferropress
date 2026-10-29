@@ -284,6 +284,8 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             Opcode::StoreDim => self.store_dim(ins),
             Opcode::IterReady => self.iter_ready(ins),
             Opcode::IterPick => self.iter_pick(ins),
+            Opcode::Isset => self.isset(ins),
+            Opcode::IssetDim => self.isset_dim(ins),
             Opcode::Return => return self.return_from(ins.a),
             _ => self.operator(ins),
         };
@@ -419,6 +421,19 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
         }
         self.frame_mut()?.pc = target.index() as usize;
         Ok(())
+    }
+
+    /// The value of `operand` without warning when a variable is undefined; then `null`.
+    pub(crate) fn read_quiet(&mut self, operand: Operand) -> Exec<Value> {
+        if operand.kind() == OperandKind::Slot {
+            let index = operand.index() as usize;
+            return match self.frame()?.slots.get(index) {
+                Some(Some(slot)) => Ok(slot.value()),
+                Some(None) => Ok(Value::Null),
+                None => Err(VmError::Malformed("no such slot").into()),
+            };
+        }
+        self.read(operand)
     }
 
     /// The value of `operand`; reading an undefined variable warns and gives `null`.

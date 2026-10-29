@@ -181,6 +181,15 @@ offset …` and yields `""`. Reading an offset on a non-array, non-string value 
 `$a` is an array or `null` (which becomes an array); a scalar or object throws `Error`.
 `$a[] = $v` appends.
 
+## isset and empty
+
+`isset($a)` is true when the variable holds a value other than `null`; an undefined variable does
+not warn. `isset($a[$k])` is true when the offset exists and is not `null`. A missing offset, an
+undefined `$a`, and an offset on a scalar do not warn. An offset on an object throws `Error`
+(`Cannot use object of type … as array`). `empty($a)` is true when `$a` is unset, `null`, or falsy
+(`false`, `0`, `0.0`, `""`, `"0"`, `[]`); an object is not empty. `empty` of an expression evaluates
+it. `isset` and `empty` of a property or a nested offset are not compiled yet.
+
 ## Built-in functions
 
 These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, `gettype`,

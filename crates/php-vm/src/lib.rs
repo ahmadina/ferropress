@@ -20,6 +20,7 @@ mod fibers;
 mod foreach;
 mod generators;
 mod includes;
+mod isset;
 mod json;
 mod machine;
 mod math;

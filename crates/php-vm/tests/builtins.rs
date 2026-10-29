@@ -318,6 +318,40 @@ fn isset_and_empty_are_quiet() -> Result<(), String> {
 }
 
 #[test]
+fn str_replace_and_htmlspecialchars() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo str_replace(\"a\", \"b\", \"aAa\"); echo str_replace([\"a\", \"A\"], [\"x\", \"y\"], \"aAa\"); echo htmlspecialchars(\"<a & \\\"b\\\" 'c'>\");",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"bAbxyx&lt;a &amp; &quot;b&quot; &#039;c&#039;&gt;");
+    Ok(())
+}
+
+#[test]
+fn str_replace_rejects_a_string_search_with_array_replace() -> Result<(), String> {
+    let (output, status) = run(b"<?php str_replace(\"a\", [\"x\"], \"aa\");")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("must be of type string when argument #1 ($search) is a string"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn htmlspecialchars_without_arguments_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php htmlspecialchars();")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("expects at least 1 argument, 0 given"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
 fn isset_of_an_object_offset_throws() -> Result<(), String> {
     let (output, status) = run(b"<?php class C { public $x = 1; } $o = new C; isset($o[0]);")?;
     let text = String::from_utf8_lossy(&output);

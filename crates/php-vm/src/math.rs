@@ -115,20 +115,6 @@ impl<O: Output> Machine<'_, '_, O> {
             )),
         }
     }
-
-    fn too_few_at_least(&self, name: &str, passed: usize, expected: usize) -> crate::machine::Stop {
-        let mut message = name.as_bytes().to_vec();
-        message.extend_from_slice(b"() expects at least ");
-        message.extend_from_slice(expected.to_string().as_bytes());
-        message.extend_from_slice(if expected == 1 {
-            b" argument, "
-        } else {
-            b" arguments, "
-        });
-        message.extend_from_slice(passed.to_string().as_bytes());
-        message.extend_from_slice(b" given");
-        self.throw_from("ArgumentCountError", message, name.as_bytes(), Vec::new())
-    }
 }
 
 fn abs_int(n: i64) -> Value {

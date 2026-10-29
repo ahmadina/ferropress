@@ -59,6 +59,8 @@ pub(crate) enum Native {
     FileExists,
     FileGetContents,
     FilePutContents,
+    StrReplace,
+    HtmlSpecialChars,
 }
 
 /// The built-in named by `key`, compared lowercase.
@@ -113,6 +115,8 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"file_exists" => Native::FileExists,
         b"file_get_contents" => Native::FileGetContents,
         b"file_put_contents" => Native::FilePutContents,
+        b"str_replace" => Native::StrReplace,
+        b"htmlspecialchars" => Native::HtmlSpecialChars,
         _ => return None,
     })
 }
@@ -194,6 +198,8 @@ impl<O: Output> Machine<'_, '_, O> {
             Native::FileExists => self.native_file_exists(args, result),
             Native::FileGetContents => self.native_file_get_contents(args, result),
             Native::FilePutContents => self.native_file_put_contents(args, result),
+            Native::StrReplace => self.native_str_replace(args, result),
+            Native::HtmlSpecialChars => self.native_htmlspecialchars(args, result),
         }
     }
 }
@@ -214,6 +220,25 @@ impl<O: Output> Machine<'_, '_, O> {
     ) -> crate::machine::Stop {
         let mut message = name.as_bytes().to_vec();
         message.extend_from_slice(b"() expects exactly ");
+        message.extend_from_slice(expected.to_string().as_bytes());
+        message.extend_from_slice(if expected == 1 {
+            b" argument, "
+        } else {
+            b" arguments, "
+        });
+        message.extend_from_slice(passed.to_string().as_bytes());
+        message.extend_from_slice(b" given");
+        self.throw_from("ArgumentCountError", message, name.as_bytes(), Vec::new())
+    }
+
+    pub(crate) fn too_few_at_least(
+        &self,
+        name: &str,
+        passed: usize,
+        expected: usize,
+    ) -> crate::machine::Stop {
+        let mut message = name.as_bytes().to_vec();
+        message.extend_from_slice(b"() expects at least ");
         message.extend_from_slice(expected.to_string().as_bytes());
         message.extend_from_slice(if expected == 1 {
             b" argument, "

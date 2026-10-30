@@ -1,0 +1,45 @@
+schema = 1
+id = "hook-dispatch"
+title = "Priority-ordered filter and action dispatch"
+summary = """
+Callbacks are stored on an exact hook name at a signed priority (default 10) with an accepted
+argument count (default 1). The same callable at the same priority replaces the entry; a different
+priority is a second entry. Apply walks priorities ascending, then insertion order, slicing
+arguments to what each callback accepted and feeding each return back as the value. Action uses
+the same walk without replacing argument 0. The hook named all runs first and does not replace
+the value. Counts increment even when nothing is registered. Current is a stack of target names.
+"""
+upstream = [
+    "wp-includes/plugin.php",
+    "wp-includes/class-wp-hook.php",
+]
+evidence = [
+    "contracts/hooks/dispatch.md",
+]
+implemented_in = ["crates/cms-hooks"]
+tests = [
+    "crates/cms-hooks/tests/dispatch.rs::filters_run_in_priority_then_insertion_order",
+    "crates/cms-hooks/tests/dispatch.rs::the_same_callable_replaces_at_one_priority",
+    "crates/cms-hooks/tests/dispatch.rs::an_action_does_not_feed_returns_forward",
+    "crates/cms-hooks/tests/dispatch.rs::all_runs_before_the_named_hook",
+]
+
+[covers]
+functions = [
+    "add_action",
+    "add_filter",
+    "apply_filters",
+    "current_action",
+    "current_filter",
+    "did_action",
+    "did_filter",
+    "do_action",
+    "doing_action",
+    "doing_filter",
+    "has_action",
+    "has_filter",
+    "remove_action",
+    "remove_all_actions",
+    "remove_all_filters",
+    "remove_filter",
+]

@@ -13,7 +13,7 @@ Each inventory item has four independent states:
 
 | Section | Items | Documented | Implemented | Tested | Certified | Unknown |
 |---|---:|---:|---:|---:|---:|---:|
-| functions | 4353 | 5 (0.1%) | 0 (0.0%) | 0 (0.0%) | not measurable | 4348 (99.9%) |
+| functions | 4353 | 21 (0.5%) | 16 (0.4%) | 16 (0.4%) | not measurable | 4332 (99.5%) |
 | classes | 824 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 824 (100.0%) |
 | hooks | 2720 | 14 (0.5%) | 0 (0.0%) | 0 (0.0%) | not measurable | 2706 (99.5%) |
 | constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 694 (100.0%) |
@@ -21,11 +21,12 @@ Each inventory item has four independent states:
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 133 (100.0%) |
 | options | 121 | 2 (1.7%) | 0 (0.0%) | 0 (0.0%) | not measurable | 119 (98.3%) |
 | tables | 18 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 18 (100.0%) |
-| **total** | 9147 | 21 (0.2%) | 0 (0.0%) | 0 (0.0%) | not measurable | 9126 (99.8%) |
+| **total** | 9147 | 37 (0.4%) | 16 (0.2%) | 16 (0.2%) | not measurable | 9110 (99.6%) |
 
 ## Contract entries
 
 | Entry | Title | Items | Implemented | Tested |
 |---|---|---:|---|---|
+| `hook-dispatch` | Priority-ordered filter and action dispatch | 16 | yes | yes |
 | `plugin-load-order` | Which plugins load, and in what order | 9 | no | no |
 | `request-lifecycle` | Order of the request lifecycle | 15 | no | no |

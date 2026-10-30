@@ -1,0 +1,16 @@
+[package]
+name = "cms-hooks"
+description = "Priority-ordered filter and action dispatch on live callables"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+cms-types = { path = "../cms-types" }
+php-value = { path = "../php-value" }
+
+[lints]
+workspace = true

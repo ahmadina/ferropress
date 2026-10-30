@@ -104,6 +104,14 @@ fn strlen_and_case_map_strings() -> Result<(), String> {
 }
 
 #[test]
+fn strlen_coerces_an_integer() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo strlen(12);")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"2");
+    Ok(())
+}
+
+#[test]
 fn count_rejects_a_non_array() -> Result<(), String> {
     let (output, status) = run(b"<?php echo count(1);")?;
     let text = String::from_utf8_lossy(&output);

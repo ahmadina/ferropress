@@ -12,18 +12,18 @@ impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_file_exists(&mut self, args: &[Argument], result: Operand) -> Exec {
         let value = self.native_one("file_exists", args)?;
         let path = self.string_arg("file_exists", &value)?;
-        let resolved = resolve_path(&self.file, &path);
+        let resolved = resolve_path(&self.file, path.as_bytes());
         self.write(result, Value::Bool(resolved.exists()))
     }
 
     pub(crate) fn native_file_get_contents(&mut self, args: &[Argument], result: Operand) -> Exec {
         let value = self.native_one("file_get_contents", args)?;
         let path = self.string_arg("file_get_contents", &value)?;
-        let resolved = resolve_path(&self.file, &path);
+        let resolved = resolve_path(&self.file, path.as_bytes());
         if let Ok(bytes) = std::fs::read(&resolved) {
             self.write(result, Value::String(PhpString::new(&bytes)))
         } else {
-            self.failed_stream("file_get_contents", path.as_slice(), &resolved);
+            self.failed_stream("file_get_contents", path.as_bytes(), &resolved);
             self.write(result, Value::Bool(false))
         }
     }
@@ -34,12 +34,12 @@ impl<O: Output> Machine<'_, O> {
         }
         let path = self.string_arg("file_put_contents", &args[0].slot.value())?;
         let data = self.stringify(&args[1].slot.value())?;
-        let resolved = resolve_path(&self.file, &path);
+        let resolved = resolve_path(&self.file, path.as_bytes());
         if std::fs::write(&resolved, data.as_bytes()).is_ok() {
             let n = i64::try_from(data.as_bytes().len()).unwrap_or(i64::MAX);
             self.write(result, Value::Int(n))
         } else {
-            self.failed_stream("file_put_contents", path.as_slice(), &resolved);
+            self.failed_stream("file_put_contents", path.as_bytes(), &resolved);
             self.write(result, Value::Bool(false))
         }
     }

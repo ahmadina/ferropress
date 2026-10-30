@@ -41,7 +41,7 @@ impl<O: Output> Machine<'_, O> {
             return Err(self.too_few_at_least("sprintf", 0, 1, args));
         }
         let format = self.string_arg("sprintf", &args[0].slot.value())?;
-        let needed = 1 + count_values(&format);
+        let needed = 1 + count_values(format.as_bytes());
         if args.len() < needed {
             let mut message = needed.to_string().into_bytes();
             message.extend_from_slice(b" arguments are required, ");
@@ -50,7 +50,7 @@ impl<O: Output> Machine<'_, O> {
             let values: Vec<Value> = args.iter().map(|arg| arg.slot.value()).collect();
             return Err(self.throw_from("ArgumentCountError", message, b"sprintf", values));
         }
-        let rendered = self.render_sprintf(&format, args)?;
+        let rendered = self.render_sprintf(format.as_bytes(), args)?;
         self.write(result, Value::String(PhpString::new(&rendered)))
     }
 

@@ -107,19 +107,43 @@ impl<O: Output> Machine<'_, O> {
         let pc = self.frame()?.pc.saturating_sub(1);
         let code = self.frame()?.code;
         let target = self.resolve_invoke(code, pc, ins.a)?;
-        let prepared = self.invoke_args(ins, count, target)?;
         match target {
             CallTarget::Unknown => Err(VmError::Malformed("unresolved invoke").into()),
-            CallTarget::Native(native) => self.dispatch_native(native, &prepared, ins.result),
+            CallTarget::Native(native) => {
+                let mut prepared = [
+                    Argument {
+                        slot: Slot::Value(Value::Null),
+                        from_call: false,
+                    },
+                    Argument {
+                        slot: Slot::Value(Value::Null),
+                        from_call: false,
+                    },
+                ];
+                self.fill_invoke_args(ins, count, target, &mut prepared)?;
+                self.dispatch_native(native, &prepared[..count as usize], ins.result)
+            }
             CallTarget::Host => {
+                let mut prepared = [
+                    Argument {
+                        slot: Slot::Value(Value::Null),
+                        from_call: false,
+                    },
+                    Argument {
+                        slot: Slot::Value(Value::Null),
+                        from_call: false,
+                    },
+                ];
+                self.fill_invoke_args(ins, count, target, &mut prepared)?;
                 let written = self.read(ins.a)?;
                 let Value::String(written) = written else {
                     return Err(VmError::Malformed("function name is not a string").into());
                 };
                 let key = written.as_bytes().to_ascii_lowercase();
-                self.dispatch_host(&key, &prepared, ins.result)
+                self.dispatch_host(&key, &prepared[..count as usize], ins.result)
             }
             CallTarget::User(user) => {
+                let prepared = self.invoke_args(ins, count, target)?;
                 self.pending.push(Pending {
                     code: user,
                     env: None,
@@ -174,13 +198,13 @@ impl<O: Output> Machine<'_, O> {
         Ok(target)
     }
 
-    fn invoke_args(
+    fn fill_invoke_args(
         &mut self,
         ins: &Instruction,
         count: u8,
         target: CallTarget,
-    ) -> Exec<Vec<Argument>> {
-        let mut prepared = Vec::with_capacity(count as usize);
+        dest: &mut [Argument],
+    ) -> Exec {
         for (index, operand) in [ins.b, ins.c].into_iter().take(count as usize).enumerate() {
             let by_ref = match target {
                 CallTarget::User(code) => self.codes[code]
@@ -191,8 +215,23 @@ impl<O: Output> Machine<'_, O> {
                 _ => false,
             };
             let from_call = ins.flags & (1 << (2 + index)) != 0;
-            prepared.push(self.invoke_arg(operand, by_ref, from_call)?);
+            dest[index] = self.invoke_arg(operand, by_ref, from_call)?;
         }
+        Ok(())
+    }
+
+    fn invoke_args(
+        &mut self,
+        ins: &Instruction,
+        count: u8,
+        target: CallTarget,
+    ) -> Exec<Vec<Argument>> {
+        let mut prepared = Vec::with_capacity(count as usize);
+        prepared.resize_with(count as usize, || Argument {
+            slot: Slot::Value(Value::Null),
+            from_call: false,
+        });
+        self.fill_invoke_args(ins, count, target, &mut prepared)?;
         Ok(prepared)
     }
 

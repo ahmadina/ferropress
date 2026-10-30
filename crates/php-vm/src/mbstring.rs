@@ -12,7 +12,7 @@ impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_mb_strlen(&mut self, args: &[Argument], result: Operand) -> Exec {
         let value = self.native_one("mb_strlen", args)?;
         let text = self.string_arg("mb_strlen", &value)?;
-        let n = i64::try_from(utf8_chars(&text).len()).unwrap_or(i64::MAX);
+        let n = i64::try_from(utf8_chars(text.as_bytes()).len()).unwrap_or(i64::MAX);
         self.write(result, Value::Int(n))
     }
 
@@ -26,7 +26,7 @@ impl<O: Output> Machine<'_, O> {
             Some(arg) => Some(self.compute(|cx| arg.slot.value().to_int(cx))?),
             None => None,
         };
-        let chars = utf8_chars(&text);
+        let chars = utf8_chars(text.as_bytes());
         let slice = substr_range(chars.len(), offset, length)
             .map_or(String::new(), |(start, end)| {
                 chars[start..end].iter().collect()

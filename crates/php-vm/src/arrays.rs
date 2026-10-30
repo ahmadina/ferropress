@@ -226,6 +226,8 @@ impl<O: Output> Machine<'_, O> {
             ));
         }
         let mut array = PhpArray::new();
+        let sep = sep.as_bytes();
+        let text = text.as_bytes();
         if sep.len() == 1 {
             let needle = sep[0];
             for part in text.split(|byte| *byte == needle) {
@@ -234,7 +236,7 @@ impl<O: Output> Machine<'_, O> {
                     .map_err(|_full| VmError::Unsupported("this many array items"))?;
             }
         } else {
-            let mut rest = text.as_slice();
+            let mut rest = text;
             while let Some(at) = rest.windows(sep.len()).position(|window| window == sep) {
                 array
                     .append(Value::String(PhpString::new(&rest[..at])))

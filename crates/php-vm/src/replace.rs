@@ -58,7 +58,7 @@ impl<O: Output> Machine<'_, O> {
             Some(arg) => self.compute(|cx| arg.slot.value().to_bool(cx))?,
             None => true,
         };
-        let encoded = htmlspecialchars(&text, flags, double_encode);
+        let encoded = htmlspecialchars(text.as_bytes(), flags, double_encode);
         self.write(result, Value::String(PhpString::new(&encoded)))
     }
 

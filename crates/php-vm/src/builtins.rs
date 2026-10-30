@@ -435,9 +435,9 @@ impl<O: Output> Machine<'_, O> {
         let value = self.native_one(name, args)?;
         let text = self.string_arg(name, &value)?;
         let mapped: Vec<u8> = if upper {
-            text.iter().map(u8::to_ascii_uppercase).collect()
+            text.as_bytes().iter().map(u8::to_ascii_uppercase).collect()
         } else {
-            text.iter().map(u8::to_ascii_lowercase).collect()
+            text.as_bytes().iter().map(u8::to_ascii_lowercase).collect()
         };
         self.write(result, Value::String(PhpString::new(&mapped)))
     }
@@ -487,7 +487,7 @@ impl<O: Output> Machine<'_, O> {
     fn native_function_exists(&mut self, args: &[Argument], result: Operand) -> Exec {
         let value = self.native_one("function_exists", args)?;
         let name = self.string_arg("function_exists", &value)?;
-        let key = name.to_ascii_lowercase();
+        let key = name.as_bytes().to_ascii_lowercase();
         let found =
             self.functions.contains_key(key.as_slice()) || is_bound(&key) || self.host_exists(&key);
         self.write(result, Value::Bool(found))
@@ -501,16 +501,16 @@ impl<O: Output> Machine<'_, O> {
             None => true,
         };
         if autoload {
-            self.autoload(&name)?;
+            self.autoload(name.as_bytes())?;
         }
-        let key = name.to_ascii_lowercase();
+        let key = name.as_bytes().to_ascii_lowercase();
         self.write(
             result,
             Value::Bool(self.classes.contains_key(key.as_slice())),
         )
     }
 
-    pub(crate) fn string_arg(&mut self, name: &str, value: &Value) -> Exec<Vec<u8>> {
+    pub(crate) fn string_arg(&mut self, name: &str, value: &Value) -> Exec<PhpString> {
         match value {
             Value::Array(_) | Value::Object(_) => {
                 let mut message = name.as_bytes().to_vec();
@@ -519,7 +519,8 @@ impl<O: Output> Machine<'_, O> {
                 message.extend_from_slice(b" given");
                 Err(self.throw("TypeError", message))
             }
-            other => Ok(self.stringify(other)?.as_bytes().to_vec()),
+            Value::String(text) => Ok(text.clone()),
+            other => self.stringify(other),
         }
     }
 }

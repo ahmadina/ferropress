@@ -23,7 +23,7 @@ impl<O: Output> Machine<'_, O> {
             Some(arg) => self.compute(|cx| arg.slot.value().to_int(cx))?,
             None => current_unix(),
         };
-        let text = format_utc(&format, stamp);
+        let text = format_utc(format.as_bytes(), stamp);
         self.write(result, Value::String(PhpString::new(&text)))
     }
 
@@ -37,7 +37,7 @@ impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_strtotime(&mut self, args: &[Argument], result: Operand) -> Exec {
         let value = self.native_one("strtotime", args)?;
         let text = self.string_arg("strtotime", &value)?;
-        let parsed = parse_utc(&text).map_or(Value::Bool(false), Value::Int);
+        let parsed = parse_utc(text.as_bytes()).map_or(Value::Bool(false), Value::Int);
         self.write(result, parsed)
     }
 }

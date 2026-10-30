@@ -20,8 +20,9 @@ impl<O: Output> Machine<'_, O> {
             Some(arg) => Some(self.compute(|cx| arg.slot.value().to_int(cx))?),
             None => None,
         };
-        let slice = substr_range(text.len(), offset, length)
-            .map_or(&[][..], |(start, end)| &text[start..end]);
+        let bytes = text.as_bytes();
+        let slice = substr_range(bytes.len(), offset, length)
+            .map_or(&[][..], |(start, end)| &bytes[start..end]);
         self.write(result, Value::String(PhpString::new(slice)))
     }
 
@@ -35,7 +36,7 @@ impl<O: Output> Machine<'_, O> {
             Some(arg) => self.compute(|cx| arg.slot.value().to_int(cx))?,
             None => 0,
         };
-        let found = strpos(&haystack, &needle, offset);
+        let found = strpos(haystack.as_bytes(), needle.as_bytes(), offset);
         self.write(result, found.map_or(Value::Bool(false), Value::Int))
     }
 
@@ -45,7 +46,10 @@ impl<O: Output> Machine<'_, O> {
         }
         let haystack = self.string_arg("str_contains", &args[0].slot.value())?;
         let needle = self.string_arg("str_contains", &args[1].slot.value())?;
-        self.write(result, Value::Bool(contains(&haystack, &needle)))
+        self.write(
+            result,
+            Value::Bool(contains(haystack.as_bytes(), needle.as_bytes())),
+        )
     }
 
     pub(crate) fn native_trim(&mut self, args: &[Argument], result: Operand, mode: Trim) -> Exec {
@@ -54,9 +58,9 @@ impl<O: Output> Machine<'_, O> {
         let text = self.string_arg(name, &value)?;
         let cut = match args.get(1) {
             Some(arg) => self.string_arg(name, &arg.slot.value())?,
-            None => TRIM_DEFAULT.to_vec(),
+            None => PhpString::new(TRIM_DEFAULT),
         };
-        let slice = trim_bytes(&text, &cut, mode);
+        let slice = trim_bytes(text.as_bytes(), cut.as_bytes(), mode);
         self.write(result, Value::String(PhpString::new(slice)))
     }
 }

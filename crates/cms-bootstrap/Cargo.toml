@@ -1,0 +1,18 @@
+[package]
+name = "cms-bootstrap"
+description = "Plans and runs plugin load order on one request"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+cms-request = { path = "../cms-request" }
+cms-types = { path = "../cms-types" }
+php-value = { path = "../php-value" }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

@@ -26,6 +26,14 @@ evidence = [
     "contracts/lifecycle/single-front-page.jsonl",
     "contracts/lifecycle/network-main-site.jsonl",
     "contracts/lifecycle/network-second-site.jsonl",
+    "contracts/bootstrap/plugin-load.md",
+]
+implemented_in = ["crates/cms-bootstrap"]
+tests = [
+    "crates/cms-bootstrap/tests/load_order.rs::single_site_matches_the_lab_front_page",
+    "crates/cms-bootstrap/tests/load_order.rs::network_loads_the_shared_plugin_once",
+    "crates/cms-bootstrap/tests/load_order.rs::activating_re_sorts_the_site_list",
+    "crates/cms-bootstrap/tests/load_order.rs::run_fires_group_actions_in_order",
 ]
 
 [covers]
@@ -33,7 +41,6 @@ functions = [
     "wp_get_mu_plugins",
     "wp_get_active_network_plugins",
     "wp_get_active_and_valid_plugins",
-    "activate_plugin",
 ]
 hooks = [
     "action:mu_plugin_loaded",

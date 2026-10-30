@@ -7,6 +7,7 @@ mod compiler;
 mod compiler_corpus;
 mod dashboard;
 mod dbdiff;
+mod example;
 mod fetch;
 mod inventory;
 mod lab;
@@ -123,6 +124,25 @@ fn load_valid_manifest(repo_root: &Path) -> anyhow::Result<Result<Manifest, Repo
     } else {
         Ok(Err(manifest_report(&manifest, &problems, &[])))
     }
+}
+
+fn run_example(repo_root: &Path, path: Option<&Path>) -> anyhow::Result<Report> {
+    let scripts = match path {
+        Some(path) => vec![example::resolve(repo_root, path).map_err(anyhow::Error::msg)?],
+        None => example::list(repo_root).context("listing example/")?,
+    };
+    if scripts.is_empty() {
+        return Ok(Report {
+            text: "no example scripts found".into(),
+            success: false,
+        });
+    }
+    let mut runs = Vec::new();
+    for script in &scripts {
+        runs.push(example::run_script(script).map_err(anyhow::Error::msg)?);
+    }
+    let (text, success) = example::render(&runs);
+    Ok(Report { text, success })
 }
 
 fn run_dashboard(repo_root: &Path) -> anyhow::Result<Report> {
@@ -787,6 +807,7 @@ fn run(command: &Command) -> anyhow::Result<Report> {
         Command::CheckLayers => check_layers(),
         Command::VerifyManifest => verify_manifest(repo_root()),
         Command::Dashboard => run_dashboard(repo_root()),
+        Command::Example { path } => run_example(repo_root(), path.as_deref()),
         Command::Lab(lab) => {
             let action = match lab {
                 LabCommand::Up => LabAction::Up,

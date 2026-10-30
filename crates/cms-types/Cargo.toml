@@ -1,0 +1,12 @@
+[package]
+name = "cms-types"
+description = "Foundation newtypes shared by the native kernel: hook names, priorities, argument counts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true

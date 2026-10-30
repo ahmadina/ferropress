@@ -243,9 +243,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
+name = "cms-bootstrap"
+version = "0.0.0"
+dependencies = [
+ "cms-request",
+ "cms-types",
+ "php-value",
+ "thiserror",
+]
+
+[[package]]
 name = "cms-hooks"
 version = "0.0.0"
 dependencies = [
+ "cms-types",
+ "php-value",
+]
+
+[[package]]
+name = "cms-request"
+version = "0.0.0"
+dependencies = [
+ "cms-hooks",
  "cms-types",
  "php-value",
 ]
@@ -498,6 +517,19 @@ dependencies = [
  "php-value",
  "php-vm",
  "thiserror",
+]
+
+[[package]]
+name = "php-bindings"
+version = "0.0.0"
+dependencies = [
+ "cms-hooks",
+ "cms-request",
+ "cms-types",
+ "php-compiler",
+ "php-parser",
+ "php-value",
+ "php-vm",
 ]
 
 [[package]]

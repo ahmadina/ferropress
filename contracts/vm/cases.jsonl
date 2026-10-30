@@ -171,6 +171,12 @@
 {"name":"preg 05","source":"<?php\npreg_match(\"/a/\");","output":"\nFatal error: Uncaught ArgumentCountError: preg_match() expects at least 2 arguments, 1 given in %file%:2\nStack trace:\n#0 %file%(2): preg_match('/a/')\n#1 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"preg 06","source":"<?php\necho preg_match(\"a\", \"b\") === false ? \"f\" : \"x\";","output":"\nWarning: preg_match(): Delimiter must not be alphanumeric, backslash, or NUL byte in %file% on line 2\nf","status":0}
 {"name":"preg 07","source":"<?php\necho preg_match(\"/a/z\", \"a\") === false ? \"f\" : \"x\";","output":"\nWarning: preg_match(): Unknown modifier 'z' in %file% on line 2\nf","status":0}
+{"name":"preg 08","source":"<?php\npreg_match(\"/(a)(b)/\", \"xab\", $m); echo $m[0], $m[1], $m[2];","output":"abab","status":0}
+{"name":"preg 09","source":"<?php\n$m = [1]; echo preg_match(\"/z/\", \"ba\", $m), count($m);","output":"00","status":0}
+{"name":"preg 10","source":"<?php\npreg_match(\"/(?<x>a)(b)/\", \"ab\", $m); echo $m[0], $m[\"x\"], $m[1], $m[2];","output":"abaab","status":0}
+{"name":"preg 11","source":"<?php\n$m = \"keep\"; echo preg_match(\"/(/\", \"b\", $m) === false ? \"f\" : \"x\", $m;","output":"\nWarning: preg_match(): Compilation failed: missing closing parenthesis at offset 1 in %file% on line 2\nfkeep","status":0}
+{"name":"preg 12","source":"<?php\necho preg_replace(\"/a/\", \"x\", \"aaa\", 1), preg_replace(\"/a/\", \"x\", \"aaa\", 2, $n), $n;","output":"xaaxxa2","status":0}
+{"name":"preg 13","source":"<?php\npreg_match(\"/a/\", \"ba\", []);","output":"\nFatal error: Uncaught Error: preg_match(): Argument #3 ($matches) could not be passed by reference in %file%:2\nStack trace:\n#0 {main}\n  thrown in %file% on line 2\n","status":255}
 {"name":"sprintf 01","source":"<?php\necho sprintf(\"<%s %d>\", \"a\", 2), sprintf(\"%% %s\", \"z\"), sprintf(\"%05d\", 3);","output":"<a 2>% z00003","status":0}
 {"name":"sprintf 02","source":"<?php\necho sprintf(\"%s %s\", \"a\", \"b\", \"c\"), sprintf(\"%d %d\", 1.9, true), sprintf(\"%x %X %u\", 255, 255, -1);","output":"a b1 1ff FF 18446744073709551615","status":0}
 {"name":"sprintf 03","source":"<?php\necho sprintf(\"%f\", 1.5);","output":"1.500000","status":0}

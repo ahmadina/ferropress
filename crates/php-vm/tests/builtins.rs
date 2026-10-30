@@ -50,6 +50,25 @@ fn preg_replace_of_a_bad_pattern_is_null() -> Result<(), String> {
 }
 
 #[test]
+fn preg_match_nonzero_flags_are_not_bound_yet() -> Result<(), String> {
+    let program = parse(
+        b"<?php preg_match(\"/a/\", \"ba\", $m, 256);",
+        ParseOptions::default(),
+    )
+    .map_err(|error| error.to_string())?
+    .result
+    .map_err(|error| format!("{error:?}"))?;
+    let compiled = compile(&program, b"/t.php").map_err(|error| error.to_string())?;
+    let unit = compiled
+        .unit
+        .ok_or_else(|| format!("compile error {:?}", compiled.diagnostics.fatal))?;
+    let mut output = Vec::new();
+    let error = php_vm::run(&unit, b"/t.php", &mut output).expect_err("flags");
+    assert!(error.to_string().contains("preg_match flags"), "{error}");
+    Ok(())
+}
+
+#[test]
 fn preg_dollar_endonly_is_not_bound_yet() -> Result<(), String> {
     let program = parse(
         b"<?php preg_match(\"/a$/D\", \"a\");",
@@ -91,6 +110,60 @@ fn preg_match_without_enough_arguments_throws() -> Result<(), String> {
     let text = String::from_utf8_lossy(&output);
     assert_eq!(status, 255);
     assert!(text.contains("expects at least 2 arguments"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn preg_match_fills_capture_groups() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php preg_match(\"/(a)(b)/\", \"xab\", $m); echo $m[0], $m[1], $m[2], preg_match(\"/z/\", \"ba\", $n), count($n);",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"abab00");
+    Ok(())
+}
+
+#[test]
+fn preg_match_keeps_matches_when_the_pattern_is_bad() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php $m = \"keep\"; echo preg_match(\"/(/\", \"b\", $m) === false ? \"f\" : \"x\", $m;",
+    )?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 0);
+    assert!(text.contains("Compilation failed"), "{text}");
+    assert!(text.ends_with("fkeep"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn preg_match_named_groups_use_both_keys() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php preg_match(\"/(?<x>a)(b)/\", \"ab\", $m); echo $m[0], $m[\"x\"], $m[1], $m[2];",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"abaab");
+    Ok(())
+}
+
+#[test]
+fn preg_match_rejects_a_literal_matches_argument() -> Result<(), String> {
+    let (output, status) = run(b"<?php preg_match(\"/a/\", \"ba\", []);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("Argument #3 ($matches) could not be passed by reference"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn preg_replace_honours_a_limit_and_count() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo preg_replace(\"/a/\", \"x\", \"aaa\", 0), preg_replace(\"/a/\", \"x\", \"aaa\", 1), preg_replace(\"/a/\", \"x\", \"aaa\", 2, $n), $n;",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"aaaxaaxxa2");
     Ok(())
 }
 

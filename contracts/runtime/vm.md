@@ -213,8 +213,13 @@ until timezones are bound. `dirname` and `basename` split `/`-separated
 paths. `serialize` and `unserialize` write and read scalars, arrays and
 objects. Options, references, custom objects and enums are not bound yet.
 `preg_match` takes a delimited pattern and a subject and returns `1`, `0`
-or `false`. `preg_replace` rewrites a string subject. The matches argument,
-a replace limit, array patterns and the `D` modifier are not bound yet.
+or `false`. A third argument is filled with the full match and each capture
+group (named groups store both the name and the group number). A compile
+failure leaves that variable unchanged. `preg_replace` rewrites a string
+subject; a fourth argument limits how many matches are rewritten (`-1` means
+every match) and a fifth argument receives how many were rewritten. Array
+patterns, non-zero match flags or offsets, and the `D` modifier are not bound
+yet.
 Too few arguments throw
 `ArgumentCountError` from the function (`name() expects exactly N argument(s), M given`, or
 `expects at least` when the function takes a variable number). `str_replace` walks each search

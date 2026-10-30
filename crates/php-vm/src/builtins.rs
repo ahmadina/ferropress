@@ -84,6 +84,13 @@ pub(crate) enum Native {
     SplObjectId,
 }
 
+impl Native {
+    /// Whether argument `index` is taken by reference.
+    pub(crate) fn takes_ref(self, index: usize) -> bool {
+        matches!((self, index), (Self::PregMatch, 2) | (Self::PregReplace, 4))
+    }
+}
+
 fn builtin_map() -> HashMap<Box<[u8]>, Native> {
     const ENTRIES: &[(&[u8], Native)] = &[
         (b"strlen", Native::Strlen),
@@ -590,5 +597,19 @@ fn is_numeric(value: &Value) -> bool {
             php_value::ops::numeric_prefix(text.as_bytes()).is_some_and(|prefix| !prefix.trailing)
         }
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Native;
+
+    #[test]
+    fn preg_matches_and_count_are_by_reference() {
+        assert!(Native::PregMatch.takes_ref(2));
+        assert!(!Native::PregMatch.takes_ref(0));
+        assert!(Native::PregReplace.takes_ref(4));
+        assert!(!Native::PregReplace.takes_ref(3));
+        assert!(!Native::Strlen.takes_ref(0));
     }
 }

@@ -279,11 +279,14 @@ impl<O: Output> Machine<'_, O> {
             .pending
             .last()
             .ok_or(VmError::Malformed("argument sent outside a call"))?;
-        let by_ref = self.codes[pending.code]
-            .code
-            .params
-            .get(pending.args.len())
-            .is_some_and(|param| param.by_ref && !param.variadic);
+        let by_ref = match pending.native {
+            Some(native) => native.takes_ref(pending.args.len()),
+            None => self.codes[pending.code]
+                .code
+                .params
+                .get(pending.args.len())
+                .is_some_and(|param| param.by_ref && !param.variadic),
+        };
         if !by_ref {
             let value = self.read(operand)?;
             return self.send(Slot::Value(value), false);

@@ -2,7 +2,7 @@
 
 use pcre2::bytes::{Captures, Regex, RegexBuilder};
 use php_compiler::bytecode::Operand;
-use php_value::{PhpString, Value};
+use php_value::{ArrayKey, PhpArray, PhpString, Slot, Value};
 
 use crate::Output;
 use crate::VmError;
@@ -45,19 +45,48 @@ impl<O: Output> Machine<'_, O> {
         if args.len() < 2 {
             return Err(self.too_few_at_least("preg_match", args.len(), 2, args));
         }
-        if args.len() > 2 {
-            return Err(VmError::Unsupported("preg_match matches").into());
+        if args.len() > 5 {
+            return Err(self.too_many_at_most("preg_match", args.len(), 5, args));
+        }
+        if let Some(arg) = args.get(2) {
+            self.require_variable(b"preg_match", 2, b"matches", arg)?;
+        }
+        if let Some(flags) = args.get(3) {
+            let flags = self.compute(|cx| flags.slot.value().to_int(cx))?;
+            if flags != 0 {
+                return Err(VmError::Unsupported("preg_match flags").into());
+            }
+        }
+        if let Some(offset) = args.get(4) {
+            let offset = self.compute(|cx| offset.slot.value().to_int(cx))?;
+            if offset != 0 {
+                return Err(VmError::Unsupported("preg_match offset").into());
+            }
         }
         let pattern = self.typed_string("preg_match", 1, "pattern", &args[0].slot.value(), args)?;
         let subject = self.typed_string("preg_match", 2, "subject", &args[1].slot.value(), args)?;
         let Some((regex, flags)) = self.compile_preg("preg_match", &pattern)? else {
             return self.write(result, Value::Bool(false));
         };
-        match regex.find(&subject) {
-            Ok(Some(found)) if !(flags.has(Flags::ANCHORED) && found.start() != 0) => {
+        match regex.captures(&subject) {
+            Ok(Some(found))
+                if !(flags.has(Flags::ANCHORED)
+                    && found.get(0).is_some_and(|full| full.start() != 0)) =>
+            {
+                if let Some(arg) = args.get(2) {
+                    write_arg(
+                        arg,
+                        Value::Array(matches_array(&found, regex.capture_names())?),
+                    );
+                }
                 self.write(result, Value::Int(1))
             }
-            Ok(_) => self.write(result, Value::Int(0)),
+            Ok(_) => {
+                if let Some(arg) = args.get(2) {
+                    write_arg(arg, Value::Array(PhpArray::new()));
+                }
+                self.write(result, Value::Int(0))
+            }
             Err(error) => {
                 self.preg_warning("preg_match", error.to_string().as_bytes());
                 self.write(result, Value::Bool(false))
@@ -69,8 +98,11 @@ impl<O: Output> Machine<'_, O> {
         if args.len() < 3 {
             return Err(self.too_few_at_least("preg_replace", args.len(), 3, args));
         }
-        if args.len() > 3 {
-            return Err(VmError::Unsupported("preg_replace limit").into());
+        if args.len() > 5 {
+            return Err(self.too_many_at_most("preg_replace", args.len(), 5, args));
+        }
+        if let Some(arg) = args.get(4) {
+            self.require_variable(b"preg_replace", 4, b"count", arg)?;
         }
         if matches!(args[0].slot.value(), Value::Array(_) | Value::Object(_))
             || matches!(args[1].slot.value(), Value::Array(_) | Value::Object(_))
@@ -88,16 +120,48 @@ impl<O: Output> Machine<'_, O> {
         )?;
         let subject =
             self.typed_string("preg_replace", 3, "subject", &args[2].slot.value(), args)?;
+        let limit = match args.get(3) {
+            Some(arg) => self.compute(|cx| arg.slot.value().to_int(cx))?,
+            None => -1,
+        };
         let Some((regex, _)) = self.compile_preg("preg_replace", &pattern)? else {
             return self.write(result, Value::Null);
         };
-        match replace_all(&regex, &subject, &replace) {
-            Ok(text) => self.write(result, Value::String(PhpString::new(&text))),
+        match replace_some(&regex, &subject, &replace, limit) {
+            Ok((text, count)) => {
+                if let Some(arg) = args.get(4) {
+                    write_arg(arg, Value::Int(count));
+                }
+                self.write(result, Value::String(PhpString::new(&text)))
+            }
             Err(error) => {
                 self.preg_warning("preg_replace", error.to_string().as_bytes());
                 self.write(result, Value::Null)
             }
         }
+    }
+
+    fn require_variable(
+        &mut self,
+        name: &[u8],
+        index: usize,
+        param: &[u8],
+        arg: &Argument,
+    ) -> Exec {
+        if matches!(arg.slot, Slot::Reference(_)) {
+            return Ok(());
+        }
+        if arg.from_call {
+            self.display(b"Notice", b"Only variables should be passed by reference");
+            return Ok(());
+        }
+        let mut message = name.to_vec();
+        message.extend_from_slice(b"(): Argument #");
+        message.extend_from_slice((index + 1).to_string().as_bytes());
+        message.extend_from_slice(b" ($");
+        message.extend_from_slice(param);
+        message.extend_from_slice(b") could not be passed by reference");
+        Err(self.throw("Error", message))
     }
 
     fn compile_preg(&mut self, name: &str, pattern: &[u8]) -> Result<Option<(Regex, Flags)>, Stop> {
@@ -238,10 +302,44 @@ fn compile_message(error: &pcre2::Error) -> Vec<u8> {
     message
 }
 
-fn replace_all(regex: &Regex, subject: &[u8], replace: &[u8]) -> Result<Vec<u8>, pcre2::Error> {
+fn write_arg(arg: &Argument, value: Value) {
+    if let Slot::Reference(reference) = &arg.slot {
+        reference.set(value);
+    }
+}
+
+fn matches_array(captures: &Captures<'_>, names: &[Option<String>]) -> Result<PhpArray, VmError> {
+    let mut array = PhpArray::new();
+    for index in 0..captures.len() {
+        let text = captures
+            .get(index)
+            .map_or(&b""[..], |found| found.as_bytes());
+        let value = Value::String(PhpString::new(text));
+        if index > 0
+            && let Some(Some(name)) = names.get(index)
+        {
+            array.assign(ArrayKey::from_bytes(name.as_bytes()), value.clone());
+        }
+        let key = i64::try_from(index)
+            .map_err(|_overflow| VmError::Unsupported("this many preg groups"))?;
+        array.assign(ArrayKey::Int(key), value);
+    }
+    Ok(array)
+}
+
+fn replace_some(
+    regex: &Regex,
+    subject: &[u8],
+    replace: &[u8],
+    limit: i64,
+) -> Result<(Vec<u8>, i64), pcre2::Error> {
     let mut out = Vec::with_capacity(subject.len());
     let mut last = 0;
+    let mut count = 0i64;
     for result in regex.captures_iter(subject) {
+        if limit >= 0 && count >= limit {
+            break;
+        }
         let captures = result?;
         let Some(full) = captures.get(0) else {
             continue;
@@ -249,9 +347,10 @@ fn replace_all(regex: &Regex, subject: &[u8], replace: &[u8]) -> Result<Vec<u8>,
         out.extend_from_slice(&subject[last..full.start()]);
         interpolate(&captures, replace, &mut out);
         last = full.end();
+        count += 1;
     }
     out.extend_from_slice(&subject[last..]);
-    Ok(out)
+    Ok((out, count))
 }
 
 fn interpolate(captures: &Captures<'_>, replace: &[u8], out: &mut Vec<u8>) {
@@ -313,7 +412,21 @@ fn push_group(captures: &Captures<'_>, number: usize, out: &mut Vec<u8>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{Flags, PatternError, parse_pattern};
+    use super::{Flags, PatternError, parse_pattern, replace_some};
+
+    #[test]
+    fn replace_some_honours_a_limit() {
+        let regex = pcre2::bytes::Regex::new("a").expect("pattern");
+        let (all, count) = replace_some(&regex, b"aaa", b"x", -1).expect("all");
+        assert_eq!(all, b"xxx");
+        assert_eq!(count, 3);
+        let (none, count) = replace_some(&regex, b"aaa", b"x", 0).expect("none");
+        assert_eq!(none, b"aaa");
+        assert_eq!(count, 0);
+        let (one, count) = replace_some(&regex, b"aaa", b"x", 1).expect("one");
+        assert_eq!(one, b"xaa");
+        assert_eq!(count, 1);
+    }
 
     #[test]
     fn delimiters_and_modifiers_parse() {

@@ -133,6 +133,10 @@ impl<K: Eq + Hash + Clone> Table<K> {
         Some(entry.slot)
     }
 
+    pub(crate) fn raw_entries(&self) -> &[Option<Entry<K>>] {
+        &self.entries
+    }
+
     pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item = (&K, &Slot)> {
         self.entries
             .iter()

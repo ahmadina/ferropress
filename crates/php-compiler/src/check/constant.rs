@@ -535,7 +535,7 @@ impl<'a> Checker<'a> {
                         for (key, slot) in spread.iter() {
                             match key {
                                 ArrayKey::String(_) => {
-                                    array.assign(key.clone(), slot.value());
+                                    array.assign(key, slot.value());
                                 }
                                 ArrayKey::Int(_) => {
                                     if array.append(slot.value()).is_err() {

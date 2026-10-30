@@ -9,7 +9,7 @@ use php_parser::{ParseOptions, parse};
 use php_value::Value;
 
 use crate::Output;
-use crate::machine::{Exec, Flow, Frame, Machine, Stop};
+use crate::machine::{Exec, Flow, Machine, Stop};
 
 type Included = HashSet<Box<[u8]>>;
 
@@ -103,7 +103,7 @@ impl<O: Output> Machine<'_, O> {
 
     /// Runs this machine to completion and returns the main code's return value.
     pub(crate) fn run_value(mut self) -> Result<(Value, Included), Stop> {
-        let main = Frame::new(0, &self.codes[0]);
+        let main = self.take_frame(0);
         self.frames.push(main);
         loop {
             match self.step() {

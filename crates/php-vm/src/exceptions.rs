@@ -80,7 +80,9 @@ impl<O: Output> Machine<'_, O> {
                 return Ok(false);
             }
             self.leave_fiber();
-            self.frames.pop();
+            if let Some(frame) = self.frames.pop() {
+                self.recycle_frame(frame);
+            }
         }
         Ok(false)
     }

@@ -100,13 +100,13 @@ fn union(a: &PhpArray, b: &PhpArray) -> PhpArray {
     }
     let mut out = a.clone();
     for (key, slot) in b.iter() {
-        if !out.contains_key(key) {
+        if !out.contains_key(&key) {
             match slot.as_reference() {
                 Some(reference) => {
-                    out.bind(key.clone(), reference.clone());
+                    out.bind(key, reference.clone());
                 }
                 None => {
-                    out.assign(key.clone(), slot.value());
+                    out.assign(key, slot.value());
                 }
             }
         }

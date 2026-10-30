@@ -3,7 +3,7 @@
 use php_compiler::bytecode::{Instruction, Operand, OperandKind};
 use php_value::{Object, PhpArray, PhpString, Slot, Value};
 
-use crate::machine::{Exec, Flow, Frame, Machine};
+use crate::machine::{Exec, Flow, Machine};
 use crate::{Output, VmError};
 
 /// An argument prepared for a call.
@@ -161,7 +161,7 @@ impl<O: Output> Machine<'_, O> {
             args,
             ..
         } = pending;
-        let mut frame = Frame::new(code, &self.codes[code]);
+        let mut frame = self.take_frame(code);
         if let Some(env) = env {
             crate::closures::apply_captured_slots(
                 &env,
@@ -175,12 +175,48 @@ impl<O: Output> Machine<'_, O> {
         frame.result = result;
         frame.call_line = self.line;
         frame.passed = args.len();
-        let params = self.codes[code].code.params.clone();
-        let slot_names = self.codes[code].code.slots.clone();
+        let missing = self.bind_params(code, &mut frame, args)?;
+        let required = self.codes[code]
+            .code
+            .params
+            .iter()
+            .filter(|param| !param.variadic)
+            .count();
+        let call_line = self.line;
+        if self.codes[code].code.is_generator {
+            return self.start_generator(frame, result);
+        }
+        self.frames.push(frame);
+        let Some(line) = missing else {
+            return Ok(());
+        };
         let name = self.codes[code].code.name.clone();
+        self.line = line;
+        let mut message = b"Too few arguments to function ".to_vec();
+        message.extend_from_slice(&name);
+        message.extend_from_slice(b"(), ");
+        message.extend_from_slice(self.frame()?.passed.to_string().as_bytes());
+        message.extend_from_slice(b" passed in ");
+        message.extend_from_slice(&self.file);
+        message.extend_from_slice(b" on line ");
+        message.extend_from_slice(call_line.to_string().as_bytes());
+        message.extend_from_slice(b" and exactly ");
+        message.extend_from_slice(required.to_string().as_bytes());
+        message.extend_from_slice(b" expected");
+        Err(self.throw("ArgumentCountError", message))
+    }
+
+    fn bind_params(
+        &mut self,
+        code: usize,
+        frame: &mut crate::machine::Frame,
+        args: Vec<Argument>,
+    ) -> Exec<Option<u32>> {
         let mut args = args.into_iter();
         let mut missing = None;
-        for (index, param) in params.iter().enumerate() {
+        let param_count = self.codes[code].code.params.len();
+        for index in 0..param_count {
+            let param = self.codes[code].code.params[index].clone();
             let slot = frame
                 .slots
                 .get_mut(param.slot as usize)
@@ -199,11 +235,17 @@ impl<O: Output> Machine<'_, O> {
                     if arg.from_call {
                         self.display(b"Notice", b"Only variables should be passed by reference");
                     } else {
-                        let param_name = slot_names
+                        let param_name = self.codes[code]
+                            .code
+                            .slots
                             .get(param.slot as usize)
                             .cloned()
                             .unwrap_or_default();
-                        return self.not_by_reference(&name, index, &param_name);
+                        let name = self.codes[code].code.name.clone();
+                        return match self.not_by_reference(&name, index, &param_name) {
+                            Ok(()) => Ok(missing),
+                            Err(stop) => Err(stop),
+                        };
                     }
                 }
                 *slot = Some(arg.slot);
@@ -212,28 +254,7 @@ impl<O: Output> Machine<'_, O> {
             }
         }
         frame.extra.extend(args.map(|arg| arg.slot.value()));
-        let required = params.iter().filter(|param| !param.variadic).count();
-        let call_line = self.line;
-        if self.codes[code].code.is_generator {
-            return self.start_generator(frame, result);
-        }
-        self.frames.push(frame);
-        let Some(line) = missing else {
-            return Ok(());
-        };
-        self.line = line;
-        let mut message = b"Too few arguments to function ".to_vec();
-        message.extend_from_slice(&name);
-        message.extend_from_slice(b"(), ");
-        message.extend_from_slice(self.frame()?.passed.to_string().as_bytes());
-        message.extend_from_slice(b" passed in ");
-        message.extend_from_slice(&self.file);
-        message.extend_from_slice(b" on line ");
-        message.extend_from_slice(call_line.to_string().as_bytes());
-        message.extend_from_slice(b" and exactly ");
-        message.extend_from_slice(required.to_string().as_bytes());
-        message.extend_from_slice(b" expected");
-        Err(self.throw("ArgumentCountError", message))
+        Ok(missing)
     }
 
     fn dispatch_special_call(&mut self, pending: Pending, result: Operand) -> Exec {
@@ -313,11 +334,13 @@ impl<O: Output> Machine<'_, O> {
             .frames
             .pop()
             .ok_or(VmError::Malformed("return without a frame"))?;
+        let result = frame.result;
+        self.recycle_frame(frame);
         self.return_value = value.clone();
         if self.frames.is_empty() {
             return Ok(Flow::Finished);
         }
-        self.write(frame.result, value)?;
+        self.write(result, value)?;
         Ok(Flow::Continue)
     }
 

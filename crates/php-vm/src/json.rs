@@ -90,7 +90,7 @@ fn encode_array(array: &PhpArray, out: &mut Vec<u8>) {
         }
         match key {
             ArrayKey::Int(n) => encode_string(n.to_string().as_bytes(), out),
-            ArrayKey::String(text) => encode_string(text.as_bytes(), out),
+            ArrayKey::String(ref text) => encode_string(text.as_bytes(), out),
         }
         out.push(b':');
         encode(&slot.value(), out);
@@ -100,7 +100,7 @@ fn encode_array(array: &PhpArray, out: &mut Vec<u8>) {
 
 fn is_list(array: &PhpArray) -> bool {
     array.iter().enumerate().all(|(index, (key, _))| match key {
-        ArrayKey::Int(n) => usize::try_from(*n).is_ok_and(|n| n == index),
+        ArrayKey::Int(n) => usize::try_from(n).is_ok_and(|n| n == index),
         ArrayKey::String(_) => false,
     })
 }

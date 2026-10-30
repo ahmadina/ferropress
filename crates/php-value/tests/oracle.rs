@@ -508,7 +508,7 @@ impl Dumper {
             Value::Array(array) => {
                 let entries: Vec<Json> = array
                     .iter()
-                    .map(|(key, slot)| self.entry(array, key, slot, open, depth))
+                    .map(|(key, slot)| self.entry(array, &key, slot, open, depth))
                     .collect();
                 json!(["array", entries])
             }

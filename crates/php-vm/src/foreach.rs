@@ -53,8 +53,8 @@ fn next_entry(container: &Value, cursor: usize) -> Option<(usize, Value, Value)>
     match container {
         Value::Array(array) => array.entry_from(cursor).map(|(at, key, slot)| {
             let key = match key {
-                ArrayKey::Int(number) => Value::Int(*number),
-                ArrayKey::String(text) => Value::String(text.clone()),
+                ArrayKey::Int(number) => Value::Int(number),
+                ArrayKey::String(text) => Value::String(text),
             };
             (at, key, slot.value())
         }),

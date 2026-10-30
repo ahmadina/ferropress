@@ -4,6 +4,36 @@ use php_compiler::bytecode::{Instruction, Operand};
 use php_value::ops::array_key;
 use php_value::{ArrayKey, PhpArray, PhpString, Value};
 
+enum DimWrite {
+    Full,
+    Object(PhpString),
+    Scalar,
+    NotArray,
+}
+
+enum Offset {
+    Append,
+    Key(ArrayKey),
+    Illegal,
+}
+
+fn put_array_item(
+    array: &mut PhpArray,
+    key: Option<ArrayKey>,
+    value: Value,
+) -> Result<(), DimWrite> {
+    match key {
+        None => array
+            .append(value)
+            .map(|_| ())
+            .map_err(|_full| DimWrite::Full),
+        Some(key) => {
+            array.assign(key, value);
+            Ok(())
+        }
+    }
+}
+
 use crate::Output;
 use crate::VmError;
 use crate::calls::Argument;
@@ -17,23 +47,23 @@ impl<O: Output> Machine<'_, O> {
 
     /// Stores `b` in the array `a`.
     pub(crate) fn array_item(&mut self, ins: &Instruction) -> Exec {
-        let Value::Array(mut array) = self.read(ins.a)? else {
-            return Err(VmError::Malformed("array item target is not an array").into());
-        };
         let value = self.read(ins.b)?;
-        if ins.c.is_unused() {
-            array
-                .append(value)
-                .map_err(|_full| VmError::Unsupported("this many array items"))?;
-        } else {
-            let key_value = self.read(ins.c)?;
-            let Some(key) = self.compute(|cx| Ok(array_key(&key_value, cx)))? else {
-                self.display(b"Warning", b"Illegal offset type");
-                return self.write(ins.a, Value::Array(array));
-            };
-            array.assign(key, value);
+        let key = match self.offset_key(ins.c)? {
+            Offset::Illegal => return Ok(()),
+            Offset::Append => None,
+            Offset::Key(key) => Some(key),
+        };
+        let outcome = self.with_value_mut(ins.a, |container| match container {
+            Value::Array(array) => put_array_item(array, key, value),
+            _ => Err(DimWrite::NotArray),
+        })?;
+        match outcome {
+            Ok(()) => Ok(()),
+            Err(DimWrite::Full) => Err(VmError::Unsupported("this many array items").into()),
+            Err(DimWrite::NotArray | DimWrite::Object(_) | DimWrite::Scalar) => {
+                Err(VmError::Malformed("array item target is not an array").into())
+            }
         }
-        self.write(ins.a, Value::Array(array))
     }
 
     /// `result = a[b]`.
@@ -47,41 +77,47 @@ impl<O: Output> Machine<'_, O> {
     /// `a[b] = c`; unused `b` appends.
     pub(crate) fn store_dim(&mut self, ins: &Instruction) -> Exec {
         let value = self.read(ins.c)?;
-        let container = self.read(ins.a)?;
-        match container {
-            Value::Array(mut array) => {
-                self.store_array_dim(&mut array, ins.b, value)?;
-                self.write(ins.a, Value::Array(array))
-            }
+        let key = match self.offset_key(ins.b)? {
+            Offset::Illegal => return Ok(()),
+            Offset::Append => None,
+            Offset::Key(key) => Some(key),
+        };
+        let outcome = self.with_value_mut(ins.a, |container| match container {
+            Value::Array(array) => put_array_item(array, key, value),
             Value::Null => {
                 let mut array = PhpArray::new();
-                self.store_array_dim(&mut array, ins.b, value)?;
-                self.write(ins.a, Value::Array(array))
+                put_array_item(&mut array, key, value)?;
+                *container = Value::Array(array);
+                Ok(())
             }
-            Value::Object(object) => {
+            Value::Object(object) => Err(DimWrite::Object(object.class_name().clone())),
+            _ => Err(DimWrite::Scalar),
+        })?;
+        match outcome {
+            Ok(()) => Ok(()),
+            Err(DimWrite::Full) => Err(VmError::Unsupported("this many array items").into()),
+            Err(DimWrite::Object(class)) => {
                 let mut message = b"Cannot use object of type ".to_vec();
-                message.extend_from_slice(object.class_name().as_bytes());
+                message.extend_from_slice(class.as_bytes());
                 message.extend_from_slice(b" as array");
                 Err(self.throw("Error", message))
             }
-            _ => Err(self.throw("Error", b"Cannot use a scalar value as an array".to_vec())),
+            Err(DimWrite::Scalar | DimWrite::NotArray) => {
+                Err(self.throw("Error", b"Cannot use a scalar value as an array".to_vec()))
+            }
         }
     }
 
-    fn store_array_dim(&mut self, array: &mut PhpArray, index: Operand, value: Value) -> Exec {
-        if index.is_unused() {
-            array
-                .append(value)
-                .map_err(|_full| VmError::Unsupported("this many array items"))?;
-            return Ok(());
+    fn offset_key(&mut self, operand: Operand) -> Exec<Offset> {
+        if operand.is_unused() {
+            return Ok(Offset::Append);
         }
-        let key_value = self.read(index)?;
-        let Some(key) = self.compute(|cx| Ok(array_key(&key_value, cx)))? else {
-            self.display(b"Warning", b"Illegal offset type");
-            return Ok(());
-        };
-        array.assign(key, value);
-        Ok(())
+        let key_value = self.read(operand)?;
+        if let Some(key) = self.compute(|cx| Ok(array_key(&key_value, cx)))? {
+            return Ok(Offset::Key(key));
+        }
+        self.display(b"Warning", b"Illegal offset type");
+        Ok(Offset::Illegal)
     }
 
     fn dim_get(&mut self, container: &Value, index: &Value) -> Exec<Value> {
@@ -267,7 +303,7 @@ impl<O: Output> Machine<'_, O> {
                             .map_err(|_full| VmError::Unsupported("this many array items"))?;
                     }
                     ArrayKey::String(name) => {
-                        out.assign(ArrayKey::String(name.clone()), slot.value());
+                        out.assign(ArrayKey::String(name), slot.value());
                     }
                 }
             }
@@ -281,8 +317,8 @@ impl<O: Output> Machine<'_, O> {
         let mut out = PhpArray::new();
         for (key, _slot) in array.iter() {
             let item = match key {
-                ArrayKey::Int(number) => Value::Int(*number),
-                ArrayKey::String(text) => Value::String(text.clone()),
+                ArrayKey::Int(number) => Value::Int(number),
+                ArrayKey::String(text) => Value::String(text),
             };
             out.append(item)
                 .map_err(|_full| VmError::Unsupported("this many array items"))?;

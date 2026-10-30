@@ -49,35 +49,149 @@ impl NextIndex {
 #[error("Cannot add element to the array as the next element is already occupied")]
 pub struct NextIndexOccupied;
 
+/// Consecutive integer keys `0..len` live in `packed` until a hole, a string key, or a
+/// non-sequential integer key forces `mixed`.
 #[derive(Debug, Default)]
 struct ArrayData {
-    table: Table<ArrayKey>,
+    packed: Vec<Slot>,
+    mixed: Option<Table<ArrayKey>>,
     next: NextIndex,
 }
 
 impl ArrayData {
+    fn len(&self) -> usize {
+        self.mixed.as_ref().map_or(self.packed.len(), Table::len)
+    }
+
+    fn packed_home(&self, key: &ArrayKey) -> Option<usize> {
+        if self.mixed.is_some() {
+            return None;
+        }
+        let ArrayKey::Int(number) = key else {
+            return None;
+        };
+        let index = usize::try_from(*number).ok()?;
+        if index < self.packed.len() {
+            return Some(index);
+        }
+        (index == self.packed.len() && self.next.key() == Some(*number)).then_some(index)
+    }
+
+    fn promote(&mut self) {
+        if self.mixed.is_some() {
+            return;
+        }
+        let mut table = Table::with_capacity(self.packed.len());
+        for (index, slot) in self.packed.drain(..).enumerate() {
+            let Ok(number) = i64::try_from(index) else {
+                continue;
+            };
+            let (dst, _) =
+                table.slot_or_insert_with(ArrayKey::Int(number), || Slot::Value(Value::Null));
+            *dst = slot;
+        }
+        self.mixed = Some(table);
+    }
+
     /// The slot for `key`, appended holding `null` when absent.
     fn slot(&mut self, key: ArrayKey) -> &mut Slot {
-        let int_key = match key {
-            ArrayKey::Int(number) => Some(number),
-            ArrayKey::String(_) => None,
+        if let Some(index) = self.packed_home(&key) {
+            if index == self.packed.len() {
+                self.packed.push(Slot::Value(Value::Null));
+                if let ArrayKey::Int(number) = key {
+                    self.next = self.next.after_insert(number);
+                }
+            }
+            return &mut self.packed[index];
+        }
+        let added_int = match &key {
+            ArrayKey::Int(number)
+                if self
+                    .mixed
+                    .as_ref()
+                    .is_none_or(|table| table.get(&key).is_none()) =>
+            {
+                Some(*number)
+            }
+            _ => None,
         };
-        let (slot, added) = self
-            .table
-            .slot_or_insert_with(key, || Slot::Value(Value::Null));
-        if let (true, Some(number)) = (added, int_key) {
+        if let Some(number) = added_int {
             self.next = self.next.after_insert(number);
         }
-        slot
+        self.promote();
+        let table = self.mixed.get_or_insert_with(Table::default);
+        table
+            .slot_or_insert_with(key, || Slot::Value(Value::Null))
+            .0
     }
 
     fn next_slot(&mut self) -> Result<(i64, &mut Slot), NextIndexOccupied> {
         let key = self.next.key().ok_or(NextIndexOccupied)?;
         Ok((key, self.slot(ArrayKey::Int(key))))
     }
-}
 
-impl ArrayData {
+    fn get(&self, key: &ArrayKey) -> Option<&Slot> {
+        if let Some(table) = &self.mixed {
+            return table.get(key);
+        }
+        let index = match key {
+            ArrayKey::Int(number) => usize::try_from(*number).ok()?,
+            ArrayKey::String(_) => return None,
+        };
+        self.packed.get(index)
+    }
+
+    fn get_mut(&mut self, key: &ArrayKey) -> Option<&mut Slot> {
+        if let Some(table) = &mut self.mixed {
+            return table.get_mut(key);
+        }
+        let index = match key {
+            ArrayKey::Int(number) => usize::try_from(*number).ok()?,
+            ArrayKey::String(_) => return None,
+        };
+        self.packed.get_mut(index)
+    }
+
+    fn remove(&mut self, key: &ArrayKey) -> Option<Slot> {
+        if self.mixed.is_none() {
+            if let ArrayKey::Int(number) = key
+                && let Ok(index) = usize::try_from(*number)
+                && index + 1 == self.packed.len()
+            {
+                return self.packed.pop();
+            }
+            self.promote();
+        }
+        self.mixed.as_mut()?.remove(key)
+    }
+
+    fn entry_from(&self, position: usize) -> Option<(usize, ArrayKey, &Slot)> {
+        if let Some(table) = &self.mixed {
+            return table
+                .entry_from(position)
+                .map(|(at, key, slot)| (at, key.clone(), slot));
+        }
+        let slot = self.packed.get(position)?;
+        let key = i64::try_from(position).ok()?;
+        Some((position, ArrayKey::Int(key), slot))
+    }
+
+    fn iter(&self) -> ArrayIter<'_> {
+        if let Some(table) = &self.mixed {
+            let entries = table.raw_entries();
+            return ArrayIter::Mixed {
+                entries,
+                front: 0,
+                back: entries.len(),
+            };
+        }
+        ArrayIter::Packed {
+            slots: &self.packed,
+            front: 0,
+            back: self.packed.len(),
+        }
+    }
+
     /// Whether `reference` holds this very storage, the one case where a reference bound only once
     /// still acts as a reference. A reference being changed right now is only reachable while a
     /// write walks through it, which happens when it holds this storage, so it counts as holding it.
@@ -92,16 +206,102 @@ impl ArrayData {
 /// [`Rc::make_mut`] calls it, when a shared array is about to change.
 impl Clone for ArrayData {
     fn clone(&self) -> Self {
+        let keeps = |reference: &Reference| self.is_held_by(reference);
         Self {
-            table: self.table.duplicate(|reference| self.is_held_by(reference)),
+            packed: self
+                .packed
+                .iter()
+                .map(|slot| slot.duplicate(keeps))
+                .collect(),
+            mixed: self.mixed.as_ref().map(|table| table.duplicate(keeps)),
             next: self.next,
+        }
+    }
+}
+
+/// Walks packed slots or a mixed table in insertion order.
+enum ArrayIter<'a> {
+    Empty,
+    Packed {
+        slots: &'a [Slot],
+        front: usize,
+        back: usize,
+    },
+    Mixed {
+        entries: &'a [Option<crate::table::Entry<ArrayKey>>],
+        front: usize,
+        back: usize,
+    },
+}
+
+impl<'a> Iterator for ArrayIter<'a> {
+    type Item = (ArrayKey, &'a Slot);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Empty => None,
+            Self::Packed { slots, front, back } => {
+                if *front >= *back {
+                    return None;
+                }
+                let index = *front;
+                *front += 1;
+                let key = i64::try_from(index).ok()?;
+                Some((ArrayKey::Int(key), &slots[index]))
+            }
+            Self::Mixed {
+                entries,
+                front,
+                back,
+            } => {
+                while *front < *back {
+                    let index = *front;
+                    *front += 1;
+                    if let Some(entry) = &entries[index] {
+                        return Some((entry.key.clone(), &entry.slot));
+                    }
+                }
+                None
+            }
+        }
+    }
+}
+
+impl DoubleEndedIterator for ArrayIter<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Empty => None,
+            Self::Packed { slots, front, back } => {
+                if *front >= *back {
+                    return None;
+                }
+                *back -= 1;
+                let index = *back;
+                let key = i64::try_from(index).ok()?;
+                Some((ArrayKey::Int(key), &slots[index]))
+            }
+            Self::Mixed {
+                entries,
+                front,
+                back,
+            } => {
+                while *front < *back {
+                    *back -= 1;
+                    if let Some(entry) = &entries[*back] {
+                        return Some((entry.key.clone(), &entry.slot));
+                    }
+                }
+                None
+            }
         }
     }
 }
 
 /// A PHP array: an insertion-ordered map from [`ArrayKey`]s to [`Slot`]s.
 ///
-/// Clones share storage until one of them is changed; the changed one then gets its own copy, in which
+/// Sequential integer keys `0..n` stay in a packed list so `$a[] =` is a push. A hole, a string
+/// key, or a non-sequential integer key promotes that storage to a mixed table. Clones share
+/// storage until one of them is changed; the changed one then gets its own copy, in which
 /// element references still bound elsewhere stay shared and references bound only in the array become
 /// plain values, unless such a reference holds the array itself (`$a[] = &$a; unset($a)`). A new,
 /// never-written array allocates nothing.
@@ -120,14 +320,15 @@ impl PhpArray {
             return Self::new();
         }
         Self(Some(Rc::new(ArrayData {
-            table: Table::with_capacity(capacity),
+            packed: Vec::with_capacity(capacity),
+            mixed: None,
             next: NextIndex::Unset,
         })))
     }
 
     /// Number of elements.
     pub fn len(&self) -> usize {
-        self.0.as_ref().map_or(0, |data| data.table.len())
+        self.0.as_ref().map_or(0, |data| data.len())
     }
 
     /// Whether the array has no elements.
@@ -142,7 +343,7 @@ impl PhpArray {
 
     /// The slot stored under `key`.
     pub fn get(&self, key: &ArrayKey) -> Option<&Slot> {
-        self.0.as_ref()?.table.get(key)
+        self.0.as_ref()?.get(key)
     }
 
     /// Whether an element is stored under `key`.
@@ -151,13 +352,13 @@ impl PhpArray {
     }
 
     /// The elements in order.
-    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (&ArrayKey, &Slot)> {
-        self.0.iter().flat_map(|data| data.table.iter())
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (ArrayKey, &Slot)> {
+        self.0.as_ref().map_or(ArrayIter::Empty, |data| data.iter())
     }
 
     /// The first live element at or after `position`, with that element's position.
-    pub fn entry_from(&self, position: usize) -> Option<(usize, &ArrayKey, &Slot)> {
-        self.0.as_ref()?.table.entry_from(position)
+    pub fn entry_from(&self, position: usize) -> Option<(usize, ArrayKey, &Slot)> {
+        self.0.as_ref()?.entry_from(position)
     }
 
     /// The address of the storage, 0 for an array that never had any; equal for arrays that
@@ -270,7 +471,7 @@ impl PhpArray {
         if !self.contains_key(key) {
             return None;
         }
-        self.data_mut().table.get_mut(key)
+        self.data_mut().get_mut(key)
     }
 
     /// `unset($array[$key])`: removes the element and returns its slot. Removing a missing key leaves
@@ -279,7 +480,12 @@ impl PhpArray {
         if !self.contains_key(key) {
             return None;
         }
-        self.data_mut().table.remove(key)
+        self.data_mut().remove(key)
+    }
+
+    #[cfg(test)]
+    fn is_packed(&self) -> bool {
+        self.0.as_ref().is_none_or(|data| data.mixed.is_none())
     }
 }
 
@@ -306,7 +512,7 @@ mod tests {
     }
 
     fn keys(array: &PhpArray) -> Vec<ArrayKey> {
-        array.iter().map(|(key, _)| key.clone()).collect()
+        array.iter().map(|(key, _)| key).collect()
     }
 
     #[test]
@@ -509,5 +715,55 @@ mod tests {
         array.slot_mut("a".into()).assign(Value::Int(3));
         assert_eq!(element(&shared, "a"), Some(1), "write fetches separate");
         assert_eq!(element(&array, "a"), Some(3));
+    }
+
+    #[test]
+    fn sequential_appends_stay_packed() {
+        let mut array = PhpArray::new();
+        assert!(array.is_packed());
+        for i in 0..64 {
+            assert_eq!(array.append(Value::Int(i)), Ok(i));
+        }
+        assert!(array.is_packed());
+        assert_eq!(array.len(), 64);
+        assert_eq!(element(&array, 0), Some(0));
+        assert_eq!(element(&array, 63), Some(63));
+        array.assign("name".into(), Value::Int(1));
+        assert!(!array.is_packed());
+        assert_eq!(element(&array, 10), Some(10));
+        assert_eq!(element(&array, "name"), Some(1));
+    }
+
+    #[test]
+    fn unique_appends_do_not_copy_prior_elements() {
+        let mut array = PhpArray::new();
+        let n = 20_000_i64;
+        for i in 0..n {
+            array.append(Value::Int(i)).unwrap();
+        }
+        assert_eq!(array.len(), usize::try_from(n).unwrap());
+        assert!(array.is_packed());
+        assert_eq!(element(&array, 0), Some(0));
+        assert_eq!(element(&array, n - 1), Some(n - 1));
+        let copy = array.clone();
+        array.append(Value::Int(n)).unwrap();
+        assert_eq!(copy.len(), usize::try_from(n).unwrap());
+        assert_eq!(array.len(), usize::try_from(n).unwrap() + 1);
+    }
+
+    #[test]
+    fn trailing_removal_keeps_next_index() {
+        let mut array = PhpArray::new();
+        array.append(Value::Int(1)).unwrap();
+        array.append(Value::Int(2)).unwrap();
+        assert!(array.remove(&ArrayKey::Int(1)).is_some());
+        assert!(array.is_packed());
+        assert_eq!(array.append(Value::Int(9)), Ok(2));
+        assert!(
+            !array.is_packed(),
+            "a hole at 1 promotes on the next append"
+        );
+        assert_eq!(element(&array, 0), Some(1));
+        assert_eq!(element(&array, 2), Some(9));
     }
 }

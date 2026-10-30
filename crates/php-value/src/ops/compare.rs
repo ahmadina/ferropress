@@ -281,7 +281,7 @@ pub fn compare(left: &Value, right: &Value, cx: &impl Context) -> Result<Orderin
             continue;
         };
         frame.left_at = at + 1;
-        let Some(other) = frame.right.get(key) else {
+        let Some(other) = frame.right.get(&key) else {
             return Ok(Ordering::Greater);
         };
         let (a, b) = (slot.value(), other.value());

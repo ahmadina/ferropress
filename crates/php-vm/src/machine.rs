@@ -84,6 +84,8 @@ pub(crate) struct Machine<'o, O: Output> {
     pub(crate) file: Box<[u8]>,
     output: &'o mut O,
     pub(crate) frames: Vec<Frame>,
+    /// Finished frames kept for the next call, so `$fn()` does not allocate a new slot list.
+    spare: Vec<Frame>,
     /// Calls being prepared: the function and the arguments sent so far.
     pub(crate) pending: Vec<crate::calls::Pending>,
     pub(crate) objects: ObjectStore,
@@ -175,6 +177,7 @@ impl<'o, O: Output> Machine<'o, O> {
             file: file.into(),
             output,
             frames: Vec::new(),
+            spare: Vec::new(),
             pending: Vec::new(),
             objects: ObjectStore::new(),
             classes,
@@ -195,7 +198,7 @@ impl<'o, O: Output> Machine<'o, O> {
     }
 
     pub(crate) fn run(&mut self) -> Result<u8, VmError> {
-        let main = Frame::new(0, &self.codes[0]);
+        let main = self.take_frame(0);
         self.frames.push(main);
         match self.drive() {
             Ok(()) => Ok(0),
@@ -254,6 +257,39 @@ impl<'o, O: Output> Machine<'o, O> {
             .ok_or(VmError::Malformed("no active frame"))
     }
 
+    /// A frame for `code`, reused from a previous call when one is free.
+    pub(crate) fn take_frame(&mut self, code: usize) -> Frame {
+        let slots = self.codes[code].code.slots.len();
+        let temps = self.codes[code].code.temporaries as usize;
+        if let Some(mut frame) = self.spare.pop() {
+            frame.code = code;
+            frame.pc = 0;
+            frame.slots.clear();
+            frame.slots.resize_with(slots, || None);
+            frame.temps.clear();
+            frame.temps.resize(temps, Value::Null);
+            frame.result = Operand::UNUSED;
+            frame.call_line = 0;
+            frame.passed = 0;
+            frame.extra.clear();
+            frame.generator = None;
+            return frame;
+        }
+        Frame::new(code, &self.codes[code])
+    }
+
+    /// Keeps `frame`'s allocations for a later [`Self::take_frame`].
+    pub(crate) fn recycle_frame(&mut self, mut frame: Frame) {
+        if self.spare.len() >= 8 {
+            return;
+        }
+        frame.slots.clear();
+        frame.temps.clear();
+        frame.extra.clear();
+        frame.generator = None;
+        self.spare.push(frame);
+    }
+
     pub(crate) fn step(&mut self) -> Exec<Flow> {
         let frame = self.frame()?;
         let code = &self.codes[frame.code].code;
@@ -265,7 +301,9 @@ impl<'o, O: Output> Machine<'o, O> {
         self.line = code.lines.get(pc).copied().unwrap_or(0);
         self.frame_mut()?.pc = pc + 1;
         let flow = self.execute(&instruction);
-        self.flush();
+        if !self.cx.diagnostics.is_empty() {
+            self.flush();
+        }
         flow
     }
 
@@ -412,6 +450,9 @@ impl<'o, O: Output> Machine<'o, O> {
     ) -> Exec {
         let left = self.read(ins.a)?;
         let right = self.read(ins.b)?;
+        if let Some(value) = int_fast(ins.opcode, &left, &right) {
+            return self.write(ins.result, value);
+        }
         let value = self.compute(|cx| op(&left, &right, cx))?;
         self.write(ins.result, value)
     }
@@ -651,5 +692,54 @@ impl<'o, O: Output> Machine<'o, O> {
             .collect();
         args.extend(frame.extra.iter().cloned());
         args
+    }
+
+    /// Runs `f` on the value stored in `operand`, without cloning arrays or strings first.
+    pub(crate) fn with_value_mut<R>(
+        &mut self,
+        operand: Operand,
+        f: impl FnOnce(&mut Value) -> R,
+    ) -> Exec<R> {
+        let index = operand.index() as usize;
+        match operand.kind() {
+            OperandKind::Temp => {
+                let frame = self.frame_mut()?;
+                let value = frame
+                    .temps
+                    .get_mut(index)
+                    .ok_or(VmError::Malformed("no such temporary"))?;
+                Ok(f(value))
+            }
+            OperandKind::Slot => {
+                let frame = self.frame_mut()?;
+                let slot = frame
+                    .slots
+                    .get_mut(index)
+                    .ok_or(VmError::Malformed("no such slot"))?
+                    .get_or_insert_with(|| Slot::Value(Value::Null));
+                Ok(slot.with_value_mut(f))
+            }
+            OperandKind::Unused | OperandKind::Literal | OperandKind::Target => {
+                Err(VmError::Malformed("operand cannot be written").into())
+            }
+        }
+    }
+}
+
+fn int_fast(opcode: Opcode, left: &Value, right: &Value) -> Option<Value> {
+    let (Value::Int(left), Value::Int(right)) = (left, right) else {
+        return None;
+    };
+    match opcode {
+        Opcode::Add => left.checked_add(*right).map(Value::Int),
+        Opcode::Sub => left.checked_sub(*right).map(Value::Int),
+        Opcode::Mul => left.checked_mul(*right).map(Value::Int),
+        Opcode::Mod if *right != 0 => Some(Value::Int(left.checked_rem(*right).unwrap_or(0))),
+        Opcode::Equal | Opcode::Identical => Some(Value::Bool(left == right)),
+        Opcode::NotEqual | Opcode::NotIdentical => Some(Value::Bool(left != right)),
+        Opcode::Less => Some(Value::Bool(left < right)),
+        Opcode::LessOrEqual => Some(Value::Bool(left <= right)),
+        Opcode::Spaceship => Some(Value::Int((*left).cmp(right) as i64)),
+        _ => None,
     }
 }

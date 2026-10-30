@@ -96,7 +96,7 @@ impl<O: Output> Machine<'_, O> {
                     for (needle, with) in pairs {
                         text = replace_all(&text, needle, with);
                     }
-                    out.assign(key.clone(), Value::String(PhpString::new(&text)));
+                    out.assign(key, Value::String(PhpString::new(&text)));
                 }
                 Ok(Value::Array(out))
             }

@@ -143,7 +143,7 @@ fn write_array(writer: &mut Writer, array: &PhpArray) -> Result<(), VmError> {
     writer.array(array.len());
     for (key, slot) in array.iter() {
         match key {
-            ArrayKey::Int(number) => writer.int(*number),
+            ArrayKey::Int(number) => writer.int(number),
             ArrayKey::String(text) => writer.string(text.as_bytes()),
         }
         write_value(writer, &slot.value())?;

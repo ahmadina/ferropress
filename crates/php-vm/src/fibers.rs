@@ -91,6 +91,7 @@ impl<O: Output> Machine<'_, O> {
                 implicit_ctor: None,
                 generator_method: None,
                 native: None,
+                host: None,
                 fiber_method: Some(FiberCall::Static(method)),
                 native_method: None,
                 args: Vec::new(),
@@ -242,7 +243,9 @@ impl<O: Output> Machine<'_, O> {
     fn callable_function(&self, written: &[u8]) -> bool {
         let stripped = written.strip_prefix(b"\\").unwrap_or(written);
         let key = stripped.to_ascii_lowercase();
-        self.functions.contains_key(key.as_slice()) || crate::builtins::lookup(&key).is_some()
+        self.functions.contains_key(key.as_slice())
+            || crate::builtins::lookup(&key).is_some()
+            || self.host_exists(&key)
     }
 
     fn fiber_start(&mut self, object: &Object, args: &[Argument], result: Operand) -> Exec {

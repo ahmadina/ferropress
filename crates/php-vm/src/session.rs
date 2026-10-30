@@ -2,8 +2,12 @@
 
 use std::fmt;
 
+use std::rc::Rc;
+
 use php_compiler::bytecode::{Operand, Unit};
 use php_value::{Invoke, Object, Slot, Value};
+
+use crate::host::Host;
 
 use crate::machine::{Exec, Machine, Stop};
 use crate::{Output, VmError};
@@ -28,7 +32,7 @@ pub enum SessionError {
 }
 
 impl SessionError {
-    fn from_stop(stop: Stop) -> Self {
+    pub(crate) fn from_stop(stop: Stop) -> Self {
         match stop {
             Stop::Vm(error) => Self::Vm(error),
             Stop::Thrown(thrown) => Self::Thrown {
@@ -63,9 +67,29 @@ impl<'o, O: Output> Session<'o, O> {
     ///
     /// [`VmError`] when the bytecode is malformed or needs what this VM cannot run.
     pub fn boot(unit: &Unit, file: &[u8], output: &'o mut O) -> Result<Self, VmError> {
+        Self::boot_with_host(unit, file, output, None)
+    }
+
+    /// Loads `unit` with `host` already attached so main code can call host functions.
+    ///
+    /// # Errors
+    ///
+    /// [`VmError`] when the bytecode is malformed or needs what this VM cannot run.
+    pub fn boot_with_host(
+        unit: &Unit,
+        file: &[u8],
+        output: &'o mut O,
+        host: Option<Rc<dyn Host>>,
+    ) -> Result<Self, VmError> {
         let mut machine = Machine::new(unit, file, output);
+        machine.host = host;
         let status = machine.run()?;
         Ok(Self { machine, status })
+    }
+
+    /// Attaches `host` so later calls (and `function_exists`) see those names.
+    pub fn attach_host(&mut self, host: Rc<dyn Host>) {
+        self.machine.host = Some(host);
     }
 
     /// The exit status of the main code: 0 when it finished, 255 after an uncaught error.

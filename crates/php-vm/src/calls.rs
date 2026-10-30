@@ -25,6 +25,8 @@ pub(crate) struct Pending {
     pub(crate) generator_method: Option<(Object, crate::generators::GenMethod)>,
     /// A bound built-in, when this call is one.
     pub(crate) native: Option<crate::builtins::Native>,
+    /// A host function name, already lowercased.
+    pub(crate) host: Option<Box<[u8]>>,
     /// A native `Fiber` method, when this call is one.
     pub(crate) fiber_method: Option<crate::fibers::FiberCall>,
     /// A native method of a Rust-owned class.
@@ -48,6 +50,7 @@ impl<O: Output> Machine<'_, O> {
                 implicit_ctor: None,
                 generator_method: None,
                 native: None,
+                host: None,
                 fiber_method: None,
                 native_method: None,
                 args: Vec::new(),
@@ -62,6 +65,22 @@ impl<O: Output> Machine<'_, O> {
                 implicit_ctor: None,
                 generator_method: None,
                 native: Some(native),
+                host: None,
+                fiber_method: None,
+                native_method: None,
+                args: Vec::new(),
+            });
+            return Ok(());
+        }
+        if self.host_exists(key.as_bytes()) {
+            self.pending.push(Pending {
+                code: 0,
+                env: None,
+                this: None,
+                implicit_ctor: None,
+                generator_method: None,
+                native: None,
+                host: Some(key.as_bytes().into()),
                 fiber_method: None,
                 native_method: None,
                 args: Vec::new(),
@@ -130,6 +149,7 @@ impl<O: Output> Machine<'_, O> {
             || pending.fiber_method.is_some()
             || pending.native_method.is_some()
             || pending.native.is_some()
+            || pending.host.is_some()
             || pending.implicit_ctor.is_some()
         {
             return self.dispatch_special_call(pending, result);
@@ -222,6 +242,7 @@ impl<O: Output> Machine<'_, O> {
             implicit_ctor,
             generator_method,
             native,
+            host,
             fiber_method,
             native_method,
             args,
@@ -238,6 +259,9 @@ impl<O: Output> Machine<'_, O> {
         }
         if let Some(native) = native {
             return self.dispatch_native(native, &args, result);
+        }
+        if let Some(name) = host {
+            return self.dispatch_host(&name, &args, result);
         }
         if let Some(class) = implicit_ctor {
             return self.finish_implicit(&class, this, &args);

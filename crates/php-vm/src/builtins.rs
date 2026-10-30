@@ -471,7 +471,8 @@ impl<O: Output> Machine<'_, O> {
         let value = self.native_one("function_exists", args)?;
         let name = self.string_arg("function_exists", &value)?;
         let key = name.to_ascii_lowercase();
-        let found = self.functions.contains_key(key.as_slice()) || is_bound(&key);
+        let found =
+            self.functions.contains_key(key.as_slice()) || is_bound(&key) || self.host_exists(&key);
         self.write(result, Value::Bool(found))
     }
 

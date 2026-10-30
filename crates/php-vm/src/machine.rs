@@ -1,6 +1,7 @@
 //! The interpreter loop: frames, operands and the instructions that compute values.
 
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use php_compiler::bytecode::{Code, Instruction, Literal, Opcode, Operand, OperandKind, Unit};
 use php_value::ops::{self, Collect, OpError};
@@ -110,6 +111,8 @@ pub(crate) struct Machine<'o, O: Output> {
     pub(crate) deferred_classes: HashMap<u32, crate::classes::Class>,
     /// Callables registered with `bridge_add`, in registration order.
     pub(crate) hooks: Vec<Value>,
+    /// Host functions registered by bindings (ADR-0003).
+    pub(crate) host: Option<Rc<dyn crate::host::Host>>,
 }
 
 /// `literal` as a runtime value.
@@ -187,6 +190,7 @@ impl<'o, O: Output> Machine<'o, O> {
             loading: HashSet::new(),
             deferred_classes,
             hooks: Vec::new(),
+            host: None,
         }
     }
 

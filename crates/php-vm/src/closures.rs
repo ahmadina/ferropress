@@ -80,6 +80,7 @@ impl<O: Output> Machine<'_, O> {
                 implicit_ctor: None,
                 generator_method: None,
                 native: None,
+                host: None,
                 fiber_method: None,
                 native_method: None,
                 args: Vec::new(),
@@ -94,6 +95,22 @@ impl<O: Output> Machine<'_, O> {
                 implicit_ctor: None,
                 generator_method: None,
                 native: Some(native),
+                host: None,
+                fiber_method: None,
+                native_method: None,
+                args: Vec::new(),
+            });
+            return Ok(());
+        }
+        if self.host_exists(&key) {
+            self.pending.push(Pending {
+                code: 0,
+                env: None,
+                this: None,
+                implicit_ctor: None,
+                generator_method: None,
+                native: None,
+                host: Some(key.into()),
                 fiber_method: None,
                 native_method: None,
                 args: Vec::new(),
@@ -118,6 +135,7 @@ impl<O: Output> Machine<'_, O> {
             implicit_ctor: None,
             generator_method: None,
             native: None,
+            host: None,
             fiber_method: None,
             native_method: None,
             args: Vec::new(),

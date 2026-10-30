@@ -22,6 +22,7 @@ mod fibers;
 mod foreach;
 mod generators;
 mod hooks;
+mod host;
 mod includes;
 mod isset;
 mod json;
@@ -39,6 +40,7 @@ mod strings;
 mod thrown;
 
 pub use error::VmError;
+pub use host::{Host, SharedHost};
 pub use session::{Session, SessionError};
 
 use php_compiler::bytecode::Unit;

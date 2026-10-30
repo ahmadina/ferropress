@@ -49,7 +49,12 @@ impl<O: Output> Machine<'_, O> {
 
     /// Lands in a matching `catch` when one is active, otherwise leaves the error uncaught.
     pub(crate) fn catch_thrown(&mut self, thrown: &Thrown) -> Exec<bool> {
-        while !self.frames.is_empty() {
+        self.catch_above(thrown, 0)
+    }
+
+    /// Like [`Self::catch_thrown`], but does not walk frames at or below `keep`.
+    pub(crate) fn catch_above(&mut self, thrown: &Thrown, keep: usize) -> Exec<bool> {
+        while self.frames.len() > keep {
             if let Some(handler) = self.matching_handler(thrown.class.as_ref()) {
                 self.pending.clear();
                 self.finally_leave = None;
@@ -70,7 +75,7 @@ impl<O: Output> Machine<'_, O> {
                 self.frame_mut()?.pc = finally.target as usize;
                 return Ok(true);
             }
-            if self.frames.len() == 1 {
+            if self.frames.len() == keep + 1 {
                 self.leave_fiber();
                 return Ok(false);
             }

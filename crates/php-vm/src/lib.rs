@@ -21,6 +21,7 @@ mod exceptions;
 mod fibers;
 mod foreach;
 mod generators;
+mod hooks;
 mod includes;
 mod isset;
 mod json;

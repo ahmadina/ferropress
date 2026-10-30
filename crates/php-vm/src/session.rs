@@ -5,7 +5,7 @@ use std::fmt;
 use php_compiler::bytecode::{Operand, Unit};
 use php_value::{Invoke, Object, Slot, Value};
 
-use crate::machine::{Machine, Stop};
+use crate::machine::{Exec, Machine, Stop};
 use crate::{Output, VmError};
 
 /// Why [`Session::invoke`] did not return a PHP value.
@@ -82,12 +82,16 @@ impl<'o, O: Output> Session<'o, O> {
 
     /// Runs `callee` with `args` on this request and returns the callable's result.
     ///
+    /// Nested invokes (a native that calls back into PHP) share this request and stack.
+    ///
     /// # Errors
     ///
     /// [`SessionError::Vm`] when the engine fails; [`SessionError::Thrown`] when PHP throws and the
     /// callable does not catch it.
     pub fn invoke(&mut self, callee: &Value, args: &mut [Slot]) -> Result<Value, SessionError> {
-        self.machine.invoke_callable(callee, args)
+        self.machine
+            .invoke_callable(callee, args)
+            .map_err(SessionError::from_stop)
     }
 }
 
@@ -100,42 +104,29 @@ impl<O: Output> Invoke for Session<'_, O> {
 }
 
 impl<O: Output> Machine<'_, O> {
-    pub(crate) fn invoke_callable(
-        &mut self,
-        callee: &Value,
-        args: &mut [Slot],
-    ) -> Result<Value, SessionError> {
-        if !self.frames.is_empty() {
-            return Err(VmError::Malformed("invoke while a frame is active").into());
-        }
+    pub(crate) fn invoke_callable(&mut self, callee: &Value, args: &mut [Slot]) -> Exec<Value> {
+        let frames = self.frames.len();
+        let pending = self.pending.len();
         match callee {
-            Value::String(name) => self
-                .init_string_call(name.as_bytes())
-                .map_err(SessionError::from_stop)?,
-            Value::Object(object) => self
-                .init_closure_call(object.clone())
-                .map_err(SessionError::from_stop)?,
-            other => return Err(SessionError::from_stop(self.not_callable(other))),
+            Value::String(name) => self.init_string_call(name.as_bytes())?,
+            Value::Object(object) => self.init_closure_call(object.clone())?,
+            other => return Err(self.not_callable(other)),
         }
         for arg in args.iter() {
-            self.send(crate::closures::copy_slot(arg), false)
-                .map_err(SessionError::from_stop)?;
+            self.send(crate::closures::copy_slot(arg), false)?;
         }
-        match self.call(Operand::UNUSED) {
-            Ok(()) => {}
-            Err(stop) => {
-                self.reset_stack();
-                return Err(SessionError::from_stop(stop));
-            }
+        if let Err(stop) = self.call(Operand::UNUSED) {
+            self.abort_invoke(frames, pending);
+            return Err(stop);
         }
-        if self.frames.is_empty() {
+        if self.frames.len() == frames {
             return Ok(std::mem::take(&mut self.return_value));
         }
-        match self.drive() {
+        match self.drive_until(frames) {
             Ok(()) => Ok(std::mem::take(&mut self.return_value)),
             Err(stop) => {
-                self.reset_stack();
-                Err(SessionError::from_stop(stop))
+                self.abort_invoke(frames, pending);
+                Err(stop)
             }
         }
     }

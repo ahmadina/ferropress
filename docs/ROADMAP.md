@@ -90,13 +90,13 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `sprintf` for `%s`, `%d`, `%u`, `%x`, `%X` and `%f`
   - [x] `serialize` / `unserialize` for scalars, arrays and objects
   - [x] PCRE: `preg_match` and `preg_replace` for delimited patterns (no matches/limit yet)
-- [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
+- [x] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
       classes extend Rust-owned classes
   - [x] `php-value` invoke port (ADR-0003)
   - [x] `php-abi-bridge` calls PHP functions and closures from Rust
   - [x] By-reference arguments and object identity survive a round trip
-  - [ ] Reentrant core → PHP → core calls
-  - [ ] PHP classes extend Rust-owned classes
+  - [x] Reentrant core → PHP → core calls
+  - [x] PHP classes extend Rust-owned classes
 
 ## Phase 4 — Native CMS kernel
 

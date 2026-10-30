@@ -27,6 +27,8 @@ pub(crate) struct Pending {
     pub(crate) native: Option<crate::builtins::Native>,
     /// A native `Fiber` method, when this call is one.
     pub(crate) fiber_method: Option<crate::fibers::FiberCall>,
+    /// A native method of a Rust-owned class.
+    pub(crate) native_method: Option<(Object, crate::classes::NativeMethod)>,
     pub(crate) args: Vec<Argument>,
 }
 
@@ -47,6 +49,7 @@ impl<O: Output> Machine<'_, O> {
                 generator_method: None,
                 native: None,
                 fiber_method: None,
+                native_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -60,6 +63,7 @@ impl<O: Output> Machine<'_, O> {
                 generator_method: None,
                 native: Some(native),
                 fiber_method: None,
+                native_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -118,31 +122,25 @@ impl<O: Output> Machine<'_, O> {
     /// Calls the prepared function, binding its parameters; too few arguments throw
     /// `ArgumentCountError` from inside the called function.
     pub(crate) fn call(&mut self, result: Operand) -> Exec {
+        let pending = self
+            .pending
+            .pop()
+            .ok_or(VmError::Malformed("call without a prepared function"))?;
+        if pending.generator_method.is_some()
+            || pending.fiber_method.is_some()
+            || pending.native_method.is_some()
+            || pending.native.is_some()
+            || pending.implicit_ctor.is_some()
+        {
+            return self.dispatch_special_call(pending, result);
+        }
         let Pending {
             code,
             env,
             this,
-            implicit_ctor,
-            generator_method,
-            native,
-            fiber_method,
             args,
-        } = self
-            .pending
-            .pop()
-            .ok_or(VmError::Malformed("call without a prepared function"))?;
-        if let Some((object, method)) = generator_method {
-            return self.dispatch_generator(&object, method, &args, result);
-        }
-        if let Some(call) = fiber_method {
-            return self.dispatch_fiber(call, &args, result);
-        }
-        if let Some(native) = native {
-            return self.dispatch_native(native, &args, result);
-        }
-        if let Some(class) = implicit_ctor {
-            return self.finish_implicit(&class, this, &args);
-        }
+            ..
+        } = pending;
         let mut frame = Frame::new(code, &self.codes[code]);
         if let Some(env) = env {
             crate::closures::apply_captured_slots(
@@ -218,6 +216,35 @@ impl<O: Output> Machine<'_, O> {
         Err(self.throw("ArgumentCountError", message))
     }
 
+    fn dispatch_special_call(&mut self, pending: Pending, result: Operand) -> Exec {
+        let Pending {
+            this,
+            implicit_ctor,
+            generator_method,
+            native,
+            fiber_method,
+            native_method,
+            args,
+            ..
+        } = pending;
+        if let Some((object, method)) = generator_method {
+            return self.dispatch_generator(&object, method, &args, result);
+        }
+        if let Some(call) = fiber_method {
+            return self.dispatch_fiber(call, &args, result);
+        }
+        if let Some((object, method)) = native_method {
+            return self.dispatch_core_method(&object, method, &args, result);
+        }
+        if let Some(native) = native {
+            return self.dispatch_native(native, &args, result);
+        }
+        if let Some(class) = implicit_ctor {
+            return self.finish_implicit(&class, this, &args);
+        }
+        Err(VmError::Malformed("call without a prepared function").into())
+    }
+
     /// A by-reference parameter received a value, not a variable.
     fn not_by_reference(&self, name: &[u8], index: usize, param: &[u8]) -> Exec {
         let mut message = name.to_vec();
@@ -262,8 +289,8 @@ impl<O: Output> Machine<'_, O> {
             .frames
             .pop()
             .ok_or(VmError::Malformed("return without a frame"))?;
+        self.return_value = value.clone();
         if self.frames.is_empty() {
-            self.return_value = value;
             return Ok(Flow::Finished);
         }
         self.write(frame.result, value)?;

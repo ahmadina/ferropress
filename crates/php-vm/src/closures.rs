@@ -81,6 +81,7 @@ impl<O: Output> Machine<'_, O> {
                 generator_method: None,
                 native: None,
                 fiber_method: None,
+                native_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -94,6 +95,7 @@ impl<O: Output> Machine<'_, O> {
                 generator_method: None,
                 native: Some(native),
                 fiber_method: None,
+                native_method: None,
                 args: Vec::new(),
             });
             return Ok(());
@@ -117,6 +119,7 @@ impl<O: Output> Machine<'_, O> {
             generator_method: None,
             native: None,
             fiber_method: None,
+            native_method: None,
             args: Vec::new(),
         });
         Ok(())

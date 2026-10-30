@@ -92,16 +92,12 @@ impl<O: Output> Machine<'_, O> {
                 generator_method: None,
                 native: None,
                 fiber_method: Some(FiberCall::Static(method)),
+                native_method: None,
                 args: Vec::new(),
             });
             return Ok(());
         }
-        let mut message = b"Call to undefined method ".to_vec();
-        message.extend_from_slice(class.as_bytes());
-        message.extend_from_slice(b"::");
-        message.extend_from_slice(written.as_bytes());
-        message.extend_from_slice(b"()");
-        Err(self.throw("Error", message))
+        self.init_class_static_call(class.as_bytes(), key.as_bytes(), written.as_bytes())
     }
 
     /// Runs a native Fiber method.
@@ -470,8 +466,10 @@ pub(crate) fn register_fiber(table: &mut HashMap<Box<[u8]>, crate::classes::Clas
         .or_insert_with(|| crate::classes::Class {
             name: b"Fiber".to_vec().into(),
             kind: php_compiler::bytecode::ClassKind::Class,
+            parent: None,
             properties: Vec::new(),
             methods: HashMap::new(),
+            native_methods: HashMap::new(),
             implements: Vec::new(),
             uses: Vec::new(),
             case_names: Vec::new(),

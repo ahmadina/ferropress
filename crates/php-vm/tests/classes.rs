@@ -269,3 +269,107 @@ fn assigning_on_true_and_false_names_the_type() -> Result<(), String> {
     }
     Ok(())
 }
+
+#[test]
+fn a_child_inherits_parent_properties() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php class P { public $a = 1; } class C extends P { public $b = 2; } $o = new C; echo $o->a, $o->b;",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"12");
+    Ok(())
+}
+
+#[test]
+fn a_child_inherits_methods_and_is_an_instance_of_the_parent() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php class P { function m() { return 2; } } class C extends P {} $o = new C; echo $o->m(), $o instanceof P, $o instanceof C;",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"211");
+    Ok(())
+}
+
+#[test]
+fn a_method_calls_another_on_self() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php class C { function m() { return self::n(); } function n() { return 9; } } echo (new C)->m();",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"9");
+    Ok(())
+}
+
+#[test]
+fn a_child_calls_the_parent_implementation() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php class P { function m() { return \"p\"; } } class C extends P { function m() { return parent::m() . \"c\"; } } echo (new C)->m();",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"pc");
+    Ok(())
+}
+
+#[test]
+fn a_core_node_is_constructed_and_labelled() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php $o = new CoreNode; echo $o->label(), class_exists(\"CoreNode\") ? \"y\" : \"n\", $o instanceof CoreNode;",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"corey1");
+    Ok(())
+}
+
+#[test]
+fn a_core_method_cannot_be_called_statically() -> Result<(), String> {
+    let (output, status) = run(b"<?php CoreNode::label();")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("Non-static method corenode::label() cannot be called statically"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_php_class_extends_a_rust_owned_class() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php class C extends CoreNode { function label() { return parent::label() . \"!\"; } } $o = new C; $o->tag(\"x\"); echo $o->label(), get_parent_class($o), get_class($o), $o instanceof CoreNode;",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"x!CoreNodeC1");
+    Ok(())
+}
+
+#[test]
+fn get_class_and_object_id_name_an_instance() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php class C {} $o = new C; echo get_class($o), get_parent_class($o) === false ? \"n\" : \"y\", spl_object_id($o) > 0 ? \"1\" : \"0\";",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"Cn1");
+    Ok(())
+}
+
+#[test]
+fn get_class_on_a_non_object_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php get_class(1);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("get_class(): Argument #1 ($object) must be of type object"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_core_instance_round_trips_through_serialize() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php class C extends CoreNode {} $o = new C; $o->tag(\"z\"); $c = unserialize(serialize($o)); echo $c->label(), get_class($c);",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"zC");
+    Ok(())
+}

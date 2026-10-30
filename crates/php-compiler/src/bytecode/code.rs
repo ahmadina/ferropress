@@ -136,6 +136,8 @@ pub struct ClassDecl {
     pub properties: Vec<PropertyDecl>,
     /// Instance methods, in declaration order. Interface methods without a body are omitted.
     pub methods: Vec<MethodDecl>,
+    /// The class this type extends, as declared. Absent when it has no parent.
+    pub extends: Option<Box<[u8]>>,
     /// Interfaces this type implements, or the parents of an interface, as declared.
     pub implements: Vec<Box<[u8]>>,
     /// Traits this type uses, as declared.
@@ -465,6 +467,7 @@ mod tests {
                         ..Code::default()
                     },
                 }],
+                extends: None,
                 implements: Vec::new(),
                 uses: Vec::new(),
                 cases: Vec::new(),

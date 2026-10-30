@@ -371,8 +371,10 @@ pub(crate) fn register_generator(table: &mut HashMap<Box<[u8]>, crate::classes::
         .or_insert_with(|| crate::classes::Class {
             name: b"Generator".to_vec().into(),
             kind: php_compiler::bytecode::ClassKind::Class,
+            parent: None,
             properties: Vec::new(),
             methods: HashMap::new(),
+            native_methods: HashMap::new(),
             implements: Vec::new(),
             uses: Vec::new(),
             case_names: Vec::new(),

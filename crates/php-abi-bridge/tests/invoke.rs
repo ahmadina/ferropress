@@ -122,3 +122,42 @@ fn a_bridge_names_its_status() -> Result<(), String> {
     assert_eq!(format!("{bridge:?}"), "Bridge { status: 0, .. }");
     Ok(())
 }
+
+#[test]
+fn a_captured_object_is_invoked_twice_through_native() -> Result<(), String> {
+    let mut output = Vec::new();
+    let mut bridge = bridge(
+        b"<?php class Box { public $n = 0; } $box = new Box; $fn = function() use (&$box) { $box->n = $box->n + 1; return $box->n; }; function go($c) { return call_user_func($c); } return $fn;",
+        &mut output,
+    )?;
+    let callee = bridge.returned().clone();
+    let first = bridge
+        .invoke(&Value::from("go"), &mut [Slot::from(callee.clone())])
+        .map_err(|error| error.to_string())?;
+    let second = bridge
+        .invoke(&Value::from("go"), &mut [Slot::from(callee)])
+        .map_err(|error| error.to_string())?;
+    assert_eq!(as_int(&first)?, 1);
+    assert_eq!(as_int(&second)?, 2);
+    Ok(())
+}
+
+#[test]
+fn a_php_child_of_a_rust_class_is_invoked() -> Result<(), String> {
+    let mut output = Vec::new();
+    let mut bridge = bridge(
+        b"<?php class C extends CoreNode { function label() { return parent::label() . \"!\"; } } function go($o) { $o->tag(\"q\"); return $o->label(); } return new C();",
+        &mut output,
+    )?;
+    let object = as_object(bridge.returned())?;
+    let got = bridge
+        .invoke(&Value::from("go"), &mut [Slot::from(Value::Object(object))])
+        .map_err(|error| error.to_string())?;
+    match got {
+        Value::String(text) => {
+            assert_eq!(text.as_bytes(), b"q!");
+            Ok(())
+        }
+        other => Err(format!("expected q!, got {other:?}")),
+    }
+}

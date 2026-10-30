@@ -105,9 +105,13 @@ A unit `enum` compiles its cases. `E::A` is a singleton object of class `E` with
 property. `E::A === E::A` is true. `new E` throws `Error` with `Cannot instantiate enum E`. An
 unknown case throws `Error` with `Undefined constant E::A`. Backed enums are not compiled yet.
 
-Anonymous, abstract and readonly classes, class inheritance (`extends`), static, private and
-protected members, typed and hooked properties, class constants and computed names are not compiled
-yet.
+`class C extends P` records the parent. Methods and public property defaults walk the parent chain;
+`$o instanceof P` is true for a child of `P`. `parent::m()` calls the parent's implementation,
+including a method on the Rust-owned `CoreNode` class (`label`, `tag`). `get_parent_class($o)` is
+the parent's declared name, or `false` when there is none. `get_class($o)` is the instance's class
+name. `spl_object_id($o)` is the object's identity. Anonymous, abstract and readonly classes,
+static, private and protected members, typed and hooked properties, class constants and computed
+names are not compiled yet.
 
 ## Exceptions
 
@@ -203,7 +207,8 @@ These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, 
 `mb_substr`, `gmdate`, `date`, `time`, `strtotime`, `file_exists`,
 `file_get_contents`, `file_put_contents`, `is_file`, `is_dir`, `dirname`,
 `basename`, `serialize`, `unserialize`, `preg_match`, `preg_replace`,
-`sprintf`. `date` formats the same UTC civil time as `gmdate`
+`sprintf`, `call_user_func`, `bridge_add`, `bridge_remove`, `bridge_apply`,
+`get_class`, `get_parent_class`, `spl_object_id`. `date` formats the same UTC civil time as `gmdate`
 until timezones are bound. `dirname` and `basename` split `/`-separated
 paths. `serialize` and `unserialize` write and read scalars, arrays and
 objects. Options, references, custom objects and enums are not bound yet.
@@ -240,8 +245,11 @@ it does not return) is the value of the include expression. `eval` is not compil
 After the main code of a unit has run, a session keeps the request's functions, objects and
 references alive. Rust then invokes a live callable (a function name or a `Closure`) with value or
 reference arguments. Writes the callable makes through a reference are visible to the caller. An
-object that travels into the callable and back is the same object. An uncaught throw from the
-callable is reported as a thrown error, not as the CLI fatal banner.
+object that travels into the callable and back is the same object. Nested invokes share the same
+frames: `call_user_func` is PHP → native → PHP, and a throw from the inner callable is the thrown
+object. `bridge_add($cb)` / `bridge_remove($cb)` / `bridge_apply($value)` walk a live hook list;
+removing the next callback during apply skips it. An uncaught throw from the callable is reported
+as a thrown error, not as the CLI fatal banner.
 
 Operator errors (`DivisionByZeroError`, `ArithmeticError`, `TypeError`) and the warnings and deprecations
 of conversions follow `contracts/runtime/operators.md`.

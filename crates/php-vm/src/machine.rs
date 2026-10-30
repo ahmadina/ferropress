@@ -108,6 +108,8 @@ pub(crate) struct Machine<'o, O: Output> {
     pub(crate) loading: HashSet<Box<[u8]>>,
     /// Classes compiled as deferred, keyed by their index in the unit.
     pub(crate) deferred_classes: HashMap<u32, crate::classes::Class>,
+    /// Callables registered with `bridge_add`, in registration order.
+    pub(crate) hooks: Vec<Value>,
 }
 
 /// `literal` as a runtime value.
@@ -160,6 +162,7 @@ impl<'o, O: Output> Machine<'o, O> {
             }
         }
         crate::classes::register_throwables(&mut bound);
+        crate::classes::register_core_node(&mut bound);
         crate::generators::register_generator(&mut bound);
         crate::fibers::register_fiber(&mut bound);
         let classes = bound;
@@ -183,6 +186,7 @@ impl<'o, O: Output> Machine<'o, O> {
             autoloaders: Vec::new(),
             loading: HashSet::new(),
             deferred_classes,
+            hooks: Vec::new(),
         }
     }
 
@@ -195,7 +199,7 @@ impl<'o, O: Output> Machine<'o, O> {
                 self.flush();
                 let text = thrown.uncaught(self.cx.precision);
                 self.output.write(&text);
-                self.reset_stack();
+                self.abort_invoke(0, 0);
                 Ok(255)
             }
             Err(Stop::Vm(error)) => Err(error),
@@ -204,13 +208,21 @@ impl<'o, O: Output> Machine<'o, O> {
 
     /// Runs until the frame stack is empty or an error leaves the loop.
     pub(crate) fn drive(&mut self) -> Exec {
+        self.drive_until(0)
+    }
+
+    /// Runs until only `keep` frames remain, or an error leaves this invoke.
+    pub(crate) fn drive_until(&mut self, keep: usize) -> Exec {
         loop {
+            if self.frames.len() <= keep {
+                return Ok(());
+            }
             match self.step() {
                 Ok(Flow::Continue) => {}
                 Ok(Flow::Finished) => return Ok(()),
                 Err(Stop::Thrown(thrown)) => {
                     self.flush();
-                    match self.catch_thrown(&thrown) {
+                    match self.catch_above(&thrown, keep) {
                         Ok(true) => {}
                         Ok(false) => return Err(Stop::Thrown(thrown)),
                         Err(stop) => return Err(stop),
@@ -221,10 +233,9 @@ impl<'o, O: Output> Machine<'o, O> {
         }
     }
 
-    pub(crate) fn reset_stack(&mut self) {
-        self.frames.clear();
-        self.pending.clear();
-        self.finally_leave = None;
+    pub(crate) fn abort_invoke(&mut self, frames: usize, pending: usize) {
+        self.frames.truncate(frames);
+        self.pending.truncate(pending);
     }
 
     pub(crate) fn frame(&self) -> Result<&Frame, VmError> {
@@ -476,10 +487,13 @@ impl<'o, O: Output> Machine<'o, O> {
 
     /// Stores `value` into `operand`: a temporary, or a variable assigned through its reference.
     pub(crate) fn write(&mut self, operand: Operand, value: Value) -> Exec {
+        if operand.kind() == OperandKind::Unused {
+            self.return_value = value;
+            return Ok(());
+        }
         let index = operand.index() as usize;
         let frame = self.frame_mut()?;
         match operand.kind() {
-            OperandKind::Unused => Ok(()),
             OperandKind::Temp => {
                 let temp = frame
                     .temps
@@ -501,7 +515,7 @@ impl<'o, O: Output> Machine<'o, O> {
                 }
                 Ok(())
             }
-            OperandKind::Literal | OperandKind::Target => {
+            OperandKind::Unused | OperandKind::Literal | OperandKind::Target => {
                 Err(VmError::Malformed("operand cannot be written").into())
             }
         }

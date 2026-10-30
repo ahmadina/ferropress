@@ -1,7 +1,6 @@
 # ADR-0003: Bridge semantics — PHP values and callables across the Rust boundary
 
-- **Status:** Proposed — the dependency direction is accepted; the handle semantics below are confirmed or
-  revised by the bridge proof in roadmap step 20.
+- **Status:** Accepted
 - **Date:** 2026-10-23
 
 ## Context
@@ -27,7 +26,7 @@ The core cannot depend on the engine and the engine cannot depend on the core wi
    crate that owns the behavior. No behavior is implemented twice.
 4. Binaries wire the concrete bridge into the domain ports in one composition root.
 
-**Handle semantics (proposed).**
+**Handle semantics (accepted).**
 
 - **Identity.** A callable or object handle refers to the engine's live value, never a copy. Two handles to
   the same object compare equal, and the object's identity seen by PHP is unchanged after a round trip

@@ -1,5 +1,7 @@
 //! Classes, interfaces, traits and enums: members, `new`, `instanceof` and enum cases.
 
+use std::collections::HashSet;
+
 use php_parser::ast::{
     ClassKind as AstKind, ClassLike, ClassMember, Expr, ExprKind, Function, FunctionBody, Member,
     Modifiers, Name, NameKind, PropertyGroup,
@@ -27,6 +29,7 @@ impl Emitter<'_> {
         let Some(name) = class.name.as_deref() else {
             return self.unsupported("anonymous classes");
         };
+        let extends = Self::extended(class)?;
         let implements = self.implemented(class)?;
         let mut collected = Collected::default();
         self.ctx.current_methods.clear();
@@ -41,6 +44,7 @@ impl Emitter<'_> {
             line: class.line,
             properties: collected.properties,
             methods: collected.methods,
+            extends,
             implements,
             uses: collected.uses,
             cases: collected.cases,
@@ -68,13 +72,23 @@ impl Emitter<'_> {
         if !class.attributes.is_empty() {
             return self.unsupported("attributes");
         }
-        if class.extends.is_some() && class.kind == AstKind::Class {
-            return self.unsupported("inheritance");
-        }
         if class.kind == AstKind::Enum && class.backing_type.is_some() {
             return self.unsupported("backed enums");
         }
         Ok(())
+    }
+
+    fn extended(class: &ClassLike) -> Emit<Option<Box<[u8]>>> {
+        let Some(name) = class.extends.as_ref() else {
+            return Ok(None);
+        };
+        if name.kind == NameKind::Relative {
+            return Err(super::Failure::Unsupported {
+                construct: "namespace-relative names",
+                line: class.line,
+            });
+        }
+        Ok(Some(name.bytes.clone().into()))
     }
 
     fn implemented(&self, class: &ClassLike) -> Emit<Vec<Box<[u8]>>> {
@@ -376,14 +390,30 @@ impl Emitter<'_> {
 
     fn has_constructor(&self, class: &[u8]) -> bool {
         let named = |name: &[u8]| name.eq_ignore_ascii_case(b"__construct");
-        self.ctx.current_methods.iter().any(|name| named(name))
-            || self
+        if self.ctx.current_methods.iter().any(|name| named(name)) {
+            return true;
+        }
+        let mut current = Some(class.to_vec());
+        let mut seen = HashSet::new();
+        while let Some(name) = current {
+            if !seen.insert(name.clone()) {
+                break;
+            }
+            let Some(decl) = self
                 .ctx
                 .classes
                 .iter()
                 .rev()
-                .find(|decl| decl.name.eq_ignore_ascii_case(class))
-                .is_some_and(|decl| decl.methods.iter().any(|method| named(&method.name)))
+                .find(|decl| decl.name.eq_ignore_ascii_case(&name))
+            else {
+                break;
+            };
+            if decl.methods.iter().any(|method| named(&method.name)) {
+                return true;
+            }
+            current = decl.extends.as_ref().map(|parent| parent.to_vec());
+        }
+        false
     }
 }
 

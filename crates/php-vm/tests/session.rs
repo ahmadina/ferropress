@@ -181,3 +181,103 @@ fn a_session_names_its_status() -> Result<(), String> {
     assert_eq!(format!("{session:?}"), "Session { status: 0, .. }");
     Ok(())
 }
+
+#[test]
+fn rust_invokes_while_a_php_frame_is_live() -> Result<(), String> {
+    let mut output = Vec::new();
+    let mut session = session(
+        b"<?php function inner() { return 7; } function outer() { return call_user_func(\"inner\") + 1; }",
+        &mut output,
+    )?;
+    match session.invoke(&Value::from("outer"), &mut []) {
+        Ok(Value::Int(8)) => Ok(()),
+        other => Err(format!("expected 8, got {other:?}")),
+    }
+}
+
+#[test]
+fn a_throw_crosses_a_native_php_call() -> Result<(), String> {
+    let mut output = Vec::new();
+    let mut session = session(
+        b"<?php function boom() { throw new Exception(\"deep\"); } function outer() { return call_user_func(\"boom\"); }",
+        &mut output,
+    )?;
+    match session.invoke(&Value::from("outer"), &mut []) {
+        Err(SessionError::Thrown { class, message, .. }) => {
+            assert_eq!(class, "Exception");
+            assert_eq!(message, b"deep");
+            Ok(())
+        }
+        other => Err(format!("expected thrown, got {other:?}")),
+    }
+}
+
+#[test]
+fn a_hook_is_removed_during_apply() -> Result<(), String> {
+    let mut output = Vec::new();
+    let mut session = session(
+        b"<?php function a($v) { return $v . \"a\"; } function drop($v) { bridge_remove(\"later\"); return $v . \"d\"; } function later($v) { return $v . \"l\"; }",
+        &mut output,
+    )?;
+    session
+        .invoke(
+            &Value::from("bridge_add"),
+            &mut [Slot::from(Value::from("a"))],
+        )
+        .map_err(|error| format!("{error:?}"))?;
+    session
+        .invoke(
+            &Value::from("bridge_add"),
+            &mut [Slot::from(Value::from("drop"))],
+        )
+        .map_err(|error| format!("{error:?}"))?;
+    session
+        .invoke(
+            &Value::from("bridge_add"),
+            &mut [Slot::from(Value::from("later"))],
+        )
+        .map_err(|error| format!("{error:?}"))?;
+    match session.invoke(
+        &Value::from("bridge_apply"),
+        &mut [Slot::from(Value::from("x"))],
+    ) {
+        Ok(Value::String(text)) => {
+            assert_eq!(text.as_bytes(), b"xad");
+            Ok(())
+        }
+        other => Err(format!("expected xad, got {other:?}")),
+    }
+}
+
+#[test]
+fn a_non_callable_hook_is_rejected() -> Result<(), String> {
+    let mut output = Vec::new();
+    let mut session = session(b"<?php ", &mut output)?;
+    match session.invoke(&Value::from("bridge_add"), &mut [Slot::from(Value::Null)]) {
+        Err(SessionError::Thrown { class, message, .. }) => {
+            assert_eq!(class, "Error");
+            let text = String::from_utf8_lossy(&message);
+            assert!(
+                text.contains("Value of type null is not callable"),
+                "{text}"
+            );
+            Ok(())
+        }
+        other => Err(format!("expected thrown, got {other:?}")),
+    }
+}
+
+#[test]
+fn call_user_func_needs_a_callable() -> Result<(), String> {
+    let mut output = Vec::new();
+    let mut session = session(b"<?php ", &mut output)?;
+    match session.invoke(&Value::from("call_user_func"), &mut []) {
+        Err(SessionError::Thrown { class, message, .. }) => {
+            assert_eq!(class, "ArgumentCountError");
+            let text = String::from_utf8_lossy(&message);
+            assert!(text.contains("expects at least"), "{text}");
+            Ok(())
+        }
+        other => Err(format!("expected thrown, got {other:?}")),
+    }
+}

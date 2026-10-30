@@ -72,6 +72,13 @@ pub(crate) enum Native {
     Sprintf,
     PregMatch,
     PregReplace,
+    CallUserFunc,
+    BridgeAdd,
+    BridgeRemove,
+    BridgeApply,
+    GetClass,
+    GetParentClass,
+    SplObjectId,
 }
 
 /// The built-in named by `key`, compared lowercase.
@@ -139,6 +146,13 @@ pub(crate) fn lookup(key: &[u8]) -> Option<Native> {
         b"sprintf" => Native::Sprintf,
         b"preg_match" => Native::PregMatch,
         b"preg_replace" => Native::PregReplace,
+        b"call_user_func" => Native::CallUserFunc,
+        b"bridge_add" => Native::BridgeAdd,
+        b"bridge_remove" => Native::BridgeRemove,
+        b"bridge_apply" => Native::BridgeApply,
+        b"get_class" => Native::GetClass,
+        b"get_parent_class" => Native::GetParentClass,
+        b"spl_object_id" => Native::SplObjectId,
         _ => return None,
     })
 }
@@ -233,6 +247,13 @@ impl<O: Output> Machine<'_, O> {
             Native::Sprintf => self.native_sprintf(args, result),
             Native::PregMatch => self.native_preg_match(args, result),
             Native::PregReplace => self.native_preg_replace(args, result),
+            Native::CallUserFunc => self.native_call_user_func(args, result),
+            Native::BridgeAdd => self.native_bridge_add(args, result),
+            Native::BridgeRemove => self.native_bridge_remove(args, result),
+            Native::BridgeApply => self.native_bridge_apply(args, result),
+            Native::GetClass => self.native_get_class(args, result),
+            Native::GetParentClass => self.native_get_parent_class(args, result),
+            Native::SplObjectId => self.native_spl_object_id(args, result),
         }
     }
 }

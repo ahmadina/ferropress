@@ -347,7 +347,10 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
         ("<?php class A { public $a = 1 + 1; }", "property defaults"),
         ("<?php class A { const C = 1; }", "class constants"),
         ("<?php abstract class A {}", "abstract and readonly classes"),
-        ("<?php class A extends B {}", "inheritance"),
+        (
+            "<?php class A extends namespace\\B {}",
+            "namespace-relative names",
+        ),
         ("<?php $o = new class {};", "anonymous classes"),
         ("<?php echo A;", "constants"),
         ("<?php $a ??= 1;", "??="),
@@ -455,6 +458,24 @@ fn classes_emit_new_properties_and_methods() -> Result<(), String> {
             "   1    4  Add T1 = $x, T0",
             "   2    4  Return T1",
             "   3    4  Return",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_child_class_emits_parent_calls() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php\nclass C extends P {\n  function m() { return parent::m(); }\n}\n")?,
+        listing(&[
+            "code {main} temporaries=0",
+            "   0    3  Return 1",
+            "",
+            "code C->m temporaries=1",
+            "   0    3  InitStaticCall \"parent\", \"m\", \"m\"",
+            "   1    3  Call T0 =",
+            "   2    3  Return T0",
+            "   3    3  Return",
         ])
     );
     Ok(())

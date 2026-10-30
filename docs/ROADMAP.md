@@ -105,8 +105,10 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-hooks`: priority-ordered add / remove / apply / action on the invoke port
   - [x] `cms-request` and `cms-bootstrap`: one request, plugin load order
   - [x] `php-bindings`: PHP-visible hook names delegate to `cms-hooks`
-- [ ] 22. `apps/test-orchestrator` runs scenarios against the lab and Ferropress; milestone: a real
+- [x] 22. `apps/test-orchestrator` runs scenarios against the lab and Ferropress; milestone: a real
       plugin loads and produces the same hook trace as the reference
+  - [x] `apps/test-orchestrator` compares a recorded lifecycle to a Ferropress plugin-load boot
+  - [x] Lab fixture plugins produce the same load hook trace on single-site and network profiles
 
 ## Phase 5 — Data, users and queries
 

@@ -34,7 +34,10 @@ tests = [
     "crates/cms-bootstrap/tests/load_order.rs::network_loads_the_shared_plugin_once",
     "crates/cms-bootstrap/tests/load_order.rs::activating_re_sorts_the_site_list",
     "crates/cms-bootstrap/tests/load_order.rs::run_fires_group_actions_in_order",
+    "apps/test-orchestrator/tests/plugin_hook_trace.rs::single_site_plugin_load_matches_the_lab",
+    "apps/test-orchestrator/tests/plugin_hook_trace.rs::network_plugin_load_matches_the_lab",
 ]
+certified_by = ["plugin-hook-trace", "plugin-hook-trace-network"]
 
 [covers]
 functions = [

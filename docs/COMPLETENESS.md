@@ -7,26 +7,26 @@ Each inventory item has four independent states:
 - **Documented**: a contract entry describes the item's behavior in our own words, with upstream provenance.
 - **Implemented**: an entry covering the item names a workspace crate that implements it natively.
 - **Tested**: an entry covering the item names test functions that prove the native behavior.
-- **Certified**: differential scenarios pass against Ferropress for the item. Not measurable until the scenario orchestrator (roadmap step 22) records results.
+- **Certified**: a contract entry covering the item names a scenario that `apps/test-orchestrator` has compared to the recorded reference.
 
 **Unknown** items are not documented yet.
 
 | Section | Items | Documented | Implemented | Tested | Certified | Unknown |
 |---|---:|---:|---:|---:|---:|---:|
-| functions | 4353 | 20 (0.5%) | 19 (0.4%) | 19 (0.4%) | not measurable | 4333 (99.5%) |
-| classes | 824 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 824 (100.0%) |
-| hooks | 2720 | 14 (0.5%) | 3 (0.1%) | 3 (0.1%) | not measurable | 2706 (99.5%) |
-| constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 694 (100.0%) |
-| globals | 284 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 284 (100.0%) |
-| rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 133 (100.0%) |
-| options | 121 | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | not measurable | 119 (98.3%) |
-| tables | 18 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 18 (100.0%) |
-| **total** | 9147 | 36 (0.4%) | 24 (0.3%) | 24 (0.3%) | not measurable | 9111 (99.6%) |
+| functions | 4353 | 20 (0.5%) | 19 (0.4%) | 19 (0.4%) | 3 (0.1%) | 4333 (99.5%) |
+| classes | 824 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 824 (100.0%) |
+| hooks | 2720 | 14 (0.5%) | 3 (0.1%) | 3 (0.1%) | 3 (0.1%) | 2706 (99.5%) |
+| constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 694 (100.0%) |
+| globals | 284 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 284 (100.0%) |
+| rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
+| options | 121 | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 119 (98.3%) |
+| tables | 18 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 18 (100.0%) |
+| **total** | 9147 | 36 (0.4%) | 24 (0.3%) | 24 (0.3%) | 8 (0.1%) | 9111 (99.6%) |
 
 ## Contract entries
 
-| Entry | Title | Items | Implemented | Tested |
-|---|---|---:|---|---|
-| `hook-dispatch` | Priority-ordered filter and action dispatch | 16 | yes | yes |
-| `plugin-load-order` | Which plugins load, and in what order | 8 | yes | yes |
-| `request-lifecycle` | Order of the request lifecycle | 15 | no | no |
+| Entry | Title | Items | Implemented | Tested | Certified |
+|---|---|---:|---|---|---|
+| `hook-dispatch` | Priority-ordered filter and action dispatch | 16 | yes | yes | no |
+| `plugin-load-order` | Which plugins load, and in what order | 8 | yes | yes | yes |
+| `request-lifecycle` | Order of the request lifecycle | 15 | no | no | no |

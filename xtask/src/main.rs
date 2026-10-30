@@ -2334,7 +2334,7 @@ path = "/"
         assert_eq!(
             report.text,
             "dashboard: wrote docs/COMPLETENESS.md (0 entries; 0 of 0 items documented, \
-             0 implemented, 0 tested)"
+             0 implemented, 0 tested, 0 certified)"
         );
         let written = fs::read_to_string(repo.0.join(dashboard::DASHBOARD_PATH)).unwrap();
         assert!(written.starts_with("# Completeness\n"), "{written}");

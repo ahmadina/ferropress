@@ -214,6 +214,9 @@ struct RawEntry {
     /// Tests that prove the native implementation, as `<file>::<test function>`.
     #[serde(default)]
     tests: Vec<String>,
+    /// Scenario ids whose Ferropress run matches the recorded reference.
+    #[serde(default)]
+    certified_by: Vec<String>,
 }
 
 /// A validated contract entry.
@@ -224,6 +227,7 @@ pub(crate) struct Entry {
     covered: BTreeMap<Section, BTreeSet<String>>,
     implemented: bool,
     tested: bool,
+    certified: bool,
 }
 
 impl Entry {
@@ -287,6 +291,14 @@ fn validate(
             ));
         }
     }
+    for scenario in &raw.certified_by {
+        let path = format!("contracts/scenarios/{scenario}.toml");
+        if !inside(&path) || !repo_root.join(&path).is_file() {
+            problem(format!(
+                "certified-by `{scenario}` is not a scenario in contracts/scenarios"
+            ));
+        }
+    }
 
     let mut covered: BTreeMap<Section, BTreeSet<String>> = BTreeMap::new();
     let mut listed = false;
@@ -319,6 +331,7 @@ fn validate(
             covered,
             implemented: !raw.implemented_in.is_empty(),
             tested: !raw.tests.is_empty(),
+            certified: !raw.certified_by.is_empty(),
         })
     } else {
         Err(problems)
@@ -398,6 +411,7 @@ struct Counts {
     documented: usize,
     implemented: usize,
     tested: usize,
+    certified: usize,
 }
 
 impl Counts {
@@ -406,6 +420,7 @@ impl Counts {
         self.documented += other.documented;
         self.implemented += other.implemented;
         self.tested += other.tested;
+        self.certified += other.certified;
     }
 }
 
@@ -417,6 +432,7 @@ fn counts(inventory: &Inventory, entries: &[Entry]) -> Vec<(Section, Counts)> {
             let mut documented = BTreeSet::new();
             let mut implemented = BTreeSet::new();
             let mut tested = BTreeSet::new();
+            let mut certified = BTreeSet::new();
             for entry in entries {
                 for key in entry.covered.get(&section).into_iter().flatten() {
                     documented.insert(key);
@@ -425,6 +441,9 @@ fn counts(inventory: &Inventory, entries: &[Entry]) -> Vec<(Section, Counts)> {
                     }
                     if entry.tested {
                         tested.insert(key);
+                    }
+                    if entry.certified {
+                        certified.insert(key);
                     }
                 }
             }
@@ -435,6 +454,7 @@ fn counts(inventory: &Inventory, entries: &[Entry]) -> Vec<(Section, Counts)> {
                     documented: documented.len(),
                     implemented: implemented.len(),
                     tested: tested.len(),
+                    certified: certified.len(),
                 },
             )
         })
@@ -467,8 +487,8 @@ pub(crate) fn render(inventory: &Inventory, entries: &[Entry]) -> String {
          - **Implemented**: an entry covering the item names a workspace crate that implements it \
          natively.\n\
          - **Tested**: an entry covering the item names test functions that prove the native behavior.\n\
-         - **Certified**: differential scenarios pass against Ferropress for the item. Not measurable \
-         until the scenario orchestrator (roadmap step 22) records results.\n\n\
+         - **Certified**: a contract entry covering the item names a scenario that \
+         `apps/test-orchestrator` has compared to the recorded reference.\n\n\
          **Unknown** items are not documented yet.\n\n\
          | Section | Items | Documented | Implemented | Tested | Certified | Unknown |\n\
          |---|---:|---:|---:|---:|---:|---:|\n",
@@ -477,11 +497,12 @@ pub(crate) fn render(inventory: &Inventory, entries: &[Entry]) -> String {
     let mut row = |name: &str, counts: Counts| {
         let _ = writeln!(
             text,
-            "| {name} | {} | {} | {} | {} | not measurable | {} |",
+            "| {name} | {} | {} | {} | {} | {} | {} |",
             counts.items,
             share(counts.documented, counts.items),
             share(counts.implemented, counts.items),
             share(counts.tested, counts.items),
+            share(counts.certified, counts.items),
             share(counts.items - counts.documented, counts.items),
         );
     };
@@ -496,16 +517,19 @@ pub(crate) fn render(inventory: &Inventory, entries: &[Entry]) -> String {
         text.push_str("None yet.\n");
         return text;
     }
-    text.push_str("| Entry | Title | Items | Implemented | Tested |\n|---|---|---:|---|---|\n");
+    text.push_str(
+        "| Entry | Title | Items | Implemented | Tested | Certified |\n|---|---|---:|---|---|---|\n",
+    );
     for entry in entries {
         let _ = writeln!(
             text,
-            "| `{}` | {} | {} | {} | {} |",
+            "| `{}` | {} | {} | {} | {} | {} |",
             entry.id,
             entry.title,
             entry.item_count(),
             yes_no(entry.implemented),
-            yes_no(entry.tested)
+            yes_no(entry.tested),
+            yes_no(entry.certified)
         );
     }
     text
@@ -518,12 +542,13 @@ pub(crate) fn summary(inventory: &Inventory, entries: &[Entry]) -> String {
         total.add(counts);
     }
     format!(
-        "{} entries; {} of {} items documented, {} implemented, {} tested",
+        "{} entries; {} of {} items documented, {} implemented, {} tested, {} certified",
         entries.len(),
         total.documented,
         total.items,
         total.implemented,
-        total.tested
+        total.tested,
+        total.certified
     )
 }
 
@@ -603,6 +628,7 @@ hooks = ["action:boot"]
         assert_eq!(entries[0].item_count(), 2);
         assert!(!entries[0].implemented);
         assert!(!entries[0].tested);
+        assert!(!entries[0].certified);
     }
 
     #[test]
@@ -625,6 +651,33 @@ hooks = ["action:boot"]
         let entries = repo.load().unwrap();
         assert!(entries[0].implemented);
         assert!(entries[0].tested);
+        assert!(!entries[0].certified);
+
+        let certified = entry.replace(
+            "tests = [\"crates/cms-boot/src/lib.rs::boots_in_order\"]",
+            "tests = [\"crates/cms-boot/src/lib.rs::boots_in_order\"]\n\
+             certified_by = [\"plugin-hook-trace\"]",
+        );
+        let mut certified_files = files.to_vec();
+        certified_files.push(("contracts/scenarios/plugin-hook-trace.toml", "schema = 1\n"));
+        let repo = Repo::new(
+            "certified",
+            &[("boot-order.toml", &certified)],
+            &certified_files,
+        );
+        assert!(repo.load().unwrap()[0].certified);
+
+        let missing_scenario = Repo::new(
+            "missing-scenario",
+            &[("boot-order.toml", &certified)],
+            &files,
+        );
+        assert_eq!(
+            missing_scenario.load().unwrap_err(),
+            [
+                "boot-order: certified-by `plugin-hook-trace` is not a scenario in contracts/scenarios"
+            ]
+        );
 
         let missing = Repo::new(
             "missing-evidence",
@@ -787,33 +840,33 @@ hooks = ["action:boot"]
         assert!(text.contains("(reference platform 7.1.3)"), "{text}");
         assert!(
             text.contains(
-                "| functions | 1 | 1 (100.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 0 (0.0%) |"
+                "| functions | 1 | 1 (100.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) |"
             ),
             "{text}"
         );
         assert!(
             text.contains(
-                "| hooks | 2 | 1 (50.0%) | 1 (50.0%) | 0 (0.0%) | not measurable | 1 (50.0%) |"
+                "| hooks | 2 | 1 (50.0%) | 1 (50.0%) | 0 (0.0%) | 0 (0.0%) | 1 (50.0%) |"
             ),
             "{text}"
         );
         assert!(
             text.contains(
-                "| **total** | 9 | 2 (22.2%) | 1 (11.1%) | 0 (0.0%) | not measurable | 7 (77.8%) |"
+                "| **total** | 9 | 2 (22.2%) | 1 (11.1%) | 0 (0.0%) | 0 (0.0%) | 7 (77.8%) |"
             ),
             "{text}"
         );
         assert!(
-            text.contains("| `boot-order` | Boot order | 2 | no | no |"),
+            text.contains("| `boot-order` | Boot order | 2 | no | no | no |"),
             "{text}"
         );
         assert!(
-            text.contains("| `boot-impl` | Boot implementation | 1 | yes | no |"),
+            text.contains("| `boot-impl` | Boot implementation | 1 | yes | no | no |"),
             "{text}"
         );
         assert_eq!(
             summary(&inventory(), &entries),
-            "2 entries; 2 of 9 items documented, 1 implemented, 0 tested"
+            "2 entries; 2 of 9 items documented, 1 implemented, 0 tested, 0 certified"
         );
 
         let empty = render(&inventory(), &[]);

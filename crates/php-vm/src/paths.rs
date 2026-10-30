@@ -7,7 +7,7 @@ use crate::Output;
 use crate::calls::Argument;
 use crate::machine::{Exec, Machine};
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_dirname(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.is_empty() {
             return Err(self.too_few_at_least("dirname", 0, 1, args));

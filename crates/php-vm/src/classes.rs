@@ -22,7 +22,7 @@ pub(crate) struct Class {
     pub(crate) case_objects: HashMap<Box<[u8]>, Value>,
 }
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// Registers the deferred class named by `a`.
     pub(crate) fn bind_class(&mut self, ins: &Instruction) -> Exec {
         let Value::Int(index) = self.read(ins.a)? else {

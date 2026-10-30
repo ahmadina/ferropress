@@ -9,7 +9,7 @@ use crate::machine::{Exec, Machine};
 
 const TRIM_DEFAULT: &[u8] = b" \t\n\r\0\x0b";
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_substr(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 2 {
             return Err(self.too_few("substr", args.len(), 2, args));

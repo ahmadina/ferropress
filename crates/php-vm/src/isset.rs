@@ -7,7 +7,7 @@ use php_value::{ArrayKey, PhpString, Value};
 use crate::Output;
 use crate::machine::{Exec, Machine};
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// Whether `a` is set, or empty when flag bit 0 is set.
     pub(crate) fn isset(&mut self, ins: &Instruction) -> Exec {
         let value = self.read_quiet(ins.a)?;

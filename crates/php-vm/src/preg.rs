@@ -40,7 +40,7 @@ enum PatternError {
     Unsupported(&'static str),
 }
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_preg_match(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 2 {
             return Err(self.too_few_at_least("preg_match", args.len(), 2, args));

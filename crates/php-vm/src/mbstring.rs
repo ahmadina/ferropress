@@ -8,7 +8,7 @@ use crate::calls::Argument;
 use crate::machine::{Exec, Machine};
 use crate::strings::substr_range;
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_mb_strlen(&mut self, args: &[Argument], result: Operand) -> Exec {
         let value = self.native_one("mb_strlen", args)?;
         let text = self.string_arg("mb_strlen", &value)?;

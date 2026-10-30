@@ -9,7 +9,7 @@ use crate::VmError;
 use crate::calls::Argument;
 use crate::machine::{Exec, Machine};
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// `result` is a new empty array.
     pub(crate) fn new_array(&mut self, ins: &Instruction) -> Exec {
         self.write(ins.result, Value::Array(PhpArray::new()))

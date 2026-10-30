@@ -29,7 +29,7 @@ const THROWABLE: &[&[u8]] = &[
     b"valueerror",
 ];
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// Throws the object `a`.
     pub(crate) fn throw_value(&mut self, ins: &Instruction) -> Exec<Flow> {
         let value = self.read(ins.a)?;
@@ -135,7 +135,7 @@ fn object_message(object: &Object) -> Vec<u8> {
     })
 }
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     pub(crate) fn matching_finally(&self) -> Option<FinallyHandler> {
         let frame = self.frames.last()?;
         let pc = frame.pc.saturating_sub(1);

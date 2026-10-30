@@ -8,7 +8,7 @@ use crate::calls::Argument;
 use crate::includes::resolve_path;
 use crate::machine::{Exec, Machine};
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_file_exists(&mut self, args: &[Argument], result: Operand) -> Exec {
         let value = self.native_one("file_exists", args)?;
         let path = self.string_arg("file_exists", &value)?;

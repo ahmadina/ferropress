@@ -2,7 +2,9 @@
 //!
 //! [`run`] executes a compiled [`Unit`] and writes what the script prints, including the warnings
 //! and uncaught errors the reference CLI displays with `display_errors=1` and `html_errors=0`, to an
-//! [`Output`]. Calls between PHP functions use an explicit frame stack, never Rust recursion.
+//! [`Output`]. [`Session`] keeps the request alive after main so Rust can [`Invoke`](php_value::Invoke)
+//! a live function or closure (ADR-0003). Calls between PHP functions use an explicit frame stack,
+//! never Rust recursion.
 //!
 //! Every behavior is proven against the reference: `contracts/vm/cases.jsonl` holds scripts with the
 //! output and exit status the reference produced, recorded by `cargo xtask lab vm`.
@@ -29,12 +31,14 @@ mod paths;
 mod preg;
 mod replace;
 mod serialize;
+mod session;
 mod sprintf;
 mod streams;
 mod strings;
 mod thrown;
 
 pub use error::VmError;
+pub use session::{Session, SessionError};
 
 use php_compiler::bytecode::Unit;
 

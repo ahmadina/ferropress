@@ -69,7 +69,7 @@ pub(crate) struct Fiber {
     pub(crate) root_depth: usize,
 }
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// Starts a static call on the class named by `a`.
     pub(crate) fn init_static_call(&mut self, ins: &Instruction) -> Exec {
         let Value::String(class) = self.read(ins.a)? else {
@@ -195,7 +195,7 @@ impl<O: Output> Machine<'_, '_, O> {
     }
 }
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     fn fiber_construct(&mut self, object: &Object, args: &[Argument]) -> Exec {
         if args.len() != 1 {
             let mut message = b"Fiber::__construct() expects exactly 1 argument, ".to_vec();

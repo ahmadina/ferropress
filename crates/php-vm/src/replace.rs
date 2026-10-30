@@ -11,7 +11,7 @@ use crate::machine::{Exec, Machine};
 /// PHP 8.1+ default: `ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401`.
 const HTML_DEFAULT_FLAGS: i64 = 11;
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_str_replace(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() < 3 {
             return Err(self.too_few_at_least("str_replace", args.len(), 3, args));

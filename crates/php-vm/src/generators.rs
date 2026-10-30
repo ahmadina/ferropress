@@ -69,7 +69,7 @@ pub(crate) struct Generator {
     result: Operand,
 }
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// Calling a generator function creates the object instead of running the body.
     pub(crate) fn start_generator(&mut self, frame: Frame, result: Operand) -> Exec {
         let object = self
@@ -195,7 +195,7 @@ impl<O: Output> Machine<'_, '_, O> {
     }
 }
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     fn gen_field(&mut self, id: ObjectId, want: GenWant, result: Operand) -> Exec {
         let Some(state) = self.generators.get(&id) else {
             return Err(VmError::Malformed("unknown generator").into());

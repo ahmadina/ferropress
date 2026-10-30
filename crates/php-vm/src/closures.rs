@@ -10,7 +10,7 @@ use crate::{Output, VmError};
 /// Property holding the code-object index of a compiled closure.
 const CODE: &[u8] = b"\0code";
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// `result` is a new `Closure` of the function declaration whose index is the integer `a`.
     pub(crate) fn make_closure(&mut self, ins: &Instruction) -> Exec {
         let index = int_operand(&self.read(ins.a)?)?;
@@ -146,7 +146,7 @@ impl<O: Output> Machine<'_, '_, O> {
         Ok(slot.make_reference())
     }
 
-    fn not_callable(&self, value: &Value) -> crate::machine::Stop {
+    pub(crate) fn not_callable(&self, value: &Value) -> crate::machine::Stop {
         let mut message = b"Value of type ".to_vec();
         match value {
             Value::Object(object) => message.extend_from_slice(object.class_name().as_bytes()),
@@ -157,7 +157,7 @@ impl<O: Output> Machine<'_, '_, O> {
     }
 }
 
-fn copy_slot(slot: &Slot) -> Slot {
+pub(crate) fn copy_slot(slot: &Slot) -> Slot {
     match slot {
         Slot::Value(value) => Slot::Value(value.clone()),
         Slot::Reference(reference) => Slot::Reference(reference.clone()),

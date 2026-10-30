@@ -7,7 +7,7 @@ use crate::Output;
 use crate::calls::Argument;
 use crate::machine::{Exec, Machine};
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_gmdate(&mut self, args: &[Argument], result: Operand) -> Exec {
         self.format_stamp("gmdate", args, result)
     }

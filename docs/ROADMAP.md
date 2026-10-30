@@ -93,8 +93,8 @@ Status legend: `[x]` done · `[ ]` not started
 - [ ] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
       classes extend Rust-owned classes
   - [x] `php-value` invoke port (ADR-0003)
-  - [ ] `php-abi-bridge` calls PHP functions and closures from Rust
-  - [ ] By-reference arguments and object identity survive a round trip
+  - [x] `php-abi-bridge` calls PHP functions and closures from Rust
+  - [x] By-reference arguments and object identity survive a round trip
   - [ ] Reentrant core → PHP → core calls
   - [ ] PHP classes extend Rust-owned classes
 

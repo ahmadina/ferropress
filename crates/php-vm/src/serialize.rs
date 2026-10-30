@@ -9,7 +9,7 @@ use crate::VmError;
 use crate::calls::Argument;
 use crate::machine::{Exec, Machine};
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_serialize(&mut self, args: &[Argument], result: Operand) -> Exec {
         if args.len() != 1 {
             return Err(if args.is_empty() {

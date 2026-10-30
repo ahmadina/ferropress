@@ -30,7 +30,7 @@ pub(crate) struct Pending {
     pub(crate) args: Vec<Argument>,
 }
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// Starts a call of the function named by the literal `a`; an undefined function throws
     /// before any argument is evaluated.
     pub(crate) fn init_call(&mut self, ins: &Instruction) -> Exec {

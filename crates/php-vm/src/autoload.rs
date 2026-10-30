@@ -7,7 +7,7 @@ use crate::Output;
 use crate::calls::Argument;
 use crate::machine::{Exec, Flow, Machine, Stop};
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// Runs registered autoloaders for `name` when the class is not loaded.
     pub(crate) fn autoload(&mut self, name: &[u8]) -> Exec {
         let key = name.to_ascii_lowercase();
@@ -112,7 +112,7 @@ fn is_autoload_callable(value: &Value) -> bool {
     }
 }
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// Copies class declarations from an included unit into this machine.
     pub(crate) fn absorb_classes(&mut self, unit: &php_compiler::bytecode::Unit) -> Exec {
         for class in &unit.classes {

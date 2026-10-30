@@ -148,7 +148,7 @@ pub(crate) fn is_bound(key: &[u8]) -> bool {
     lookup(key).is_some()
 }
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// Runs `native` with the arguments already sent.
     pub(crate) fn dispatch_native(
         &mut self,
@@ -237,7 +237,7 @@ impl<O: Output> Machine<'_, '_, O> {
     }
 }
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_one(&mut self, name: &'static str, args: &[Argument]) -> Exec<Value> {
         let Some(arg) = args.first() else {
             return Err(self.too_few(name, 0, 1, args));

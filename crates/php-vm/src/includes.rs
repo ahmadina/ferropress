@@ -13,7 +13,7 @@ use crate::machine::{Exec, Flow, Frame, Machine, Stop};
 
 type Included = HashSet<Box<[u8]>>;
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// Runs the file named by `a` and writes its return value to `result`.
     pub(crate) fn include_file(&mut self, ins: &Instruction) -> Exec {
         let named = self.read(ins.a)?;

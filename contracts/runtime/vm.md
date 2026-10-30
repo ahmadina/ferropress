@@ -235,5 +235,13 @@ warnings (`Failed to open stream` and `Failed opening … for inclusion`) and yi
 forms, which then yield `true`. A loaded file is compiled and run; its `return` value (or `1` when
 it does not return) is the value of the include expression. `eval` is not compiled yet.
 
+## Session
+
+After the main code of a unit has run, a session keeps the request's functions, objects and
+references alive. Rust then invokes a live callable (a function name or a `Closure`) with value or
+reference arguments. Writes the callable makes through a reference are visible to the caller. An
+object that travels into the callable and back is the same object. An uncaught throw from the
+callable is reported as a thrown error, not as the CLI fatal banner.
+
 Operator errors (`DivisionByZeroError`, `ArithmeticError`, `TypeError`) and the warnings and deprecations
 of conversions follow `contracts/runtime/operators.md`.

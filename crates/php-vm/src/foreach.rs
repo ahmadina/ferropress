@@ -7,7 +7,7 @@ use crate::Output;
 use crate::VmError;
 use crate::machine::{Exec, Machine};
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     /// Whether `a` has an element at or after cursor `b`; `b` becomes that position.
     pub(crate) fn iter_ready(&mut self, ins: &Instruction) -> Exec {
         let container = self.read(ins.a)?;

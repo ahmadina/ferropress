@@ -1,7 +1,6 @@
 //! The interpreter loop: frames, operands and the instructions that compute values.
 
 use std::collections::{HashMap, HashSet};
-use std::marker::PhantomData;
 
 use php_compiler::bytecode::{Code, Instruction, Literal, Opcode, Operand, OperandKind, Unit};
 use php_value::ops::{self, Collect, OpError};
@@ -77,9 +76,8 @@ pub(crate) enum Flow {
     Finished,
 }
 
-pub(crate) struct Machine<'u, 'o, O: Output> {
+pub(crate) struct Machine<'o, O: Output> {
     pub(crate) codes: Vec<Loaded>,
-    _unit: PhantomData<&'u Unit>,
     /// User functions by lowercase name: indices into `codes`.
     pub(crate) functions: HashMap<Box<[u8]>, usize>,
     pub(crate) file: Box<[u8]>,
@@ -138,8 +136,8 @@ fn op_error(error: OpError) -> Result<ops::Thrown, VmError> {
     }
 }
 
-impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
-    pub(crate) fn new(unit: &'u Unit, file: &[u8], output: &'o mut O) -> Self {
+impl<'o, O: Output> Machine<'o, O> {
+    pub(crate) fn new(unit: &Unit, file: &[u8], output: &'o mut O) -> Self {
         let mut codes = vec![load(&unit.main)];
         let mut functions = HashMap::with_capacity(unit.functions.len());
         for function in &unit.functions {
@@ -185,37 +183,48 @@ impl<'u, 'o, O: Output> Machine<'u, 'o, O> {
             autoloaders: Vec::new(),
             loading: HashSet::new(),
             deferred_classes,
-            _unit: PhantomData,
         }
     }
 
-    pub(crate) fn run(mut self) -> Result<u8, VmError> {
+    pub(crate) fn run(&mut self) -> Result<u8, VmError> {
         let main = Frame::new(0, &self.codes[0]);
         self.frames.push(main);
+        match self.drive() {
+            Ok(()) => Ok(0),
+            Err(Stop::Thrown(thrown)) => {
+                self.flush();
+                let text = thrown.uncaught(self.cx.precision);
+                self.output.write(&text);
+                self.reset_stack();
+                Ok(255)
+            }
+            Err(Stop::Vm(error)) => Err(error),
+        }
+    }
+
+    /// Runs until the frame stack is empty or an error leaves the loop.
+    pub(crate) fn drive(&mut self) -> Exec {
         loop {
             match self.step() {
                 Ok(Flow::Continue) => {}
-                Ok(Flow::Finished) => return Ok(0),
+                Ok(Flow::Finished) => return Ok(()),
                 Err(Stop::Thrown(thrown)) => {
                     self.flush();
                     match self.catch_thrown(&thrown) {
                         Ok(true) => {}
-                        Ok(false) => {
-                            let text = thrown.uncaught(self.cx.precision);
-                            self.output.write(&text);
-                            return Ok(255);
-                        }
-                        Err(Stop::Thrown(again)) => {
-                            let text = again.uncaught(self.cx.precision);
-                            self.output.write(&text);
-                            return Ok(255);
-                        }
-                        Err(Stop::Vm(error)) => return Err(error),
+                        Ok(false) => return Err(Stop::Thrown(thrown)),
+                        Err(stop) => return Err(stop),
                     }
                 }
-                Err(Stop::Vm(error)) => return Err(error),
+                Err(Stop::Vm(error)) => return Err(Stop::Vm(error)),
             }
         }
+    }
+
+    pub(crate) fn reset_stack(&mut self) {
+        self.frames.clear();
+        self.pending.clear();
+        self.finally_leave = None;
     }
 
     pub(crate) fn frame(&self) -> Result<&Frame, VmError> {

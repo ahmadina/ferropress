@@ -8,7 +8,7 @@ use crate::Output;
 use crate::calls::Argument;
 use crate::machine::{Exec, Machine};
 
-impl<O: Output> Machine<'_, '_, O> {
+impl<O: Output> Machine<'_, O> {
     pub(crate) fn native_abs(&mut self, args: &[Argument], result: Operand) -> Exec {
         let value = self.native_one("abs", args)?;
         let out = match value {

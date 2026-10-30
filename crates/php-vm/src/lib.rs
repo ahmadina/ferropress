@@ -24,6 +24,7 @@ mod generators;
 mod hooks;
 mod host;
 mod includes;
+mod intfast;
 mod isset;
 mod json;
 mod machine;

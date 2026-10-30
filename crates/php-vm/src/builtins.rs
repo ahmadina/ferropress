@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use php_compiler::bytecode::Operand;
-use php_value::{PhpString, Value};
+use php_compiler::bytecode::{Instruction, Operand};
+use php_value::{PhpString, Slot, Value};
 
 use crate::Output;
 use crate::calls::Argument;
@@ -421,6 +421,64 @@ impl<O: Output> Machine<'_, O> {
         message.extend_from_slice(b" given");
         let values: Vec<Value> = args.iter().map(|arg| arg.slot.value()).collect();
         self.throw_from("TypeError", message, name.as_bytes(), values)
+    }
+
+    pub(crate) fn op_strlen(&mut self, ins: &Instruction) -> Exec {
+        let arg = self.read(ins.a)?;
+        self.native_strlen(
+            &[Argument {
+                slot: Slot::Value(arg),
+                from_call: false,
+            }],
+            ins.result,
+        )
+    }
+
+    pub(crate) fn op_strpos(&mut self, ins: &Instruction) -> Exec {
+        let haystack = self.read(ins.a)?;
+        let needle = self.read(ins.b)?;
+        self.native_strpos(
+            &[
+                Argument {
+                    slot: Slot::Value(haystack),
+                    from_call: false,
+                },
+                Argument {
+                    slot: Slot::Value(needle),
+                    from_call: false,
+                },
+            ],
+            ins.result,
+        )
+    }
+
+    pub(crate) fn op_str_contains(&mut self, ins: &Instruction) -> Exec {
+        let haystack = self.read(ins.a)?;
+        let needle = self.read(ins.b)?;
+        self.native_str_contains(
+            &[
+                Argument {
+                    slot: Slot::Value(haystack),
+                    from_call: false,
+                },
+                Argument {
+                    slot: Slot::Value(needle),
+                    from_call: false,
+                },
+            ],
+            ins.result,
+        )
+    }
+
+    pub(crate) fn op_count(&mut self, ins: &Instruction) -> Exec {
+        let value = self.read(ins.a)?;
+        self.native_count(
+            &[Argument {
+                slot: Slot::Value(value),
+                from_call: false,
+            }],
+            ins.result,
+        )
     }
 
     fn native_strlen(&mut self, args: &[Argument], result: Operand) -> Exec {

@@ -60,6 +60,18 @@ fn binary_opcode(op: BinaryOp) -> Option<(Opcode, bool)> {
     Some((opcode, false))
 }
 
+/// A built-in whose call compiles to a dedicated opcode when the argument count matches.
+fn builtin_call(name: &Name, argc: usize) -> Option<Opcode> {
+    let written = name.bytes.as_slice();
+    match argc {
+        1 if written.eq_ignore_ascii_case(b"strlen") => Some(Opcode::Strlen),
+        1 if written.eq_ignore_ascii_case(b"count") => Some(Opcode::Count),
+        2 if written.eq_ignore_ascii_case(b"strpos") => Some(Opcode::Strpos),
+        2 if written.eq_ignore_ascii_case(b"str_contains") => Some(Opcode::StrContains),
+        _ => None,
+    }
+}
+
 /// The opcode of a compound assignment, `None` for `??=`.
 fn assign_opcode(op: AssignOp) -> Option<Opcode> {
     Some(match op {
@@ -506,6 +518,15 @@ impl Emitter<'_> {
             operands[index] = operand;
             from_call[index] = call;
         }
+        if let Some(opcode) = builtin_call(name, args.len()) {
+            let result = self.result(used)?;
+            let mut ins = Instruction::new(opcode);
+            ins.a = operands[0];
+            ins.b = operands[1];
+            ins.result = result;
+            self.builder.emit(ins)?;
+            return Ok(result);
+        }
         let written = self.builder.string(&name.bytes)?;
         let result = self.result(used)?;
         let mut ins = Instruction::new(Opcode::Invoke);
@@ -831,7 +852,7 @@ fn same_variable(left: &Expr, right: &Expr) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use php_parser::ast::{BinaryOp, Expr, ExprKind, StringPart, VarName};
+    use php_parser::ast::{BinaryOp, Expr, ExprKind, Name, NameKind, StringPart, VarName};
 
     use super::Emitter;
     use crate::bytecode::Literal;
@@ -899,6 +920,15 @@ mod tests {
         assert_eq!(chain[0].0, crate::bytecode::Opcode::AddAssign);
         assert!(super::assign_ops(&i, &one).is_none());
         assert!(super::assign_ops(&i, &plus_two).is_some());
+        let strlen = Name {
+            kind: NameKind::Unqualified,
+            bytes: b"STRLEN".to_vec(),
+        };
+        assert_eq!(
+            super::builtin_call(&strlen, 1),
+            Some(crate::bytecode::Opcode::Strlen)
+        );
+        assert!(super::builtin_call(&strlen, 0).is_none());
     }
 
     #[test]

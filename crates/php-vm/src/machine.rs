@@ -239,6 +239,9 @@ impl<'o, O: Output> Machine<'o, O> {
             if self.frames.len() <= keep {
                 return Ok(());
             }
+            if self.try_fast_loop()? {
+                continue;
+            }
             match self.step() {
                 Ok(Flow::Continue) => {}
                 Ok(Flow::Finished) => return Ok(()),
@@ -349,6 +352,10 @@ impl<'o, O: Output> Machine<'o, O> {
             Opcode::SendVar => self.send_variable(ins.a),
             Opcode::Call => self.call(ins.result),
             Opcode::Invoke => self.invoke(ins),
+            Opcode::Strlen => self.op_strlen(ins),
+            Opcode::Strpos => self.op_strpos(ins),
+            Opcode::StrContains => self.op_str_contains(ins),
+            Opcode::Count => self.op_count(ins),
             Opcode::New => self.new_object(ins),
             Opcode::LoadProp => self.load_prop(ins),
             Opcode::StoreProp => self.store_prop(ins),
@@ -842,7 +849,7 @@ impl<'o, O: Output> Machine<'o, O> {
         }
     }
 
-    fn operand_value(&self, operand: Operand) -> Exec<Option<&Value>> {
+    pub(crate) fn operand_value(&self, operand: Operand) -> Exec<Option<&Value>> {
         let index = operand.index() as usize;
         let frame = self.frame()?;
         match operand.kind() {
@@ -857,7 +864,7 @@ impl<'o, O: Output> Machine<'o, O> {
         }
     }
 
-    fn peek_int(&self, operand: Operand) -> Exec<Option<i64>> {
+    pub(crate) fn peek_int(&self, operand: Operand) -> Exec<Option<i64>> {
         if let Some(Value::Int(number)) = self.operand_value(operand)? {
             return Ok(Some(*number));
         }

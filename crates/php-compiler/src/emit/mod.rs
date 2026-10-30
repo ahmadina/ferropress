@@ -9,6 +9,7 @@ mod closure;
 mod expr;
 mod free;
 mod function;
+mod inline;
 mod stmt;
 
 use php_parser::ast::{Program, TopStatement};
@@ -99,11 +100,13 @@ pub(crate) fn run(program: &Program, file: &[u8]) -> Emit<Unit> {
         current_methods: Vec::new(),
     };
     let main = emit_main(&mut ctx, program)?;
-    Ok(Unit {
+    let mut unit = Unit {
         main,
         functions: ctx.functions,
         classes: ctx.classes,
-    })
+    };
+    inline::rewrite(&mut unit);
+    Ok(unit)
 }
 
 fn emit_main(ctx: &mut EmitCtx, program: &Program) -> Emit<crate::bytecode::Code> {

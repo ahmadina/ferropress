@@ -106,7 +106,7 @@ pub(crate) fn substr_range(len: usize, offset: i64, length: Option<i64>) -> Opti
     Some((usize::try_from(start).ok()?, usize::try_from(end).ok()?))
 }
 
-fn strpos(haystack: &[u8], needle: &[u8], offset: i64) -> Option<i64> {
+pub(crate) fn strpos(haystack: &[u8], needle: &[u8], offset: i64) -> Option<i64> {
     if needle.is_empty() {
         return Some(offset.max(0).min(i64::try_from(haystack.len()).ok()?));
     }
@@ -118,7 +118,7 @@ fn strpos(haystack: &[u8], needle: &[u8], offset: i64) -> Option<i64> {
     i64::try_from(start + at).ok()
 }
 
-fn contains(haystack: &[u8], needle: &[u8]) -> bool {
+pub(crate) fn contains(haystack: &[u8], needle: &[u8]) -> bool {
     needle.is_empty()
         || haystack
             .windows(needle.len())

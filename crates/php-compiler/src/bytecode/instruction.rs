@@ -102,6 +102,14 @@ pub enum Opcode {
     /// Calls the named function `a` (as written). Bits 0–1 of `flags` are the argument
     /// count (0..=2) in `b` and `c`; bits 2–3 mark those arguments as a call's result.
     Invoke,
+    /// `result = strlen(a)`.
+    Strlen,
+    /// `result = strpos(a, b)` with no offset.
+    Strpos,
+    /// `result = str_contains(a, b)`.
+    StrContains,
+    /// `result = count(a)`.
+    Count,
     /// Adds one to the variable `a`; `result`, when used, receives the new value.
     PreIncrement,
     /// Subtracts one from the variable `a`; `result`, when used, receives the new value.
@@ -210,6 +218,10 @@ impl Opcode {
             Self::SendVar => "SendVar",
             Self::Call => "Call",
             Self::Invoke => "Invoke",
+            Self::Strlen => "Strlen",
+            Self::Strpos => "Strpos",
+            Self::StrContains => "StrContains",
+            Self::Count => "Count",
             Self::PreIncrement => "PreIncrement",
             Self::PreDecrement => "PreDecrement",
             Self::PostIncrement => "PostIncrement",
@@ -326,6 +338,10 @@ mod tests {
             Opcode::SendVar,
             Opcode::Call,
             Opcode::Invoke,
+            Opcode::Strlen,
+            Opcode::Strpos,
+            Opcode::StrContains,
+            Opcode::Count,
             Opcode::PreIncrement,
             Opcode::PreDecrement,
             Opcode::PostIncrement,

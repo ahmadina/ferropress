@@ -746,6 +746,60 @@ fn a_computed_callee_uses_the_value() -> Result<(), String> {
 }
 
 #[test]
+fn a_leaf_add_is_inlined() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php function add1($n) { return $n + 1; }\necho add1($x);\n")?,
+        listing(&[
+            "code {main} temporaries=1",
+            "   0    2  Add T0 = $x, 1",
+            "   1    2  Echo T0",
+            "   2    2  Return 1",
+            "",
+            "code add1($n) temporaries=1",
+            "   0    1  Add T0 = $n, 1",
+            "   1    1  Return T0",
+            "   2    1  Return",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn strlen_strpos_and_count_are_opcodes() -> Result<(), String> {
+    assert_eq!(
+        disassemble(
+            "<?php echo strlen($s), strpos($s, \"m\"), str_contains($s, \"q\"), count($a);"
+        )?,
+        listing(&[
+            "code {main} temporaries=4",
+            "   0    1  Strlen T0 = $s",
+            "   1    1  Echo T0",
+            "   2    1  Strpos T1 = $s, \"m\"",
+            "   3    1  Echo T1",
+            "   4    1  StrContains T2 = $s, \"q\"",
+            "   5    1  Echo T2",
+            "   6    1  Count T3 = $a",
+            "   7    1  Echo T3",
+            "   8    1  Return 1",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn strlen_without_arguments_stays_an_invoke() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php strlen();")?,
+        listing(&[
+            "code {main} temporaries=0",
+            "   0    1  Invoke \"strlen\"",
+            "   1    1  Return 1",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
 fn failures_describe_themselves() {
     let unsupported = Failure::Unsupported {
         construct: "goto",

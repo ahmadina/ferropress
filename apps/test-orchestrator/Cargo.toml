@@ -1,0 +1,26 @@
+[package]
+name = "test-orchestrator"
+description = "Runs differential scenarios against the lab lifecycle and Ferropress"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+cms-bootstrap = { path = "../../crates/cms-bootstrap" }
+cms-hooks = { path = "../../crates/cms-hooks" }
+cms-request = { path = "../../crates/cms-request" }
+php-bindings = { path = "../../crates/php-bindings" }
+php-compiler = { path = "../../crates/php-compiler" }
+php-parser = { path = "../../crates/php-parser" }
+php-value = { path = "../../crates/php-value" }
+php-vm = { path = "../../crates/php-vm" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+test-harness = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

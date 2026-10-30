@@ -1,0 +1,9 @@
+schema = 1
+id = "plugin-hook-trace"
+description = "Lab fixture plugins load on a single site in the same order as the reference front page"
+compare = ["hooks", "files"]
+
+[[steps]]
+operation = "http"
+method = "GET"
+path = "/"

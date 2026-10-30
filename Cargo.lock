@@ -837,6 +837,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-orchestrator"
+version = "0.0.0"
+dependencies = [
+ "cms-bootstrap",
+ "cms-hooks",
+ "cms-request",
+ "php-bindings",
+ "php-compiler",
+ "php-parser",
+ "php-value",
+ "php-vm",
+ "serde",
+ "serde_json",
+ "test-harness",
+ "thiserror",
+]
+
+[[package]]
 name = "thiserror"
 version = "2.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"

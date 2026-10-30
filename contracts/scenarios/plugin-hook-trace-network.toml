@@ -1,0 +1,10 @@
+schema = 1
+id = "plugin-hook-trace-network"
+description = "Lab fixture plugins load on a network in the same order as the reference main site"
+profile = "network"
+compare = ["hooks", "files"]
+
+[[steps]]
+operation = "http"
+method = "GET"
+path = "/"

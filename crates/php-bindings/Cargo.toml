@@ -1,0 +1,23 @@
+[package]
+name = "php-bindings"
+description = "PHP-visible hook names that delegate to cms-hooks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+cms-hooks = { path = "../cms-hooks" }
+cms-request = { path = "../cms-request" }
+cms-types = { path = "../cms-types" }
+php-value = { path = "../php-value" }
+php-vm = { path = "../php-vm" }
+
+[dev-dependencies]
+php-compiler = { path = "../php-compiler" }
+php-parser = { path = "../php-parser" }
+
+[lints]
+workspace = true

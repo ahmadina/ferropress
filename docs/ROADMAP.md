@@ -100,11 +100,11 @@ Status legend: `[x]` done · `[ ]` not started
 
 ## Phase 4 — Native CMS kernel
 
-- [ ] 21. `cms-types`, `cms-hooks`, `cms-request`, `cms-bootstrap`, `php-bindings`
+- [x] 21. `cms-types`, `cms-hooks`, `cms-request`, `cms-bootstrap`, `php-bindings`
   - [x] `cms-types`: hook names, priorities and accepted-argument counts
   - [x] `cms-hooks`: priority-ordered add / remove / apply / action on the invoke port
-  - [ ] `cms-request` and `cms-bootstrap`: one request, plugin load order
-  - [ ] `php-bindings`: PHP-visible hook names delegate to `cms-hooks`
+  - [x] `cms-request` and `cms-bootstrap`: one request, plugin load order
+  - [x] `php-bindings`: PHP-visible hook names delegate to `cms-hooks`
 - [ ] 22. `apps/test-orchestrator` runs scenarios against the lab and Ferropress; milestone: a real
       plugin loads and produces the same hook trace as the reference
 

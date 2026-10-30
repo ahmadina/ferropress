@@ -13,20 +13,20 @@ Each inventory item has four independent states:
 
 | Section | Items | Documented | Implemented | Tested | Certified | Unknown |
 |---|---:|---:|---:|---:|---:|---:|
-| functions | 4353 | 21 (0.5%) | 16 (0.4%) | 16 (0.4%) | not measurable | 4332 (99.5%) |
+| functions | 4353 | 20 (0.5%) | 19 (0.4%) | 19 (0.4%) | not measurable | 4333 (99.5%) |
 | classes | 824 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 824 (100.0%) |
-| hooks | 2720 | 14 (0.5%) | 0 (0.0%) | 0 (0.0%) | not measurable | 2706 (99.5%) |
+| hooks | 2720 | 14 (0.5%) | 3 (0.1%) | 3 (0.1%) | not measurable | 2706 (99.5%) |
 | constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 694 (100.0%) |
 | globals | 284 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 284 (100.0%) |
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 133 (100.0%) |
-| options | 121 | 2 (1.7%) | 0 (0.0%) | 0 (0.0%) | not measurable | 119 (98.3%) |
+| options | 121 | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | not measurable | 119 (98.3%) |
 | tables | 18 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | not measurable | 18 (100.0%) |
-| **total** | 9147 | 37 (0.4%) | 16 (0.2%) | 16 (0.2%) | not measurable | 9110 (99.6%) |
+| **total** | 9147 | 36 (0.4%) | 24 (0.3%) | 24 (0.3%) | not measurable | 9111 (99.6%) |
 
 ## Contract entries
 
 | Entry | Title | Items | Implemented | Tested |
 |---|---|---:|---|---|
 | `hook-dispatch` | Priority-ordered filter and action dispatch | 16 | yes | yes |
-| `plugin-load-order` | Which plugins load, and in what order | 9 | no | no |
+| `plugin-load-order` | Which plugins load, and in what order | 8 | yes | yes |
 | `request-lifecycle` | Order of the request lifecycle | 15 | no | no |

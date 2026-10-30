@@ -541,3 +541,18 @@ fn remove_of_a_missing_entry_is_false() {
     assert!(!hooks.remove(&name("t"), &Value::from("keep"), Priority::new(20)));
     assert!(hooks.has(&name("t")));
 }
+
+#[test]
+fn first_priority_is_the_lowest_stored() {
+    let hooks = Hooks::new();
+    add(&hooks, "t", "once", Priority::new(20), ArgCount::DEFAULT);
+    add(&hooks, "t", "once", Priority::new(5), ArgCount::DEFAULT);
+    assert_eq!(
+        hooks.first_priority(&name("t"), &Value::from("once")),
+        Some(Priority::new(5))
+    );
+    assert_eq!(
+        hooks.first_priority(&name("t"), &Value::from("missing")),
+        None
+    );
+}

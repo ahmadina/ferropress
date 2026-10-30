@@ -76,6 +76,12 @@ impl Hooks {
         self.inner.borrow().has_at(name, callee, priority)
     }
 
+    /// The lowest priority at which `callee` is stored on `name`.
+    #[must_use]
+    pub fn first_priority(&self, name: &HookName, callee: &Value) -> Option<Priority> {
+        self.inner.borrow().first_priority(name, callee)
+    }
+
     /// The hook whose callbacks are running, if any.
     #[must_use]
     pub fn current(&self) -> Option<HookName> {
@@ -134,7 +140,7 @@ impl Hooks {
     /// assert!(matches!(got, Value::String(_)));
     /// # Ok::<(), &'static str>(())
     /// ```
-    pub fn apply<I: Invoke>(
+    pub fn apply<I: Invoke + ?Sized>(
         &self,
         name: &HookName,
         value: Value,
@@ -150,7 +156,7 @@ impl Hooks {
     /// # Errors
     ///
     /// The [`Invoke::Error`] of `I` when a callback cannot be invoked.
-    pub fn action<I: Invoke>(
+    pub fn action<I: Invoke + ?Sized>(
         &self,
         name: &HookName,
         args: &mut [Slot],
@@ -160,7 +166,7 @@ impl Hooks {
         self.run(name, Value::Null, args, false, invoke).map(drop)
     }
 
-    fn run<I: Invoke>(
+    fn run<I: Invoke + ?Sized>(
         &self,
         name: &HookName,
         mut value: Value,
@@ -189,7 +195,7 @@ impl Hooks {
         Ok(value)
     }
 
-    fn walk<I: Invoke>(
+    fn walk<I: Invoke + ?Sized>(
         &self,
         name: &HookName,
         mut value: Value,
@@ -287,6 +293,15 @@ impl Inner {
                 .by_priority
                 .get(&priority)
                 .is_some_and(|list| list.iter().any(|entry| entry.id == id))
+        })
+    }
+
+    fn first_priority(&self, name: &HookName, callee: &Value) -> Option<Priority> {
+        let id = Identity::named(callee)?;
+        self.chains.get(name).and_then(|chain| {
+            chain.by_priority.iter().find_map(|(priority, list)| {
+                list.iter().any(|entry| entry.id == id).then_some(*priority)
+            })
         })
     }
 

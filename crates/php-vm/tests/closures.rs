@@ -158,6 +158,49 @@ fn an_undefined_string_function_throws() -> Result<(), String> {
 }
 
 #[test]
+fn a_fused_count_loop_adds() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php $n = 0; $i = 0; while ($i < 4) { $n = $n + $i; $i = $i + 1; } echo $n;")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"6");
+    Ok(())
+}
+
+#[test]
+fn a_fused_greater_loop_counts_down() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php $i = 3; $n = 0; while ($i > 0) { $n += $i; $i--; } echo $n;")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"6");
+    Ok(())
+}
+
+#[test]
+fn a_fused_less_or_equal_includes_the_bound() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php $n = 0; $i = 0; while ($i <= 2) { $n += $i; $i++; } echo $n;")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"3");
+    Ok(())
+}
+
+#[test]
+fn a_fused_assign_value_is_used() -> Result<(), String> {
+    let (output, status) = run(b"<?php $n = 1; echo $n += 2;")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"3");
+    Ok(())
+}
+
+#[test]
+fn a_fused_compound_updates_the_slot() -> Result<(), String> {
+    let (output, status) = run(b"<?php $n = 10; $n += 2; $n *= 3; $n -= 1; $n %= 5; echo $n;")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"0");
+    Ok(())
+}
+
+#[test]
 fn plus_one_assignment_increments() -> Result<(), String> {
     let (output, status) = run(b"<?php $i = 0; $i = $i + 1; $i += 1; $i = 1 + $i; echo $i;")?;
     assert_eq!(status, 0);

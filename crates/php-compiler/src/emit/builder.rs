@@ -22,6 +22,7 @@ enum LiteralKey {
 pub(super) enum Field {
     A,
     B,
+    C,
 }
 
 #[derive(Debug, Default)]
@@ -142,6 +143,7 @@ impl Builder {
             match field {
                 Field::A => instruction.a = operand,
                 Field::B => instruction.b = operand,
+                Field::C => instruction.c = operand,
             }
         }
         Ok(())
@@ -151,6 +153,22 @@ impl Builder {
     pub(super) fn patch_here(&mut self, at: u32, field: Field) -> Emit {
         let target = self.here()?;
         self.patch(at, field, target)
+    }
+
+    /// Turns a trailing unused `PreIncrement` into `IncJump` to `start`.
+    pub(super) fn fuse_inc_jump(&mut self, start: u32) -> bool {
+        let Ok(target) = checked(Operand::target(start), self.line) else {
+            return false;
+        };
+        let Some(last) = self.code.instructions.last_mut() else {
+            return false;
+        };
+        if last.opcode != Opcode::PreIncrement || !last.result.is_unused() {
+            return false;
+        }
+        last.opcode = Opcode::IncJump;
+        last.b = target;
+        true
     }
 }
 
@@ -208,6 +226,41 @@ mod tests {
         assert_eq!(code.instructions[0].a, Operand::target(2).unwrap());
         assert_eq!(code.instructions[1].b, Operand::target(0).unwrap());
         assert_eq!(code.temporaries, 1);
+    }
+
+    #[test]
+    fn unused_increment_fuses_into_inc_jump() {
+        let mut builder = Builder::new(b"");
+        builder
+            .op(
+                Opcode::PreIncrement,
+                Operand::slot(0).unwrap(),
+                Operand::UNUSED,
+                Operand::UNUSED,
+            )
+            .unwrap();
+        assert!(builder.fuse_inc_jump(0));
+        assert!(!builder.fuse_inc_jump(0));
+        let empty = Builder::new(b"");
+        assert!(!{
+            let mut builder = empty;
+            builder.fuse_inc_jump(0)
+        });
+        let code = {
+            let mut builder = Builder::new(b"");
+            builder
+                .op(
+                    Opcode::PreIncrement,
+                    Operand::slot(0).unwrap(),
+                    Operand::UNUSED,
+                    Operand::UNUSED,
+                )
+                .unwrap();
+            builder.fuse_inc_jump(3);
+            builder.finish()
+        };
+        assert_eq!(code.instructions[0].opcode, Opcode::IncJump);
+        assert_eq!(code.instructions[0].b, Operand::target(3).unwrap());
     }
 
     #[test]

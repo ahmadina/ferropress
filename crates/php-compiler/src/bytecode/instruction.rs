@@ -65,6 +65,20 @@ pub enum Opcode {
     JumpIfFalse,
     /// Jumps to `b` when `a` is truthy.
     JumpIfTrue,
+    /// Jumps to `c` when `a < b` is false.
+    JumpIfNotLess,
+    /// Jumps to `c` when `a <= b` is false.
+    JumpIfNotLessEqual,
+    /// Increments the variable `a` and jumps to `b`.
+    IncJump,
+    /// `a = a + b`; `result`, when used, receives the sum.
+    AddAssign,
+    /// `a = a - b`; `result`, when used, receives the difference.
+    SubAssign,
+    /// `a = a * b`; `result`, when used, receives the product.
+    MulAssign,
+    /// `a = a % b`; `result`, when used, receives the remainder.
+    ModAssign,
     /// Converts `a` to a string.
     ToString,
     /// Starts a call of the function named by the literal `a` (lowercase); `b`, when used, is the
@@ -180,6 +194,13 @@ impl Opcode {
             Self::Jump => "Jump",
             Self::JumpIfFalse => "JumpIfFalse",
             Self::JumpIfTrue => "JumpIfTrue",
+            Self::JumpIfNotLess => "JumpIfNotLess",
+            Self::JumpIfNotLessEqual => "JumpIfNotLessEqual",
+            Self::IncJump => "IncJump",
+            Self::AddAssign => "AddAssign",
+            Self::SubAssign => "SubAssign",
+            Self::MulAssign => "MulAssign",
+            Self::ModAssign => "ModAssign",
             Self::ToString => "ToString",
             Self::InitCall => "InitCall",
             Self::InitCallValue => "InitCallValue",
@@ -289,6 +310,13 @@ mod tests {
             Opcode::Jump,
             Opcode::JumpIfFalse,
             Opcode::JumpIfTrue,
+            Opcode::JumpIfNotLess,
+            Opcode::JumpIfNotLessEqual,
+            Opcode::IncJump,
+            Opcode::AddAssign,
+            Opcode::SubAssign,
+            Opcode::MulAssign,
+            Opcode::ModAssign,
             Opcode::ToString,
             Opcode::InitCall,
             Opcode::InitCallValue,

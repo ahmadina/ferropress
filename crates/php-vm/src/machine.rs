@@ -331,6 +331,11 @@ impl<'o, O: Output> Machine<'o, O> {
             Opcode::Assign => self.assign(ins),
             Opcode::Jump => self.jump(ins.a),
             Opcode::JumpIfFalse | Opcode::JumpIfTrue => self.branch(ins),
+            Opcode::JumpIfNotLess | Opcode::JumpIfNotLessEqual => self.compare_jump(ins),
+            Opcode::IncJump => self.inc_jump(ins),
+            Opcode::AddAssign | Opcode::SubAssign | Opcode::MulAssign | Opcode::ModAssign => {
+                self.assign_op(ins)
+            }
             Opcode::PreIncrement | Opcode::PostIncrement => self.step_variable(ins, ops::increment),
             Opcode::PreDecrement | Opcode::PostDecrement => self.step_variable(ins, ops::decrement),
             Opcode::Echo => self.echo(ins.a),
@@ -423,6 +428,76 @@ impl<'o, O: Output> Machine<'o, O> {
 
     fn assign(&mut self, ins: &Instruction) -> Exec {
         let value = self.read(ins.b)?;
+        if ins.result.is_unused() {
+            return self.write(ins.a, value);
+        }
+        self.write(ins.a, value.clone())?;
+        self.write(ins.result, value)
+    }
+
+    fn compare_jump(&mut self, ins: &Instruction) -> Exec {
+        let held = if let (Some(left), Some(right)) = (self.peek_int(ins.a)?, self.peek_int(ins.b)?)
+        {
+            Some(match ins.opcode {
+                Opcode::JumpIfNotLess => left < right,
+                _ => left <= right,
+            })
+        } else {
+            None
+        };
+        let held = if let Some(held) = held {
+            held
+        } else {
+            let left = self.read(ins.a)?;
+            let right = self.read(ins.b)?;
+            match ins.opcode {
+                Opcode::JumpIfNotLess => self.compute(|cx| ops::less(&left, &right, cx))?,
+                _ => self.compute(|cx| ops::less_or_equal(&left, &right, cx))?,
+            }
+        };
+        if !held {
+            self.jump(ins.c)?;
+        }
+        Ok(())
+    }
+
+    fn inc_jump(&mut self, ins: &Instruction) -> Exec {
+        let mut step = *ins;
+        step.opcode = Opcode::PreIncrement;
+        step.result = Operand::UNUSED;
+        self.step_variable(&step, ops::increment)?;
+        self.jump(ins.b)
+    }
+
+    fn assign_op(&mut self, ins: &Instruction) -> Exec {
+        let arithmetic = match ins.opcode {
+            Opcode::AddAssign => Opcode::Add,
+            Opcode::SubAssign => Opcode::Sub,
+            Opcode::MulAssign => Opcode::Mul,
+            _ => Opcode::Mod,
+        };
+        if let (Some(left), Some(right)) = (self.peek_int(ins.a)?, self.peek_int(ins.b)?)
+            && let Some(value) = int_fast_pair(arithmetic, left, right)
+        {
+            self.write(ins.a, value.clone())?;
+            if ins.result.is_unused() {
+                return Ok(());
+            }
+            return self.write(ins.result, value);
+        }
+        let left = self.read(ins.a)?;
+        let right = self.read(ins.b)?;
+        let value = if let Some(value) = int_fast(arithmetic, &left, &right) {
+            value
+        } else {
+            let op = match arithmetic {
+                Opcode::Add => ops::add,
+                Opcode::Sub => ops::sub,
+                Opcode::Mul => ops::mul,
+                _ => ops::modulo,
+            };
+            self.compute(|cx| op(&left, &right, cx))?
+        };
         if ins.result.is_unused() {
             return self.write(ins.a, value);
         }

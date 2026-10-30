@@ -1,10 +1,10 @@
 //! Statements: control flow, `echo` and `return`.
 
-use php_parser::ast::{Expr, ExprKind, Foreach, NameKind, Stmt, StmtKind, Try};
+use php_parser::ast::{BinaryOp, Expr, ExprKind, Foreach, NameKind, Stmt, StmtKind, Try};
 
 use super::builder::Field;
 use super::{Emit, Emitter, Loop};
-use crate::bytecode::{CatchHandler, FinallyHandler, Literal, Opcode, Operand};
+use crate::bytecode::{CatchHandler, FinallyHandler, Instruction, Literal, Opcode, Operand};
 
 impl Emitter<'_> {
     pub(super) fn stmts(&mut self, stmts: &[Stmt]) -> Emit {
@@ -26,16 +26,10 @@ impl Emitter<'_> {
             StmtKind::If(branches) => {
                 let mut ends = Vec::new();
                 for (condition, body) in &branches.branches {
-                    let value = self.expr(condition)?;
-                    let skip = self.builder.op(
-                        Opcode::JumpIfFalse,
-                        value,
-                        Operand::UNUSED,
-                        Operand::UNUSED,
-                    )?;
+                    let (skip, field) = self.condition_exit(condition)?;
                     self.nested(|emitter| emitter.stmt(body))?;
                     ends.push(self.jump()?);
-                    self.builder.patch_here(skip, Field::B)?;
+                    self.builder.patch_here(skip, field)?;
                 }
                 if let Some(otherwise) = &branches.otherwise {
                     self.nested(|emitter| emitter.stmt(otherwise))?;
@@ -45,13 +39,7 @@ impl Emitter<'_> {
             }
             StmtKind::While { condition, body } => {
                 let start = self.builder.here()?;
-                let value = self.expr(condition)?;
-                let exit = self.builder.op(
-                    Opcode::JumpIfFalse,
-                    value,
-                    Operand::UNUSED,
-                    Operand::UNUSED,
-                )?;
+                let exit = self.condition_exit(condition)?;
                 self.loop_body(body, start, Some(exit))
             }
             StmtKind::DoWhile { body, condition } => self.do_while(body, condition),
@@ -61,13 +49,7 @@ impl Emitter<'_> {
                 let exit = match for_loop.condition.split_last() {
                     Some((last, rest)) => {
                         self.discard_all(rest)?;
-                        let value = self.expr(last)?;
-                        Some(self.builder.op(
-                            Opcode::JumpIfFalse,
-                            value,
-                            Operand::UNUSED,
-                            Operand::UNUSED,
-                        )?)
+                        Some(self.condition_exit(last)?)
                     }
                     None => None,
                 };
@@ -185,7 +167,7 @@ impl Emitter<'_> {
 
     /// Compiles a `while` body that loops back to `start`, leaving through `exit` when the
     /// condition fails.
-    fn loop_body(&mut self, body: &Stmt, start: u32, exit: Option<u32>) -> Emit {
+    fn loop_body(&mut self, body: &Stmt, start: u32, exit: Option<(u32, Field)>) -> Emit {
         self.loops.push(Loop::default());
         self.nested(|emitter| emitter.stmt(body))?;
         self.close_loop(start, start, exit)
@@ -193,9 +175,11 @@ impl Emitter<'_> {
 
     /// Ends the innermost loop: jumps back to `start`, and patches its `continue` statements to
     /// `step`, and its `break` statements and `exit` past the loop.
-    fn close_loop(&mut self, start: u32, step: u32, exit: Option<u32>) -> Emit {
-        let back = self.jump()?;
-        self.builder.patch(back, Field::A, start)?;
+    fn close_loop(&mut self, start: u32, step: u32, exit: Option<(u32, Field)>) -> Emit {
+        if !self.builder.fuse_inc_jump(start) {
+            let back = self.jump()?;
+            self.builder.patch(back, Field::A, start)?;
+        }
         let finished = self.loops.pop().unwrap_or_default();
         for jump in finished.continues {
             self.builder.patch(jump, Field::A, step)?;
@@ -203,7 +187,25 @@ impl Emitter<'_> {
         for jump in finished.breaks {
             self.builder.patch_here(jump, Field::A)?;
         }
-        exit.map_or(Ok(()), |exit| self.builder.patch_here(exit, Field::B))
+        exit.map_or(Ok(()), |(at, field)| self.builder.patch_here(at, field))
+    }
+
+    /// Jumps past the next block when `condition` is falsy.
+    fn condition_exit(&mut self, condition: &Expr) -> Emit<(u32, Field)> {
+        if let Some((opcode, left, right)) = compare_exit(condition) {
+            let a = self.expr(left)?;
+            let b = self.expr(right)?;
+            let mut ins = Instruction::new(opcode);
+            ins.a = a;
+            ins.b = b;
+            let at = self.builder.emit(ins)?;
+            return Ok((at, Field::C));
+        }
+        let value = self.expr(condition)?;
+        let at = self
+            .builder
+            .op(Opcode::JumpIfFalse, value, Operand::UNUSED, Operand::UNUSED)?;
+        Ok((at, Field::B))
     }
 
     fn do_while(&mut self, body: &Stmt, condition: &Expr) -> Emit {
@@ -290,6 +292,20 @@ impl Emitter<'_> {
         let step = self.builder.here()?;
         let one = self.builder.literal(Literal::Int(1))?;
         self.builder.op(Opcode::Add, cursor, one, cursor)?;
-        self.close_loop(ready, step, Some(exit))
+        self.close_loop(ready, step, Some((exit, Field::B)))
+    }
+}
+
+/// A comparison compiled as a jump out of a block when the relation does not hold.
+fn compare_exit(condition: &Expr) -> Option<(Opcode, &Expr, &Expr)> {
+    let ExprKind::Binary { op, left, right } = &condition.kind else {
+        return None;
+    };
+    match op {
+        BinaryOp::Less => Some((Opcode::JumpIfNotLess, left, right)),
+        BinaryOp::Greater => Some((Opcode::JumpIfNotLess, right, left)),
+        BinaryOp::LessOrEqual => Some((Opcode::JumpIfNotLessEqual, left, right)),
+        BinaryOp::GreaterOrEqual => Some((Opcode::JumpIfNotLessEqual, right, left)),
+        _ => None,
     }
 }

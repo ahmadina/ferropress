@@ -135,6 +135,13 @@ impl Emitter<'_> {
                 if *op == AssignOp::Add && is_int_one(value) {
                     return self.inc_dec(IncDecOp::PreInc, target, used);
                 }
+                if let Some(opcode) = compound_assign(*op) {
+                    let slot = self.target(target)?;
+                    let value = self.expr(value)?;
+                    let result = self.result(used)?;
+                    self.builder.op(opcode, slot, value, result)?;
+                    return Ok(if result.is_unused() { slot } else { result });
+                }
                 let Some(opcode) = assign_opcode(*op) else {
                     return self.unsupported("??=");
                 };
@@ -224,11 +231,38 @@ impl Emitter<'_> {
         if is_increment_by_one(target, value) {
             return self.inc_dec(IncDecOp::PreInc, target, used);
         }
+        if let Some(steps) = assign_ops(target, value) {
+            return self.assign_steps(target, &steps, used);
+        }
         let slot = self.target(target)?;
         let value = self.expr(value)?;
         let result = self.result(used)?;
         self.builder.op(Opcode::Assign, slot, value, result)?;
         Ok(result)
+    }
+
+    fn assign_steps(
+        &mut self,
+        target: &Expr,
+        steps: &[(Opcode, &Expr)],
+        used: bool,
+    ) -> Emit<Operand> {
+        let slot = self.target(target)?;
+        let last = steps.len().saturating_sub(1);
+        let mut value = slot;
+        for (index, (opcode, rhs)) in steps.iter().enumerate() {
+            let rhs = self.expr(rhs)?;
+            let dest = if used && index == last {
+                self.builder.temp()?
+            } else {
+                Operand::UNUSED
+            };
+            self.builder.op(*opcode, slot, rhs, dest)?;
+            if !dest.is_unused() {
+                value = dest;
+            }
+        }
+        Ok(value)
     }
 
     /// A temporary for the result when `used`, otherwise no operand.
@@ -731,6 +765,50 @@ fn is_int_one(expr: &Expr) -> bool {
     matches!(expr.kind, ExprKind::Int(1))
 }
 
+fn compound_assign(op: AssignOp) -> Option<Opcode> {
+    Some(match op {
+        AssignOp::Add => Opcode::AddAssign,
+        AssignOp::Sub => Opcode::SubAssign,
+        AssignOp::Mul => Opcode::MulAssign,
+        AssignOp::Mod => Opcode::ModAssign,
+        _ => return None,
+    })
+}
+
+fn bin_assign(op: BinaryOp) -> Option<Opcode> {
+    Some(match op {
+        BinaryOp::Add => Opcode::AddAssign,
+        BinaryOp::Sub => Opcode::SubAssign,
+        BinaryOp::Mul => Opcode::MulAssign,
+        BinaryOp::Mod => Opcode::ModAssign,
+        _ => return None,
+    })
+}
+
+fn assign_ops<'a>(target: &Expr, value: &'a Expr) -> Option<Vec<(Opcode, &'a Expr)>> {
+    let mut steps = Vec::new();
+    let mut current = value;
+    loop {
+        let ExprKind::Binary { op, left, right } = &current.kind else {
+            return None;
+        };
+        let opcode = bin_assign(*op)?;
+        let commutative = matches!(*op, BinaryOp::Add | BinaryOp::Mul);
+        if same_variable(target, left) {
+            steps.push((opcode, right.as_ref()));
+            steps.reverse();
+            return Some(steps);
+        }
+        if commutative && same_variable(target, right) {
+            steps.push((opcode, left.as_ref()));
+            steps.reverse();
+            return Some(steps);
+        }
+        steps.push((opcode, right.as_ref()));
+        current = left;
+    }
+}
+
 fn is_increment_by_one(target: &Expr, value: &Expr) -> bool {
     let ExprKind::Binary {
         op: BinaryOp::Add,
@@ -808,6 +886,19 @@ mod tests {
         assert!(super::is_increment_by_one(&i, &plus_one));
         assert!(!super::is_increment_by_one(&i, &plus_two));
         assert!(!super::is_increment_by_one(&i, &one));
+        let add_j = Expr {
+            kind: ExprKind::Binary {
+                op: BinaryOp::Add,
+                left: Box::new(i.clone()),
+                right: Box::new(j.clone()),
+            },
+            line: 1,
+        };
+        let chain = super::assign_ops(&i, &add_j).expect("add assign");
+        assert_eq!(chain.len(), 1);
+        assert_eq!(chain[0].0, crate::bytecode::Opcode::AddAssign);
+        assert!(super::assign_ops(&i, &one).is_none());
+        assert!(super::assign_ops(&i, &plus_two).is_some());
     }
 
     #[test]

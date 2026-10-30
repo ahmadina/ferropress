@@ -204,7 +204,7 @@ fn loops_with_break_and_continue() -> Result<(), String> {
              for ($i = 0; $i < 3; $i++) { if ($i) continue; break 1; }\nfor (;;) { break; }"
         )?,
         listing(&[
-            "code {main} temporaries=1",
+            "code {main} temporaries=0",
             "   0    1  JumpIfFalse $a, @6",
             "   1    1  JumpIfFalse $b, @4",
             "   2    1  Jump @6",
@@ -215,17 +215,15 @@ fn loops_with_break_and_continue() -> Result<(), String> {
             "   7    2  Jump @8",
             "   8    2  JumpIfTrue $a, @6",
             "   9    3  Assign $i, 0",
-            "  10    3  Less T0 = $i, 3",
-            "  11    3  JumpIfFalse T0, @18",
-            "  12    3  JumpIfFalse $i, @15",
-            "  13    3  Jump @16",
-            "  14    3  Jump @15",
-            "  15    3  Jump @18",
-            "  16    3  PreIncrement $i",
-            "  17    3  Jump @10",
-            "  18    4  Jump @20",
-            "  19    4  Jump @18",
-            "  20    4  Return 1",
+            "  10    3  JumpIfNotLess $i, 3, @16",
+            "  11    3  JumpIfFalse $i, @14",
+            "  12    3  Jump @15",
+            "  13    3  Jump @14",
+            "  14    3  Jump @16",
+            "  15    3  IncJump $i, @10",
+            "  16    4  Jump @18",
+            "  17    4  Jump @16",
+            "  18    4  Return 1",
         ])
     );
     Ok(())
@@ -693,6 +691,22 @@ fn try_catch_and_throw_use_a_handler_table() -> Result<(), String> {
             "   7    1  Echo \"c\"",
             "   8    1  Jump @9",
             "   9    1  Return 1",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn compare_while_and_add_assign_fuse() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php while ($i < 3) { $n = $n + $i - 1; }")?,
+        listing(&[
+            "code {main} temporaries=0",
+            "   0    1  JumpIfNotLess $i, 3, @4",
+            "   1    1  AddAssign $n, $i",
+            "   2    1  SubAssign $n, 1",
+            "   3    1  Jump @0",
+            "   4    1  Return 1",
         ])
     );
     Ok(())

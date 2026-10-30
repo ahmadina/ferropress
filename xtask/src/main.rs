@@ -1,5 +1,6 @@
 //! Repository automation for Ferropress, invoked as `cargo xtask <command>`.
 
+mod bench;
 mod capture;
 mod check;
 mod cli;
@@ -142,6 +143,27 @@ fn run_example(repo_root: &Path, path: Option<&Path>) -> anyhow::Result<Report> 
         runs.push(example::run_script(script).map_err(anyhow::Error::msg)?);
     }
     let (text, success) = example::render(&runs);
+    Ok(Report { text, success })
+}
+
+fn run_example_bench(repo_root: &Path, path: Option<&Path>) -> anyhow::Result<Report> {
+    let scripts = match path {
+        Some(path) => vec![bench::resolve(repo_root, path).map_err(anyhow::Error::msg)?],
+        None => bench::list(repo_root).context("listing example/bench/")?,
+    };
+    if scripts.is_empty() {
+        return Ok(Report {
+            text: "no bench scripts found".into(),
+            success: false,
+        });
+    }
+    let mut php = bench::SystemPhp::detect();
+    let version = php.as_ref().and_then(|_| bench::php_version());
+    let php = php
+        .as_mut()
+        .map(|runner| runner as &mut dyn bench::PhpRunner);
+    let rows = bench::compare(&scripts, php).map_err(anyhow::Error::msg)?;
+    let (text, success) = bench::render(&rows, version.as_deref());
     Ok(Report { text, success })
 }
 
@@ -808,6 +830,7 @@ fn run(command: &Command) -> anyhow::Result<Report> {
         Command::VerifyManifest => verify_manifest(repo_root()),
         Command::Dashboard => run_dashboard(repo_root()),
         Command::Example { path } => run_example(repo_root(), path.as_deref()),
+        Command::ExampleBench { path } => run_example_bench(repo_root(), path.as_deref()),
         Command::Lab(lab) => {
             let action = match lab {
                 LabCommand::Up => LabAction::Up,

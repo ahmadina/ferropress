@@ -28,6 +28,11 @@ pub(crate) enum Command {
         /// Script path (`hello.php` or `example/hello.php`). Omit to run every top-level script.
         path: Option<std::path::PathBuf>,
     },
+    /// Time `example/bench/` on the Rust VM and on `php`
+    ExampleBench {
+        /// Script path (`arithmetic.php` or `example/bench/arithmetic.php`). Omit to run every bench.
+        path: Option<std::path::PathBuf>,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq, Subcommand)]
@@ -109,6 +114,16 @@ mod tests {
         assert_eq!(parse(&["verify-manifest"]), Ok(Command::VerifyManifest));
         assert_eq!(parse(&["dashboard"]), Ok(Command::Dashboard));
         assert_eq!(parse(&["example"]), Ok(Command::Example { path: None }));
+        assert_eq!(
+            parse(&["example-bench"]),
+            Ok(Command::ExampleBench { path: None })
+        );
+        assert_eq!(
+            parse(&["example-bench", "arithmetic.php"]),
+            Ok(Command::ExampleBench {
+                path: Some("arithmetic.php".into()),
+            })
+        );
         assert_eq!(
             parse(&["example", "hello.php"]),
             Ok(Command::Example {

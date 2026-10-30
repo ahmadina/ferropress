@@ -158,6 +158,34 @@ fn an_undefined_string_function_throws() -> Result<(), String> {
 }
 
 #[test]
+fn plus_one_assignment_increments() -> Result<(), String> {
+    let (output, status) = run(b"<?php $i = 0; $i = $i + 1; $i += 1; $i = 1 + $i; echo $i;")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"3");
+    Ok(())
+}
+
+#[test]
+fn a_zero_arg_named_call_returns() -> Result<(), String> {
+    let (output, status) = run(b"<?php function g() { return 7; } echo g();")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"7");
+    Ok(())
+}
+
+#[test]
+fn a_named_call_keeps_the_written_name() -> Result<(), String> {
+    let (output, status) = run(b"<?php Missing();")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(
+        text.contains("Call to undefined function Missing()"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
 fn null_is_not_callable() -> Result<(), String> {
     let (output, status) = run(b"<?php $f();")?;
     let text = String::from_utf8_lossy(&output);

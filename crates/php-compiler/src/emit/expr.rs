@@ -132,6 +132,9 @@ impl Emitter<'_> {
             ExprKind::Interpolated(parts) => self.interpolated(parts),
             ExprKind::Assign { target, value } => self.assign(target, value, used),
             ExprKind::CompoundAssign { op, target, value } => {
+                if *op == AssignOp::Add && is_int_one(value) {
+                    return self.inc_dec(IncDecOp::PreInc, target, used);
+                }
                 let Some(opcode) = assign_opcode(*op) else {
                     return self.unsupported("??=");
                 };
@@ -217,6 +220,9 @@ impl Emitter<'_> {
         }
         if let ExprKind::Dim { base, index } = &target.kind {
             return self.store_dim(base, index.as_deref(), value, used);
+        }
+        if is_increment_by_one(target, value) {
+            return self.inc_dec(IncDecOp::PreInc, target, used);
         }
         let slot = self.target(target)?;
         let value = self.expr(value)?;
@@ -433,6 +439,9 @@ impl Emitter<'_> {
             if name.kind == NameKind::Relative {
                 return self.unsupported("namespace-relative names");
             }
+            if args.len() <= 2 && args.iter().all(|arg| matches!(arg, Arg::Positional(_))) {
+                return self.invoke(name, args, used);
+            }
             let function = self.builder.string(&name.bytes.to_ascii_lowercase())?;
             let written = self.builder.string(&name.bytes)?;
             let mut init = Instruction::new(Opcode::InitCall);
@@ -453,6 +462,54 @@ impl Emitter<'_> {
         self.builder
             .op(Opcode::Call, Operand::UNUSED, Operand::UNUSED, result)?;
         Ok(result)
+    }
+
+    fn invoke(&mut self, name: &Name, args: &[Arg], used: bool) -> Emit<Operand> {
+        let mut operands = [Operand::UNUSED; 2];
+        let mut from_call = [false; 2];
+        for (index, arg) in args.iter().enumerate() {
+            let (operand, call) = self.arg_operand(arg)?;
+            operands[index] = operand;
+            from_call[index] = call;
+        }
+        let written = self.builder.string(&name.bytes)?;
+        let result = self.result(used)?;
+        let mut ins = Instruction::new(Opcode::Invoke);
+        ins.flags = match args.len() {
+            0 => 0,
+            1 => 1,
+            _ => 2,
+        };
+        if from_call[0] {
+            ins.flags |= 4;
+        }
+        if from_call[1] {
+            ins.flags |= 8;
+        }
+        ins.a = written;
+        ins.b = operands[0];
+        ins.c = operands[1];
+        ins.result = result;
+        self.builder.emit(ins)?;
+        Ok(result)
+    }
+
+    fn arg_operand(&mut self, arg: &Arg) -> Emit<(Operand, bool)> {
+        let Arg::Positional(value) = arg else {
+            return self.unsupported("named and unpacked arguments");
+        };
+        if let ExprKind::Variable(name) = &value.kind {
+            return Ok((self.variable(name)?, false));
+        }
+        let from_call = matches!(
+            value.kind,
+            ExprKind::Call { .. }
+                | ExprKind::Binary {
+                    op: BinaryOp::Pipe,
+                    ..
+                }
+        );
+        Ok((self.expr(value)?, from_call))
     }
 
     fn include_file(&mut self, kind: IncludeKind, path: &Expr, used: bool) -> Emit<Operand> {
@@ -670,9 +727,33 @@ impl Emitter<'_> {
     }
 }
 
+fn is_int_one(expr: &Expr) -> bool {
+    matches!(expr.kind, ExprKind::Int(1))
+}
+
+fn is_increment_by_one(target: &Expr, value: &Expr) -> bool {
+    let ExprKind::Binary {
+        op: BinaryOp::Add,
+        left,
+        right,
+    } = &value.kind
+    else {
+        return false;
+    };
+    (same_variable(target, left) && is_int_one(right))
+        || (same_variable(target, right) && is_int_one(left))
+}
+
+fn same_variable(left: &Expr, right: &Expr) -> bool {
+    match (&left.kind, &right.kind) {
+        (ExprKind::Variable(VarName::Name(a)), ExprKind::Variable(VarName::Name(b))) => a == b,
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use php_parser::ast::{Expr, ExprKind, StringPart, VarName};
+    use php_parser::ast::{BinaryOp, Expr, ExprKind, StringPart, VarName};
 
     use super::Emitter;
     use crate::bytecode::Literal;
@@ -682,6 +763,51 @@ mod tests {
             kind: ExprKind::Interpolated(parts),
             line: 1,
         }
+    }
+
+    #[test]
+    fn increment_helpers_match_only_the_same_integer_one() {
+        let i = Expr {
+            kind: ExprKind::Variable(VarName::Name(b"i".to_vec())),
+            line: 1,
+        };
+        let j = Expr {
+            kind: ExprKind::Variable(VarName::Name(b"j".to_vec())),
+            line: 1,
+        };
+        let one = Expr {
+            kind: ExprKind::Int(1),
+            line: 1,
+        };
+        let two = Expr {
+            kind: ExprKind::Int(2),
+            line: 1,
+        };
+        assert!(super::same_variable(&i, &i));
+        assert!(!super::same_variable(&i, &j));
+        assert!(!super::same_variable(&i, &one));
+        assert!(super::is_int_one(&one));
+        assert!(!super::is_int_one(&two));
+        assert!(!super::is_int_one(&i));
+        let plus_one = Expr {
+            kind: ExprKind::Binary {
+                op: BinaryOp::Add,
+                left: Box::new(i.clone()),
+                right: Box::new(one.clone()),
+            },
+            line: 1,
+        };
+        let plus_two = Expr {
+            kind: ExprKind::Binary {
+                op: BinaryOp::Add,
+                left: Box::new(i.clone()),
+                right: Box::new(two),
+            },
+            line: 1,
+        };
+        assert!(super::is_increment_by_one(&i, &plus_one));
+        assert!(!super::is_increment_by_one(&i, &plus_two));
+        assert!(!super::is_increment_by_one(&i, &one));
     }
 
     #[test]

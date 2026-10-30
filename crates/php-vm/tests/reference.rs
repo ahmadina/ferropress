@@ -40,6 +40,15 @@ fn a_variable_can_be_passed_by_reference() -> Result<(), String> {
 }
 
 #[test]
+fn plus_one_through_a_reference_parameter() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php function inc(&$x) { $x = $x + 1; } $a = 1; inc($a); echo $a;")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"2");
+    Ok(())
+}
+
+#[test]
 fn a_call_result_is_passed_by_reference_with_a_notice() -> Result<(), String> {
     let (output, status) = run(
         b"<?php function foo(&$ref) { echo $ref; } function bar($value) { return $value; } foo(bar(5));",

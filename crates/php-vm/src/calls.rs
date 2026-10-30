@@ -3,7 +3,7 @@
 use php_compiler::bytecode::{Instruction, Operand, OperandKind};
 use php_value::{Object, PhpArray, PhpString, Slot, Value};
 
-use crate::machine::{Exec, Flow, Machine};
+use crate::machine::{CallTarget, Exec, Flow, Machine};
 use crate::{Output, VmError};
 
 /// An argument prepared for a call.
@@ -95,6 +95,130 @@ impl<O: Output> Machine<'_, O> {
         message.extend_from_slice(written.as_bytes());
         message.extend_from_slice(b"()");
         Err(self.throw("Error", message))
+    }
+
+    /// Calls the named function in one instruction: `a` is the name as written, `flags` is the
+    /// argument count (0..=2), `b` and `c` are the arguments.
+    pub(crate) fn invoke(&mut self, ins: &Instruction) -> Exec {
+        let count = ins.flags & 3;
+        if count > 2 {
+            return Err(VmError::Malformed("invoke argc").into());
+        }
+        let pc = self.frame()?.pc.saturating_sub(1);
+        let code = self.frame()?.code;
+        let target = self.resolve_invoke(code, pc, ins.a)?;
+        let prepared = self.invoke_args(ins, count, target)?;
+        match target {
+            CallTarget::Unknown => Err(VmError::Malformed("unresolved invoke").into()),
+            CallTarget::Native(native) => self.dispatch_native(native, &prepared, ins.result),
+            CallTarget::Host => {
+                let written = self.read(ins.a)?;
+                let Value::String(written) = written else {
+                    return Err(VmError::Malformed("function name is not a string").into());
+                };
+                let key = written.as_bytes().to_ascii_lowercase();
+                self.dispatch_host(&key, &prepared, ins.result)
+            }
+            CallTarget::User(user) => {
+                self.pending.push(Pending {
+                    code: user,
+                    env: None,
+                    this: None,
+                    implicit_ctor: None,
+                    generator_method: None,
+                    native: None,
+                    host: None,
+                    fiber_method: None,
+                    native_method: None,
+                    args: prepared,
+                });
+                self.call(ins.result)
+            }
+        }
+    }
+
+    fn resolve_invoke(&mut self, code: usize, pc: usize, name: Operand) -> Exec<CallTarget> {
+        if let Some(hit) = self
+            .codes
+            .get(code)
+            .and_then(|loaded| loaded.calls.get(pc))
+            .copied()
+            && !matches!(hit, CallTarget::Unknown)
+        {
+            return Ok(hit);
+        }
+        let written = self.read(name)?;
+        let Value::String(written) = written else {
+            return Err(VmError::Malformed("function name is not a string").into());
+        };
+        let key = written.as_bytes().to_ascii_lowercase();
+        let target = if let Some(&index) = self.functions.get(key.as_slice()) {
+            CallTarget::User(index)
+        } else if let Some(native) = crate::builtins::lookup(&key) {
+            CallTarget::Native(native)
+        } else if self.host_exists(&key) {
+            CallTarget::Host
+        } else {
+            let mut message = b"Call to undefined function ".to_vec();
+            message.extend_from_slice(written.as_bytes());
+            message.extend_from_slice(b"()");
+            return Err(self.throw("Error", message));
+        };
+        if let Some(slot) = self
+            .codes
+            .get_mut(code)
+            .and_then(|loaded| loaded.calls.get_mut(pc))
+        {
+            *slot = target;
+        }
+        Ok(target)
+    }
+
+    fn invoke_args(
+        &mut self,
+        ins: &Instruction,
+        count: u8,
+        target: CallTarget,
+    ) -> Exec<Vec<Argument>> {
+        let mut prepared = Vec::with_capacity(count as usize);
+        for (index, operand) in [ins.b, ins.c].into_iter().take(count as usize).enumerate() {
+            let by_ref = match target {
+                CallTarget::User(code) => self.codes[code]
+                    .code
+                    .params
+                    .get(index)
+                    .is_some_and(|param| param.by_ref && !param.variadic),
+                _ => false,
+            };
+            let from_call = ins.flags & (1 << (2 + index)) != 0;
+            prepared.push(self.invoke_arg(operand, by_ref, from_call)?);
+        }
+        Ok(prepared)
+    }
+
+    fn invoke_arg(&mut self, operand: Operand, by_ref: bool, from_call: bool) -> Exec<Argument> {
+        if !by_ref {
+            return Ok(Argument {
+                slot: Slot::Value(self.read(operand)?),
+                from_call,
+            });
+        }
+        if operand.kind() != OperandKind::Slot {
+            return Ok(Argument {
+                slot: Slot::Value(self.read(operand)?),
+                from_call,
+            });
+        }
+        let slot = self
+            .frame_mut()?
+            .slots
+            .get_mut(operand.index() as usize)
+            .ok_or(VmError::Malformed("no such slot"))?
+            .get_or_insert_with(|| Slot::Value(Value::Null));
+        Ok(Argument {
+            slot: Slot::Reference(slot.make_reference()),
+            from_call: false,
+        })
     }
 
     pub(crate) fn send(&mut self, arg: Slot, from_call: bool) -> Exec {

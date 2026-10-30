@@ -85,6 +85,9 @@ pub enum Opcode {
     SendVar,
     /// Calls the function being prepared; `result`, when used, receives its return value.
     Call,
+    /// Calls the named function `a` (as written). Bits 0–1 of `flags` are the argument
+    /// count (0..=2) in `b` and `c`; bits 2–3 mark those arguments as a call's result.
+    Invoke,
     /// Adds one to the variable `a`; `result`, when used, receives the new value.
     PreIncrement,
     /// Subtracts one from the variable `a`; `result`, when used, receives the new value.
@@ -185,6 +188,7 @@ impl Opcode {
             Self::Send => "Send",
             Self::SendVar => "SendVar",
             Self::Call => "Call",
+            Self::Invoke => "Invoke",
             Self::PreIncrement => "PreIncrement",
             Self::PreDecrement => "PreDecrement",
             Self::PostIncrement => "PostIncrement",
@@ -293,6 +297,7 @@ mod tests {
             Opcode::Send,
             Opcode::SendVar,
             Opcode::Call,
+            Opcode::Invoke,
             Opcode::PreIncrement,
             Opcode::PreDecrement,
             Opcode::PostIncrement,

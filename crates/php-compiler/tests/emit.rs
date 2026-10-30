@@ -257,16 +257,11 @@ fn functions_and_calls() -> Result<(), String> {
         )?,
         listing(&[
             "code {main} temporaries=2",
-            "   0    5  InitCall \"add\", \"add\"",
-            "   1    5  Send 1",
-            "   2    5  SendVar $x",
-            "   3    5  Call T0 =",
-            "   4    5  Echo T0",
-            "   5    6  InitCall \"add\", \"Add\"",
-            "   6    6  Add T1 = $x, 1",
-            "   7    6  Send T1",
-            "   8    6  Call",
-            "   9    7  Return 1",
+            "   0    5  Invoke/2 T0 = \"add\", 1, $x",
+            "   1    5  Echo T0",
+            "   2    6  Add T1 = $x, 1",
+            "   3    6  Invoke/1 \"Add\", T1",
+            "   4    7  Return 1",
             "",
             "code Add($a, &$b, ...$c) temporaries=1",
             "   0    3  Add T0 = $a, $b",
@@ -286,12 +281,9 @@ fn a_call_argument_is_marked_on_send() -> Result<(), String> {
         disassemble("<?php f(g());")?,
         listing(&[
             "code {main} temporaries=1",
-            "   0    1  InitCall \"f\", \"f\"",
-            "   1    1  InitCall \"g\", \"g\"",
-            "   2    1  Call T0 =",
-            "   3    1  Send/1 T0",
-            "   4    1  Call",
-            "   5    1  Return 1",
+            "   0    1  Invoke T0 = \"g\"",
+            "   1    1  Invoke/5 \"f\", T0",
+            "   2    1  Return 1",
         ])
     );
     Ok(())
@@ -701,6 +693,21 @@ fn try_catch_and_throw_use_a_handler_table() -> Result<(), String> {
             "   7    1  Echo \"c\"",
             "   8    1  Jump @9",
             "   9    1  Return 1",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn plus_one_assignment_is_an_increment() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php $i = $i + 1; $i += 1; $i = 1 + $i;")?,
+        listing(&[
+            "code {main} temporaries=0",
+            "   0    1  PreIncrement $i",
+            "   1    1  PreIncrement $i",
+            "   2    1  PreIncrement $i",
+            "   3    1  Return 1",
         ])
     );
     Ok(())

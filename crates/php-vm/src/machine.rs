@@ -10,10 +10,24 @@ use php_value::{ObjectId, ObjectStore, PhpString, Slot, Value};
 use crate::thrown::{Thrown, TraceEntry};
 use crate::{Output, VmError};
 
+/// A named call resolved on its first `Invoke`.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum CallTarget {
+    /// Not yet looked up.
+    Unknown,
+    /// Index into [`Machine::codes`].
+    User(usize),
+    /// A bound built-in.
+    Native(crate::builtins::Native),
+    /// A host function registered on this machine.
+    Host,
+}
+
 /// A code object with its literals as runtime values, built once per run.
 pub(crate) struct Loaded {
     pub(crate) code: Code,
     pub(crate) literals: Vec<Value>,
+    pub(crate) calls: Vec<CallTarget>,
 }
 
 /// One active call.
@@ -132,6 +146,7 @@ pub(crate) fn load(code: &Code) -> Loaded {
     Loaded {
         code: code.clone(),
         literals: code.literals.iter().map(value_of).collect(),
+        calls: vec![CallTarget::Unknown; code.instructions.len()],
     }
 }
 
@@ -328,6 +343,7 @@ impl<'o, O: Output> Machine<'o, O> {
                 .and_then(|value| self.send(Slot::Value(value), ins.flags & 1 != 0)),
             Opcode::SendVar => self.send_variable(ins.a),
             Opcode::Call => self.call(ins.result),
+            Opcode::Invoke => self.invoke(ins),
             Opcode::New => self.new_object(ins),
             Opcode::LoadProp => self.load_prop(ins),
             Opcode::StoreProp => self.store_prop(ins),
@@ -407,14 +423,21 @@ impl<'o, O: Output> Machine<'o, O> {
 
     fn assign(&mut self, ins: &Instruction) -> Exec {
         let value = self.read(ins.b)?;
+        if ins.result.is_unused() {
+            return self.write(ins.a, value);
+        }
         self.write(ins.a, value.clone())?;
         self.write(ins.result, value)
     }
 
     /// Jumps to `b` when `a` converts to the boolean the opcode tests for.
     fn branch(&mut self, ins: &Instruction) -> Exec {
-        let value = self.read(ins.a)?;
-        let truth = self.compute(|cx| value.to_bool(cx))?;
+        let truth = if let Some(truth) = self.peek_truthy(ins.a)? {
+            truth
+        } else {
+            let value = self.read(ins.a)?;
+            self.compute(|cx| value.to_bool(cx))?
+        };
         if truth == (ins.opcode == Opcode::JumpIfTrue) {
             self.jump(ins.b)?;
         }
@@ -448,6 +471,11 @@ impl<'o, O: Output> Machine<'o, O> {
         ins: &Instruction,
         op: impl FnOnce(&Value, &Value, &mut Collect) -> Result<Value, OpError>,
     ) -> Exec {
+        if let (Some(left), Some(right)) = (self.peek_int(ins.a)?, self.peek_int(ins.b)?)
+            && let Some(value) = int_fast_pair(ins.opcode, left, right)
+        {
+            return self.write(ins.result, value);
+        }
         let left = self.read(ins.a)?;
         let right = self.read(ins.b)?;
         if let Some(value) = int_fast(ins.opcode, &left, &right) {
@@ -473,6 +501,20 @@ impl<'o, O: Output> Machine<'o, O> {
         ins: &Instruction,
         op: impl FnOnce(&Value, &mut Collect) -> Result<Value, OpError>,
     ) -> Exec {
+        if let Some(old) = self.peek_int(ins.a)? {
+            let stepped = match ins.opcode {
+                Opcode::PreIncrement | Opcode::PostIncrement => old.checked_add(1),
+                _ => old.checked_sub(1),
+            };
+            if let Some(new) = stepped {
+                self.write(ins.a, Value::Int(new))?;
+                if ins.result.is_unused() {
+                    return Ok(());
+                }
+                let post = matches!(ins.opcode, Opcode::PostIncrement | Opcode::PostDecrement);
+                return self.write(ins.result, Value::Int(if post { old } else { new }));
+            }
+        }
         let old = self.read(ins.a)?;
         let new = self.compute(|cx| op(&old, cx))?;
         self.write(ins.a, new.clone())?;
@@ -724,22 +766,71 @@ impl<'o, O: Output> Machine<'o, O> {
             }
         }
     }
+
+    fn operand_value(&self, operand: Operand) -> Exec<Option<&Value>> {
+        let index = operand.index() as usize;
+        let frame = self.frame()?;
+        match operand.kind() {
+            OperandKind::Slot => match frame.slots.get(index).map(Option::as_ref) {
+                Some(Some(Slot::Value(value))) => Ok(Some(value)),
+                Some(Some(Slot::Reference(_)) | None) => Ok(None),
+                None => Err(VmError::Malformed("no such slot").into()),
+            },
+            OperandKind::Temp => Ok(frame.temps.get(index)),
+            OperandKind::Literal => Ok(self.codes[frame.code].literals.get(index)),
+            OperandKind::Unused | OperandKind::Target => Ok(None),
+        }
+    }
+
+    fn peek_int(&self, operand: Operand) -> Exec<Option<i64>> {
+        if let Some(Value::Int(number)) = self.operand_value(operand)? {
+            return Ok(Some(*number));
+        }
+        if operand.kind() != OperandKind::Slot {
+            return Ok(None);
+        }
+        let Some(Slot::Reference(reference)) = self
+            .frame()?
+            .slots
+            .get(operand.index() as usize)
+            .and_then(Option::as_ref)
+        else {
+            return Ok(None);
+        };
+        Ok(reference.with(|value| match value {
+            Value::Int(number) => Some(*number),
+            _ => None,
+        }))
+    }
+
+    fn peek_truthy(&self, operand: Operand) -> Exec<Option<bool>> {
+        Ok(match self.operand_value(operand)? {
+            Some(Value::Null) => Some(false),
+            Some(Value::Bool(value)) => Some(*value),
+            Some(Value::Int(number)) => Some(*number != 0),
+            _ => None,
+        })
+    }
+}
+
+fn int_fast_pair(opcode: Opcode, left: i64, right: i64) -> Option<Value> {
+    match opcode {
+        Opcode::Add => left.checked_add(right).map(Value::Int),
+        Opcode::Sub => left.checked_sub(right).map(Value::Int),
+        Opcode::Mul => left.checked_mul(right).map(Value::Int),
+        Opcode::Mod if right != 0 => Some(Value::Int(left.checked_rem(right).unwrap_or(0))),
+        Opcode::Equal | Opcode::Identical => Some(Value::Bool(left == right)),
+        Opcode::NotEqual | Opcode::NotIdentical => Some(Value::Bool(left != right)),
+        Opcode::Less => Some(Value::Bool(left < right)),
+        Opcode::LessOrEqual => Some(Value::Bool(left <= right)),
+        Opcode::Spaceship => Some(Value::Int(left.cmp(&right) as i64)),
+        _ => None,
+    }
 }
 
 fn int_fast(opcode: Opcode, left: &Value, right: &Value) -> Option<Value> {
     let (Value::Int(left), Value::Int(right)) = (left, right) else {
         return None;
     };
-    match opcode {
-        Opcode::Add => left.checked_add(*right).map(Value::Int),
-        Opcode::Sub => left.checked_sub(*right).map(Value::Int),
-        Opcode::Mul => left.checked_mul(*right).map(Value::Int),
-        Opcode::Mod if *right != 0 => Some(Value::Int(left.checked_rem(*right).unwrap_or(0))),
-        Opcode::Equal | Opcode::Identical => Some(Value::Bool(left == right)),
-        Opcode::NotEqual | Opcode::NotIdentical => Some(Value::Bool(left != right)),
-        Opcode::Less => Some(Value::Bool(left < right)),
-        Opcode::LessOrEqual => Some(Value::Bool(left <= right)),
-        Opcode::Spaceship => Some(Value::Int((*left).cmp(right) as i64)),
-        _ => None,
-    }
+    int_fast_pair(opcode, *left, *right)
 }

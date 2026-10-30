@@ -8,6 +8,28 @@ use php_value::{Invoke, PhpString, Slot, Value};
 
 use crate::identity::Identity;
 
+/// Whether a recorded dispatch was a filter or an action.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DispatchKind {
+    /// [`Hooks::apply`].
+    Filter,
+    /// [`Hooks::action`].
+    Action,
+}
+
+/// One [`Hooks::apply`] or [`Hooks::action`], including empty walks.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Dispatch {
+    /// Filter or action.
+    pub kind: DispatchKind,
+    /// Hook name that was walked.
+    pub name: HookName,
+    /// Arguments passed to the walk, including the filter value.
+    pub args: u32,
+    /// Nesting depth; 1 outside any other hook.
+    pub depth: u32,
+}
+
 /// Callbacks stored for one request, keyed by hook name.
 ///
 /// Registration and dispatch take `&self` so a callback may add, remove or apply again on the same
@@ -25,6 +47,7 @@ struct Inner {
     filters: HashMap<HookName, u32>,
     actions: HashMap<HookName, u32>,
     next_unique: u64,
+    trace: Vec<Dispatch>,
 }
 
 #[derive(Debug, Default)]
@@ -106,6 +129,12 @@ impl Hooks {
         self.inner.borrow().actions.get(name).copied().unwrap_or(0)
     }
 
+    /// Every apply and action on this request, in firing order.
+    #[must_use]
+    pub fn dispatches(&self) -> Vec<Dispatch> {
+        self.inner.borrow().trace.clone()
+    }
+
     /// Runs filter callbacks on `name` and returns the last value.
     ///
     /// # Errors
@@ -147,6 +176,7 @@ impl Hooks {
         extra: &mut [Slot],
         invoke: &mut I,
     ) -> Result<Value, I::Error> {
+        self.record(DispatchKind::Filter, name, extra.len().saturating_add(1));
         bump(&mut self.inner.borrow_mut().filters, name);
         self.run(name, value, extra, true, invoke)
     }
@@ -162,8 +192,19 @@ impl Hooks {
         args: &mut [Slot],
         invoke: &mut I,
     ) -> Result<(), I::Error> {
+        self.record(DispatchKind::Action, name, args.len());
         bump(&mut self.inner.borrow_mut().actions, name);
         self.run(name, Value::Null, args, false, invoke).map(drop)
+    }
+
+    fn record(&self, kind: DispatchKind, name: &HookName, args: usize) {
+        let depth = self.inner.borrow().current.len().saturating_add(1);
+        self.inner.borrow_mut().trace.push(Dispatch {
+            kind,
+            name: name.clone(),
+            args: u32::try_from(args).unwrap_or(u32::MAX),
+            depth: u32::try_from(depth).unwrap_or(u32::MAX),
+        });
     }
 
     fn run<I: Invoke + ?Sized>(

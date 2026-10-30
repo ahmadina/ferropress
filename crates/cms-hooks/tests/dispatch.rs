@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use cms_hooks::Hooks;
+use cms_hooks::{DispatchKind, Hooks};
 use cms_types::{ArgCount, HookName, Priority};
 use php_value::{Invoke, ObjectStore, PhpString, Reference, Slot, Value};
 
@@ -555,4 +555,37 @@ fn first_priority_is_the_lowest_stored() {
         hooks.first_priority(&name("t"), &Value::from("missing")),
         None
     );
+}
+
+#[test]
+fn dispatches_record_kind_args_and_depth() -> Result<(), String> {
+    let hooks = Hooks::new();
+    hooks.action(&name("empty"), &mut [], &mut Script::new())?;
+    add(
+        &hooks,
+        "title",
+        "echo",
+        Priority::DEFAULT,
+        ArgCount::DEFAULT,
+    );
+    let mut script = Script::new();
+    script.on("echo", |args| args.first().cloned().unwrap_or(Value::Null));
+    hooks.apply(
+        &name("title"),
+        Value::from("x"),
+        &mut [Slot::from(Value::from("y"))],
+        &mut script,
+    )?;
+
+    let seen = hooks.dispatches();
+    assert_eq!(seen.len(), 2);
+    assert_eq!(seen[0].kind, DispatchKind::Action);
+    assert_eq!(seen[0].name.as_bytes(), b"empty");
+    assert_eq!(seen[0].args, 0);
+    assert_eq!(seen[0].depth, 1);
+    assert_eq!(seen[1].kind, DispatchKind::Filter);
+    assert_eq!(seen[1].name.as_bytes(), b"title");
+    assert_eq!(seen[1].args, 2);
+    assert_eq!(seen[1].depth, 1);
+    Ok(())
 }

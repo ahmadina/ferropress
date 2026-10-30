@@ -7,4 +7,4 @@
 mod identity;
 mod registry;
 
-pub use registry::Hooks;
+pub use registry::{Dispatch, DispatchKind, Hooks};

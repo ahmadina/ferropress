@@ -20,13 +20,14 @@ Each inventory item has four independent states:
 | globals | 284 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 284 (100.0%) |
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
 | options | 121 | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 119 (98.3%) |
-| tables | 18 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 18 (100.0%) |
-| **total** | 9147 | 36 (0.4%) | 24 (0.3%) | 24 (0.3%) | 8 (0.1%) | 9111 (99.6%) |
+| tables | 18 | 1 (5.6%) | 1 (5.6%) | 1 (5.6%) | 0 (0.0%) | 17 (94.4%) |
+| **total** | 9147 | 37 (0.4%) | 25 (0.3%) | 25 (0.3%) | 8 (0.1%) | 9110 (99.6%) |
 
 ## Contract entries
 
 | Entry | Title | Items | Implemented | Tested | Certified |
 |---|---|---:|---|---|---|
 | `hook-dispatch` | Priority-ordered filter and action dispatch | 16 | yes | yes | no |
+| `option-load` | Autoloaded options and get-by-name | 1 | yes | yes | no |
 | `plugin-load-order` | Which plugins load, and in what order | 8 | yes | yes | yes |
 | `request-lifecycle` | Order of the request lifecycle | 15 | no | no | no |

@@ -1,0 +1,25 @@
+schema = 1
+id = "option-load"
+title = "Autoloaded options and get-by-name"
+summary = """
+The first read loads rows whose autoload is yes, on, auto-on or auto. An empty or rejected
+result loads every row instead. A name that was not in that bag is selected once and then
+cached as a hit or a miss. home with an empty value uses siteurl; four URL-like names drop
+trailing slashes. Stored bytes are returned as the server sent them.
+"""
+upstream = [
+    "wp-includes/option.php",
+]
+evidence = [
+    "contracts/options/load.md",
+]
+implemented_in = ["crates/cms-options"]
+tests = [
+    "crates/cms-options/tests/load.rs::autoload_select_then_get_from_the_bag",
+    "crates/cms-options/tests/load.rs::empty_autoload_falls_back_to_every_row",
+    "crates/cms-options/tests/load.rs::a_miss_is_remembered",
+    "crates/cms-options/tests/load.rs::home_with_empty_bytes_uses_siteurl",
+]
+
+[covers]
+tables = ["options"]

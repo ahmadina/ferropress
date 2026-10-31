@@ -116,6 +116,7 @@ Status legend: `[x]` done · `[ ]` not started
 - [ ] 23. `cms-db` + `infra-mysql`, `cms-options`, `cms-cache`, `cms-content`, `cms-taxonomy`, `cms-comments`,
       `cms-users`, `cms-auth`, `cms-query` against existing site databases
   - [x] `cms-db`: SQL store port (statement in, rows / done / server failure out)
+  - [x] `infra-mysql`: `MySQL` adapter for that port (text cells, server errors as data)
 
 ## Phase 6 — Rendering
 

@@ -13,6 +13,8 @@ repository = "https://github.com/ahmadina/ferropress"
 
 [workspace.dependencies]
 cms-db = { path = "crates/cms-db" }
+infra-mysql = { path = "crates/infra-mysql" }
+mysql = { version = "28.0.4", default-features = false, features = ["minimal-rust", "buffer-pool"] }
 anyhow = "1.0.104"
 cargo_metadata = "0.23.1"
 clap = { version = "4.6.7", features = ["derive"] }

@@ -1,8 +1,8 @@
 # SQL store port
 
 How native crates talk to the site database. Implemented by `crates/cms-db` (ADR-0004). The MySQL
-adapter that performs the statements is `infra-mysql` and is not bound yet. PHP-visible names on the
-database object are registered later by `php-bindings`.
+adapter that performs the statements is `crates/infra-mysql` (`mysql` 28, text protocol). PHP-visible
+names on the database object are registered later by `php-bindings`.
 
 Provenance: `wp-includes/class-wpdb.php` in the pinned reference (inventory names only). Table stems
 are the names in `contracts/inventory/tables.jsonl`.
@@ -31,5 +31,5 @@ supplies it.
 
 ## Not bound yet
 
-Placeholders and escaping, SQL filters, transactions, multiple result sets, typed cells, connection
-setup, and the PHP-visible database object.
+Placeholders and escaping, SQL filters, transactions, multiple result sets, typed cells, and the
+PHP-visible database object.

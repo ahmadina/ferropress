@@ -13,7 +13,7 @@ Each inventory item has four independent states:
 
 | Section | Items | Documented | Implemented | Tested | Certified | Unknown |
 |---|---:|---:|---:|---:|---:|---:|
-| functions | 4353 | 37 (0.8%) | 36 (0.8%) | 36 (0.8%) | 3 (0.1%) | 4316 (99.2%) |
+| functions | 4353 | 38 (0.9%) | 37 (0.8%) | 37 (0.8%) | 3 (0.1%) | 4315 (99.1%) |
 | classes | 824 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 824 (100.0%) |
 | hooks | 2720 | 14 (0.5%) | 3 (0.1%) | 3 (0.1%) | 3 (0.1%) | 2706 (99.5%) |
 | constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 694 (100.0%) |
@@ -21,7 +21,7 @@ Each inventory item has four independent states:
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
 | options | 121 | 4 (3.3%) | 4 (3.3%) | 4 (3.3%) | 2 (1.7%) | 117 (96.7%) |
 | tables | 18 | 8 (44.4%) | 8 (44.4%) | 8 (44.4%) | 0 (0.0%) | 10 (55.6%) |
-| **total** | 9147 | 63 (0.7%) | 51 (0.6%) | 51 (0.6%) | 8 (0.1%) | 9084 (99.3%) |
+| **total** | 9147 | 64 (0.7%) | 52 (0.6%) | 52 (0.6%) | 8 (0.1%) | 9083 (99.3%) |
 
 ## Contract entries
 
@@ -43,6 +43,7 @@ Each inventory item has four independent states:
 | `option-load` | Autoloaded options and get-by-name | 1 | yes | yes | no |
 | `option-write` | Add, update and delete option rows | 1 | yes | yes | no |
 | `plugin-load-order` | Which plugins load, and in what order | 8 | yes | yes | yes |
+| `query-attachment` | Parse the attachment query vars | 1 | yes | yes | no |
 | `query-name` | Parse the name query var | 1 | yes | yes | no |
 | `query-p` | Parse the p query var | 1 | yes | yes | no |
 | `query-page-id` | Parse the page_id query var | 1 | yes | yes | no |

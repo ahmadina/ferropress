@@ -1,0 +1,28 @@
+schema = 1
+id = "query-attachment"
+title = "Parse the attachment query vars"
+summary = """
+An absent attachment slug and a zero id are not an attachment. A non-empty
+slug (not trimmed; 0 and spaces count) or a positive absint id is an
+attachment request. subpost and subpost_id replace those keys when they are
+not loosely equal to empty (the string 0 does replace). Object matching and
+SQL are not bound.
+"""
+upstream = [
+    "wp-includes/class-wp-query.php",
+    "wp-includes/load.php",
+    "wp-includes/query.php",
+]
+evidence = [
+    "contracts/query/attachment.md",
+]
+implemented_in = ["crates/cms-query"]
+tests = [
+    "crates/cms-query/tests/attachment.rs::missing_empty_and_zero_id_are_not_attachment",
+    "crates/cms-query/tests/attachment.rs::slug_and_spaces_are_attachment",
+    "crates/cms-query/tests/attachment.rs::positive_id_is_attachment",
+    "crates/cms-query/tests/attachment.rs::subpost_replaces_when_loosely_nonempty",
+]
+
+[covers]
+functions = ["is_attachment"]

@@ -143,6 +143,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-query`: parse the page_id query var into a page key
   - [x] `cms-query`: parse the name query var into a post slug
   - [x] `cms-query`: parse the pagename query var into a page slug
+  - [x] `cms-query`: parse attachment vars and subpost remaps
 
 ## Phase 6 — Rendering
 

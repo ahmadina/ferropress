@@ -128,6 +128,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-comments`: get one comment row by id (raw stored bytes)
   - [x] `cms-comments`: insert, update and delete comment rows (raw stored bytes)
   - [x] `cms-users`: get one user row by id (raw stored bytes)
+  - [x] `cms-users`: insert, update and delete user rows (raw stored bytes)
 
 ## Phase 6 — Rendering
 

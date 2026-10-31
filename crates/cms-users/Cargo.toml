@@ -1,6 +1,6 @@
 [package]
 name = "cms-users"
-description = "Load one user row by id from the users table"
+description = "Load and write one user row on the users table"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -5,17 +5,20 @@ use std::fmt;
 
 use cms_db::{Reply, ResultSet, Sql, Store, TableName, TablePrefix, TableStem};
 
+use crate::draft::Draft;
 use crate::error::Error;
 use crate::id::UserId;
 use crate::row::{User, from_set};
-use crate::sql::select_row;
+use crate::sql::{delete_row, insert_row, select_row, update_row};
+use crate::write::Write;
 
 /// Users table stem from `contracts/inventory/tables.jsonl`.
 const STEM: &[u8] = b"users";
 
 /// One network's user rows, loaded through [`Store`].
 ///
-/// Request-affine: not assumed [`Send`]. Contract: `contracts/users/get.md`.
+/// Request-affine: not assumed [`Send`]. Contracts: `contracts/users/get.md`,
+/// `contracts/users/write.md`.
 pub struct Users<S> {
     store: S,
     table: TableName,
@@ -59,10 +62,60 @@ impl<S: Store> Users<S> {
         }
     }
 
+    /// Insert the compact cells. The new id comes from `insert_id`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn insert(&mut self, draft: &Draft) -> Result<Write, Error> {
+        match self.exec(&insert_row(&self.table, draft))? {
+            Reply::Done { insert_id, .. } => match UserId::new(insert_id) {
+                Ok(id) => Ok(Write::Inserted(id)),
+                Err(_) => Ok(Write::Unchanged),
+            },
+            _ => Ok(Write::Unchanged),
+        }
+    }
+
+    /// Rewrite the compact cells for `id` (not `user_login`).
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn update(&mut self, id: UserId, draft: &Draft) -> Result<Write, Error> {
+        let reply = self.exec(&update_row(&self.table, id, draft))?;
+        self.hits.remove(&id);
+        match reply {
+            Reply::Done { affected, .. } if affected > 0 => Ok(Write::Replaced),
+            _ => Ok(Write::Unchanged),
+        }
+    }
+
+    /// Remove the row for `id`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn delete(&mut self, id: UserId) -> Result<Write, Error> {
+        let reply = self.exec(&delete_row(&self.table, id))?;
+        self.hits.remove(&id);
+        match reply {
+            Reply::Done { affected, .. } if affected > 0 => Ok(Write::Removed),
+            _ => Ok(Write::Unchanged),
+        }
+    }
+
     fn query(&mut self, sql: &Sql) -> Result<RowsOrFailed, Error> {
         match self.store.query(sql) {
             Ok(Reply::Rows(set)) => Ok(RowsOrFailed::Rows(set)),
             Ok(_) => Ok(RowsOrFailed::Failed),
+            Err(_) => Err(Error::Unavailable),
+        }
+    }
+
+    fn exec(&mut self, sql: &Sql) -> Result<Reply, Error> {
+        match self.store.query(sql) {
+            Ok(reply) => Ok(reply),
             Err(_) => Err(Error::Unavailable),
         }
     }

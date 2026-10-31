@@ -3,8 +3,9 @@
 How native crates read one row from the inventory `users` table. Implemented by
 `crates/cms-users` (`contracts/entries/user-get.toml`). Provenance:
 `wp-includes/class-wp-user.php` in the pinned reference (inventory names only).
-PHP-visible objects, caps, meta, lookups by login / email / nicename, writes,
-sanitizing and the object cache are not bound yet.
+PHP-visible objects, caps, meta, lookups by login / email / nicename,
+sanitizing and the object cache are not bound yet. Raw-column writes are
+`contracts/users/write.md`.
 
 The `users` table is global: it is not prefixed with a blog id. The physical name
 is still the caller-supplied prefix plus `users`.
@@ -41,5 +42,5 @@ roles and the `filter` flag are not here.
 ## Not bound yet
 
 `get_user_by` fields other than id, `sanitize_user`, the `users` object-cache
-group, user meta, capabilities, `wp_insert_user` / `wp_update_user` /
-`wp_delete_user`, and the PHP-visible user object.
+group, user meta, capabilities, and the PHP-visible user object. Raw-column
+writes are `contracts/users/write.md`.

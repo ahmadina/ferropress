@@ -41,3 +41,4 @@ Each inventory item has four independent states:
 | `taxonomy-link` | Attach and detach object-term rows | 1 | yes | yes | no |
 | `taxonomy-write` | Insert, update and delete term rows | 2 | yes | yes | no |
 | `user-get` | Get one user row by id | 1 | yes | yes | no |
+| `user-write` | Insert, update and delete user rows | 1 | yes | yes | no |

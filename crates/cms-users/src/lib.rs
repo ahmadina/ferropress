@@ -1,8 +1,8 @@
-//! Load one user row by id on a [`cms_db::Store`].
+//! Load and write one user row on a [`cms_db::Store`].
 //!
-//! Domain crates depend on this crate, not on a driver (ADR-0004). Contract:
-//! `contracts/users/get.md`. Hooks, writes, sanitizing, caps and PHP-visible
-//! names are not here.
+//! Domain crates depend on this crate, not on a driver (ADR-0004). Contracts:
+//! `contracts/users/get.md`, `contracts/users/write.md`. Hooks, sanitizing,
+//! password hashing, caps and PHP-visible names are not here.
 //!
 //! # Examples
 //!
@@ -15,12 +15,17 @@
 //! ```
 
 mod bag;
+mod draft;
 mod error;
 mod id;
+mod quote;
 mod row;
 mod sql;
+mod write;
 
 pub use bag::Users;
+pub use draft::{Draft, Field};
 pub use error::{Error, IdError};
 pub use id::UserId;
 pub use row::User;
+pub use write::Write;

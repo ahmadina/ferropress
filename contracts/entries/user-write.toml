@@ -1,0 +1,28 @@
+schema = 1
+id = "user-write"
+title = "Insert, update and delete user rows"
+summary = """
+Insert writes the compact users columns (login last) and returns the new id from
+insert_id. Update rewrites those columns except user_login. Delete removes the
+row by id. Compact cells are quoted MySQL strings; the WHERE id is an unquoted
+integer. Server rejection and zero affected rows (or a zero insert_id) are
+unchanged; a platform error is not.
+"""
+upstream = [
+    "wp-includes/user.php",
+    "wp-admin/includes/user.php",
+    "wp-includes/class-wpdb.php",
+]
+evidence = [
+    "contracts/users/write.md",
+]
+implemented_in = ["crates/cms-users"]
+tests = [
+    "crates/cms-users/tests/write.rs::insert_returns_the_new_id",
+    "crates/cms-users/tests/write.rs::update_rewrites_and_forgets_a_hit",
+    "crates/cms-users/tests/write.rs::delete_removes_and_forgets_a_hit",
+    "crates/cms-users/tests/write.rs::failed_or_zero_is_unchanged",
+]
+
+[covers]
+tables = ["users"]

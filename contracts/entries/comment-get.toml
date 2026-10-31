@@ -1,0 +1,25 @@
+schema = 1
+id = "comment-get"
+title = "Get one comment row by id"
+summary = """
+A comment id greater than zero is selected with SELECT * and LIMIT 1. The returned
+row is the column bytes the server sent. A hit is remembered for the request; a
+miss is not. Zero is a constructor error and does not hit the store.
+"""
+upstream = [
+    "wp-includes/class-wp-comment.php",
+    "wp-includes/comment.php",
+]
+evidence = [
+    "contracts/comments/get.md",
+]
+implemented_in = ["crates/cms-comments"]
+tests = [
+    "crates/cms-comments/tests/get.rs::select_then_get_from_the_bag",
+    "crates/cms-comments/tests/get.rs::a_miss_is_not_remembered",
+    "crates/cms-comments/tests/get.rs::null_cells_become_empty_bytes",
+    "crates/cms-comments/tests/get.rs::unavailable_store_is_an_error",
+]
+
+[covers]
+tables = ["comments"]

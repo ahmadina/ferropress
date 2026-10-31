@@ -125,6 +125,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-taxonomy`: get one term row by id (raw stored bytes)
   - [x] `cms-taxonomy`: insert, update and delete term rows (raw stored bytes)
   - [x] `cms-taxonomy`: attach and detach object-term rows
+  - [x] `cms-comments`: get one comment row by id (raw stored bytes)
 
 ## Phase 6 — Rendering
 

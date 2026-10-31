@@ -13,7 +13,7 @@ Each inventory item has four independent states:
 
 | Section | Items | Documented | Implemented | Tested | Certified | Unknown |
 |---|---:|---:|---:|---:|---:|---:|
-| functions | 4353 | 47 (1.1%) | 46 (1.1%) | 46 (1.1%) | 3 (0.1%) | 4306 (98.9%) |
+| functions | 4353 | 48 (1.1%) | 47 (1.1%) | 47 (1.1%) | 3 (0.1%) | 4305 (98.9%) |
 | classes | 824 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 824 (100.0%) |
 | hooks | 2720 | 14 (0.5%) | 3 (0.1%) | 3 (0.1%) | 3 (0.1%) | 2706 (99.5%) |
 | constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 694 (100.0%) |
@@ -21,7 +21,7 @@ Each inventory item has four independent states:
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
 | options | 121 | 4 (3.3%) | 4 (3.3%) | 4 (3.3%) | 2 (1.7%) | 117 (96.7%) |
 | tables | 18 | 8 (44.4%) | 8 (44.4%) | 8 (44.4%) | 0 (0.0%) | 10 (55.6%) |
-| **total** | 9147 | 73 (0.8%) | 61 (0.7%) | 61 (0.7%) | 8 (0.1%) | 9074 (99.2%) |
+| **total** | 9147 | 74 (0.8%) | 62 (0.7%) | 62 (0.7%) | 8 (0.1%) | 9073 (99.2%) |
 
 ## Contract entries
 
@@ -53,6 +53,7 @@ Each inventory item has four independent states:
 | `query-page-id` | Parse the page_id query var | 1 | yes | yes | no |
 | `query-pagename` | Parse the pagename query var | 1 | yes | yes | no |
 | `query-singular` | Resolve singular query flags | 1 | yes | yes | no |
+| `query-time` | Parse m, w and time into archive-date flags | 1 | yes | yes | no |
 | `request-lifecycle` | Order of the request lifecycle | 15 | no | no | no |
 | `taxonomy-get` | Get one term row by id | 2 | yes | yes | no |
 | `taxonomy-link` | Attach and detach object-term rows | 1 | yes | yes | no |

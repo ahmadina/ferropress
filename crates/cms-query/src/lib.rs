@@ -5,8 +5,9 @@
 //! `contracts/query/name.md`, `contracts/query/pagename.md`,
 //! `contracts/query/attachment.md`, `contracts/query/singular.md`,
 //! `contracts/query/load-id.md`, `contracts/query/load-path.md`,
-//! `contracts/query/load-name.md`, `contracts/query/date.md`. Status
-//! filters, hooks and PHP-visible names are not here.
+//! `contracts/query/load-name.md`, `contracts/query/date.md`,
+//! `contracts/query/time.md`. Status filters, hooks and PHP-visible names
+//! are not here.
 //!
 //! # Examples
 //!
@@ -40,6 +41,14 @@
 //! ));
 //! assert!(date.is_month());
 //! assert!(!date.is_year());
+//! let time = cms_query::DateFlags::resolve_all(
+//!     &cms_query::DateParts::parse(None, None, None),
+//!     &cms_query::StampVar::parse(Some(b"2026051512")),
+//!     cms_query::WeekVar::parse(None),
+//!     cms_query::TimeParts::parse(None, None, None),
+//! );
+//! assert!(time.is_time());
+//! assert!(time.is_date());
 //! ```
 
 mod attachment_var;
@@ -55,7 +64,7 @@ mod singular;
 
 pub use attachment_var::{AttachmentInput, AttachmentVar};
 pub use cms_content::Post;
-pub use date_var::{DateArchive, DateFlags, DateParts};
+pub use date_var::{DateArchive, DateFlags, DateParts, StampVar, TimeParts, WeekVar};
 pub use error::Error;
 pub use load::Query;
 pub use name_var::NameVar;

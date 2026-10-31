@@ -4,8 +4,9 @@ How native crates read `year`, `monthnum` and `day` after fill-and-parse, and
 which archive-date flags they set. Implemented by `crates/cms-query`
 (`contracts/entries/query-date.toml`). Provenance: `wp-includes/class-wp-query.php`
 (`parse_query`) and `wp_checkdate` / PHP `checkdate` in the pinned reference
-(inventory names only). The compact `m` key, week `w`, hour/minute/second,
-SQL, hooks and PHP-visible names are not bound yet.
+(inventory names only). The compact `m` key, week `w` and hour/minute/second
+are `contracts/query/time.md`. SQL, hooks and PHP-visible names are not bound
+yet.
 
 Each raw value is a string of bytes, or absent.
 
@@ -23,9 +24,10 @@ from parse alone.
 
 ## Archive flags
 
-These flags are the archive-date half. The caller applies them only when no
-singular key claimed the query (`contracts/query/singular.md`). Time keys
-(`hour`, `minute`, `second`) are treated as unset.
+These flags are the calendar half. The caller applies them only when no
+singular key claimed the query (`contracts/query/singular.md`). When a clock
+key is already present, `is_date` is set first and these steps do not run
+(`contracts/query/time.md`).
 
 Order:
 
@@ -46,5 +48,5 @@ when a day or month already set `is_date`.
 
 ## Not bound yet
 
-`m`, `w`, `hour`, `minute`, `second`, `is_time`, the `wp_checkdate` filter,
-date SQL, and combining these keys with a singular query.
+The `wp_checkdate` filter, date SQL, and combining these keys with a
+singular query.

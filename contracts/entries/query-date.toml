@@ -5,7 +5,7 @@ summary = """
 year, monthnum and day are stored as absint. Flags resolve in day, month,
 year order. An invalid Gregorian day with month and year is a 404; a month
 greater than 12 is a 404. A later step can still set is_date after a 404.
-m, w and time keys are not bound.
+Clock keys skip this calendar half (`contracts/query/time.md`).
 """
 upstream = [
     "wp-includes/class-wp-query.php",

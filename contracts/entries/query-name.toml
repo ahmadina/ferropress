@@ -1,0 +1,25 @@
+schema = 1
+id = "query-name"
+title = "Parse the name query var"
+summary = """
+An absent or whitespace-only name is empty and not single. A scalar is stored
+after PHP trim. Any remaining bytes, including 0, are a single-post request.
+Attachment precedence, object matching and SQL are not bound.
+"""
+upstream = [
+    "wp-includes/class-wp-query.php",
+    "wp-includes/query.php",
+]
+evidence = [
+    "contracts/query/name.md",
+]
+implemented_in = ["crates/cms-query"]
+tests = [
+    "crates/cms-query/tests/name.rs::missing_empty_and_whitespace_are_not_single",
+    "crates/cms-query/tests/name.rs::trimmed_slug_is_single",
+    "crates/cms-query/tests/name.rs::zero_bytes_are_single",
+    "crates/cms-query/tests/name.rs::inner_spaces_are_kept",
+]
+
+[covers]
+functions = ["is_single"]

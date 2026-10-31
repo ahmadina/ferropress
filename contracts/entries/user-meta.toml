@@ -1,0 +1,26 @@
+schema = 1
+id = "user-meta"
+title = "Get usermeta cells by user and key"
+summary = """
+A user id greater than zero loads every usermeta row for that id with one
+SELECT ordered by umeta_id. Keys are raw bytes. A hit or an empty bag is
+remembered for the request. Zero and an empty key are constructor errors
+and do not hit the store.
+"""
+upstream = [
+    "wp-includes/meta.php",
+    "wp-includes/user.php",
+]
+evidence = [
+    "contracts/users/meta.md",
+]
+implemented_in = ["crates/cms-users"]
+tests = [
+    "crates/cms-users/tests/meta.rs::select_then_get_from_the_bag",
+    "crates/cms-users/tests/meta.rs::an_empty_bag_is_remembered",
+    "crates/cms-users/tests/meta.rs::null_values_become_empty_bytes",
+    "crates/cms-users/tests/meta.rs::unavailable_store_is_an_error",
+]
+
+[covers]
+tables = ["usermeta"]

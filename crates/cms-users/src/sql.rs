@@ -6,6 +6,17 @@ use crate::UserId;
 use crate::draft::{Draft, Field};
 use crate::quote::quote;
 
+/// One user's meta rows: `SELECT … WHERE user_id IN ({id}) ORDER BY umeta_id`.
+#[must_use]
+pub(crate) fn select_meta(table: &TableName, id: UserId) -> Sql {
+    let mut sql = Vec::from(b"SELECT user_id, meta_key, meta_value FROM ");
+    sql.extend_from_slice(table.as_bytes());
+    sql.extend_from_slice(b" WHERE user_id IN (");
+    sql.extend_from_slice(id.as_u64().to_string().as_bytes());
+    sql.extend_from_slice(b") ORDER BY umeta_id ASC");
+    Sql::new(sql)
+}
+
 /// One row: `SELECT * … WHERE ID = '{id}' LIMIT 1`.
 #[must_use]
 pub(crate) fn select_row(table: &TableName, id: UserId) -> Sql {
@@ -83,7 +94,7 @@ fn tick(name: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::{delete_row, insert_row, select_row, update_row};
+    use super::{delete_row, insert_row, select_meta, select_row, update_row};
     use crate::UserId;
     use crate::draft::{Draft, Field};
     use cms_db::{TablePrefix, TableStem};
@@ -121,6 +132,18 @@ mod tests {
                 select_row(&table, id).as_bytes(),
                 b"SELECT * FROM wp_users WHERE ID = '12' LIMIT 1"
             );
+            let meta = TableStem::new("usermeta");
+            assert!(meta.is_ok());
+            if let Ok(meta) = meta {
+                let prefix = TablePrefix::new("wp_");
+                assert!(prefix.is_ok());
+                if let Ok(prefix) = prefix {
+                    assert_eq!(
+                        select_meta(&prefix.table(&meta), id).as_bytes(),
+                        b"SELECT user_id, meta_key, meta_value FROM wp_usermeta WHERE user_id IN (12) ORDER BY umeta_id ASC"
+                    );
+                }
+            }
             let draft = sample_draft();
             assert_eq!(
                 insert_row(&table, &draft).as_bytes(),
@@ -174,6 +197,15 @@ mod tests {
                 let delete = delete_row(&table, user);
                 let expected = format!("DELETE FROM `wp_users` WHERE `ID` = {id}");
                 proptest::prop_assert_eq!(delete.as_bytes(), expected.as_bytes());
+                let meta = TableStem::new("usermeta");
+                proptest::prop_assert!(meta.is_ok());
+                if let Ok(meta) = meta {
+                    let select = select_meta(&prefix.table(&meta), user);
+                    let expected = format!(
+                        "SELECT user_id, meta_key, meta_value FROM wp_usermeta WHERE user_id IN ({id}) ORDER BY umeta_id ASC"
+                    );
+                    proptest::prop_assert_eq!(select.as_bytes(), expected.as_bytes());
+                }
             }
         }
     }

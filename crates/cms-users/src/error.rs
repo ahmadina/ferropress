@@ -11,6 +11,15 @@ pub enum IdError {
     Zero,
 }
 
+/// A user-meta key was empty.
+#[derive(Debug, thiserror::Error, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum KeyError {
+    /// Empty keys are the unbound "all keys" form.
+    #[error("a user meta key must not be empty")]
+    Empty,
+}
+
 /// The store could not be reached, or a table prefix was rejected.
 #[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -33,7 +42,7 @@ impl Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, IdError};
+    use super::{Error, IdError, KeyError};
     use cms_db::NameError as TableNameError;
 
     #[test]
@@ -41,6 +50,10 @@ mod tests {
         assert_eq!(
             IdError::Zero.to_string(),
             "a user id must be greater than zero"
+        );
+        assert_eq!(
+            KeyError::Empty.to_string(),
+            "a user meta key must not be empty"
         );
         let error = Error::from(TableNameError::Nul);
         assert!(!error.is_unavailable());

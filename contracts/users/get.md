@@ -42,5 +42,5 @@ roles and the `filter` flag are not here.
 ## Not bound yet
 
 `get_user_by` fields other than id, `sanitize_user`, the `users` object-cache
-group, user meta, capabilities, and the PHP-visible user object. Raw-column
-writes are `contracts/users/write.md`.
+group, capabilities, and the PHP-visible user object. User-meta reads are
+`contracts/users/meta.md`. Raw-column writes are `contracts/users/write.md`.

@@ -75,6 +75,9 @@ pub(crate) enum Native {
     Sprintf,
     PregMatch,
     PregReplace,
+    Define,
+    Defined,
+    Constant,
     CallUserFunc,
     BridgeAdd,
     BridgeRemove,
@@ -161,6 +164,9 @@ fn builtin_map() -> HashMap<Box<[u8]>, Native> {
         (b"sprintf", Native::Sprintf),
         (b"preg_match", Native::PregMatch),
         (b"preg_replace", Native::PregReplace),
+        (b"define", Native::Define),
+        (b"defined", Native::Defined),
+        (b"constant", Native::Constant),
         (b"call_user_func", Native::CallUserFunc),
         (b"bridge_add", Native::BridgeAdd),
         (b"bridge_remove", Native::BridgeRemove),
@@ -271,6 +277,9 @@ impl<O: Output> Machine<'_, O> {
             Native::Sprintf => self.native_sprintf(args, result),
             Native::PregMatch => self.native_preg_match(args, result),
             Native::PregReplace => self.native_preg_replace(args, result),
+            Native::Define => self.native_define(args, result),
+            Native::Defined => self.native_defined(args, result),
+            Native::Constant => self.native_constant(args, result),
             Native::CallUserFunc => self.native_call_user_func(args, result),
             Native::BridgeAdd => self.native_bridge_add(args, result),
             Native::BridgeRemove => self.native_bridge_remove(args, result),
@@ -395,7 +404,7 @@ impl<O: Output> Machine<'_, O> {
         }
     }
 
-    fn null_deprecated(&mut self, name: &str, index: usize, param: &str, ty: &[u8]) {
+    pub(crate) fn null_deprecated(&mut self, name: &str, index: usize, param: &str, ty: &[u8]) {
         let mut message = name.as_bytes().to_vec();
         message.extend_from_slice(b"(): Passing null to parameter #");
         message.extend_from_slice(index.to_string().as_bytes());
@@ -407,7 +416,7 @@ impl<O: Output> Machine<'_, O> {
         self.display(b"Deprecated", &message);
     }
 
-    fn type_error_arg(
+    pub(crate) fn type_error_arg(
         &self,
         name: &str,
         index: usize,

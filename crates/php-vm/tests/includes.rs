@@ -78,6 +78,19 @@ fn a_missing_include_warns_and_returns_false() -> Result<(), String> {
 }
 
 #[test]
+fn include_sees_constants_defined_in_the_caller() -> Result<(), String> {
+    let (main, _) = temp_pair(
+        b"<?php define(\"FOO\", 4); include \"inc.php\"; echo FOO;",
+        b"<?php echo defined(\"FOO\") ? \"y\" : \"n\", FOO, define(\"BAR\", 5) ? \"t\" : \"f\";",
+    )?;
+    let source = fs::read(&main).map_err(|error| error.to_string())?;
+    let (output, status) = compile_run(&source, main.to_string_lossy().as_bytes())?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"y4t4");
+    Ok(())
+}
+
+#[test]
 fn a_missing_require_throws() -> Result<(), String> {
     let (output, status) = compile_run(b"<?php require \"missing-ferropress.php\";", b"/t.php")?;
     let text = String::from_utf8_lossy(&output);

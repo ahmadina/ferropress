@@ -15,6 +15,7 @@ mod builtins;
 mod calls;
 mod classes;
 mod closures;
+mod constants;
 mod datetime;
 mod error;
 mod exceptions;

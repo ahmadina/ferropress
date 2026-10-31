@@ -129,6 +129,8 @@ pub(crate) struct Machine<'o, O: Output> {
     pub(crate) hooks: Vec<Value>,
     /// Host functions registered by bindings (ADR-0003).
     pub(crate) host: Option<Rc<dyn crate::host::Host>>,
+    /// User constants created with `define`, shared with included files.
+    pub(crate) constants: crate::constants::Table,
 }
 
 /// `literal` as a runtime value.
@@ -209,6 +211,7 @@ impl<'o, O: Output> Machine<'o, O> {
             deferred_classes,
             hooks: Vec::new(),
             host: None,
+            constants: crate::constants::new_table(),
         }
     }
 
@@ -365,6 +368,7 @@ impl<'o, O: Output> Machine<'o, O> {
             Opcode::EndFinally => return self.end_finally(),
             Opcode::InstanceOf => self.instance_of(ins),
             Opcode::ClassConst => self.class_const(ins),
+            Opcode::FetchConst => self.fetch_const(ins),
             Opcode::Yield => return self.yield_value(ins),
             Opcode::InitStaticCall => self.init_static_call(ins),
             Opcode::BindClass => self.bind_class(ins),

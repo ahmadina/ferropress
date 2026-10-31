@@ -207,6 +207,7 @@ These names are bound by the VM: `strlen`, `strtolower`, `strtoupper`, `count`, 
 `mb_substr`, `gmdate`, `date`, `time`, `strtotime`, `file_exists`,
 `file_get_contents`, `file_put_contents`, `is_file`, `is_dir`, `dirname`,
 `basename`, `serialize`, `unserialize`, `preg_match`, `preg_replace`,
+`define`, `defined`, `constant`,
 `sprintf`, `call_user_func`, `bridge_add`, `bridge_remove`, `bridge_apply`,
 `get_class`, `get_parent_class`, `spl_object_id`. `date` formats the same UTC civil time as `gmdate`
 until timezones are bound. `dirname` and `basename` split `/`-separated
@@ -220,6 +221,17 @@ subject; a fourth argument limits how many matches are rewritten (`-1` means
 every match) and a fifth argument receives how many were rewritten. Array
 patterns, non-zero match flags or offsets, and the `D` modifier are not bound
 yet.
+`define` stores a name as given and returns `true`; a second `define` of the
+same name (or of `true`/`false`/`null` in any case) warns `Constant <name>
+already defined` and returns `false`. A name that contains `::` throws
+`ValueError`. A third argument of `true` still stores the name case-sensitively
+and warns that `$case_insensitive` is ignored. `defined` is `true` for those
+names, for `true`/`false`/`null`, and for a loaded enum case `E::A`; a leading
+`\` is dropped. `constant` and a bare name return the stored value, or throw
+`Error` with `Undefined constant "<name>"`. `constant("A::B")` looks up a class
+constant: a missing class throws `Class "A" not found`; a loaded class without
+that member throws `Undefined constant A::B`. File-level `const` declarations
+and other built-in names (`PHP_VERSION`, …) are not bound yet.
 Too few arguments throw
 `ArgumentCountError` from the function (`name() expects exactly N argument(s), M given`, or
 `expects at least` when the function takes a variable number). `str_replace` walks each search

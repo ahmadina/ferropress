@@ -90,6 +90,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `sprintf` for `%s`, `%d`, `%u`, `%x`, `%X` and `%f`
   - [x] `serialize` / `unserialize` for scalars, arrays and objects
   - [x] PCRE: `preg_match` and `preg_replace` for delimited patterns, including matches and a replace limit
+  - [x] Constants: `define`, `defined`, `constant`, and bare constant names
 - [x] 20. Bridge proof: Rust calls PHP closures with correct references, identity and reentrancy; PHP
       classes extend Rust-owned classes
   - [x] `php-value` invoke port (ADR-0003)

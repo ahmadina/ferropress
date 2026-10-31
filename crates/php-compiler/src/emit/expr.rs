@@ -109,6 +109,15 @@ pub(crate) fn keyword_constant(name: &Name) -> Option<Literal> {
 }
 
 impl Emitter<'_> {
+    /// `result =` the global constant named by `name`.
+    fn fetch_const(&mut self, name: &[u8]) -> Emit<Operand> {
+        let dest = self.builder.temp()?;
+        let named = self.builder.string(name)?;
+        self.builder
+            .op(Opcode::FetchConst, named, Operand::UNUSED, dest)?;
+        Ok(dest)
+    }
+
     /// Compiles `expr` for its value.
     pub(super) fn expr(&mut self, expr: &Expr) -> Emit<Operand> {
         let line = self.builder.line;
@@ -138,7 +147,10 @@ impl Emitter<'_> {
             ExprKind::String(bytes) => self.builder.string(bytes),
             ExprKind::Constant(name) => match keyword_constant(name) {
                 Some(value) => self.builder.literal(value),
-                None => self.unsupported("constants"),
+                None if name.kind == NameKind::Relative => {
+                    self.unsupported("namespace-relative names")
+                }
+                None => self.fetch_const(&name.bytes),
             },
             ExprKind::Variable(name) => self.variable(name),
             ExprKind::Interpolated(parts) => self.interpolated(parts),

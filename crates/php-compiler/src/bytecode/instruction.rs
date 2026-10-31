@@ -166,6 +166,8 @@ pub enum Opcode {
     Isset,
     /// `result` is whether `a[b]` is set and not `null`. Flag bit 0 asks whether `a[b]` is empty.
     IssetDim,
+    /// `result` is the global constant named by the string `a`.
+    FetchConst,
 }
 
 impl Opcode {
@@ -248,6 +250,7 @@ impl Opcode {
             Self::IterPick => "IterPick",
             Self::Isset => "Isset",
             Self::IssetDim => "IssetDim",
+            Self::FetchConst => "FetchConst",
         }
     }
 }
@@ -368,6 +371,7 @@ mod tests {
             Opcode::IterPick,
             Opcode::Isset,
             Opcode::IssetDim,
+            Opcode::FetchConst,
         ];
         for opcode in opcodes {
             assert_eq!(opcode.name(), format!("{opcode:?}"));

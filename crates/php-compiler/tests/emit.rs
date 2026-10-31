@@ -162,6 +162,22 @@ fn assignments_increments_and_print() -> Result<(), String> {
 }
 
 #[test]
+fn bare_constants_fetch_by_name() -> Result<(), String> {
+    assert_eq!(
+        disassemble("<?php echo FOO, \\BAR;")?,
+        listing(&[
+            "code {main} temporaries=2",
+            "   0    1  FetchConst T0 = \"FOO\"",
+            "   1    1  Echo T0",
+            "   2    1  FetchConst T1 = \"BAR\"",
+            "   3    1  Echo T1",
+            "   4    1  Return 1",
+        ])
+    );
+    Ok(())
+}
+
+#[test]
 fn keyword_constants_are_literals() -> Result<(), String> {
     assert_eq!(
         disassemble("<?php echo TRUE, \\false, null, 1.5;")?,
@@ -342,7 +358,7 @@ fn constructs_not_compiled_yet_are_named() -> Result<(), String> {
             "namespace-relative names",
         ),
         ("<?php $o = new class {};", "anonymous classes"),
-        ("<?php echo A;", "constants"),
+        ("<?php echo namespace\\A;", "namespace-relative names"),
         ("<?php $a ??= 1;", "??="),
         ("<?php echo $a ?? 1;", "??"),
         ("<?php echo 1 |> f(...);", "|>"),

@@ -64,6 +64,7 @@ impl<O: Output> Machine<'_, O> {
         let mut output = Vec::new();
         let mut nested = Machine::new(&unit, file, &mut output);
         nested.included.clone_from(&self.included);
+        nested.constants = std::rc::Rc::clone(&self.constants);
         let result = nested.run_value();
         self.write_output(&output);
         match result {

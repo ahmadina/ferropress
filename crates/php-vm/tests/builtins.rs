@@ -777,3 +777,121 @@ fn strlen_without_arguments_throws() -> Result<(), String> {
     );
     Ok(())
 }
+
+#[test]
+fn define_makes_a_name_readable() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo define(\"FOO\", 7) ? \"t\" : \"f\", FOO, defined(\"FOO\") ? \"y\" : \"n\", defined(\"foo\") ? \"y\" : \"n\", constant(\"FOO\");",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"t7yn7");
+    Ok(())
+}
+
+#[test]
+fn define_rejects_a_second_value() -> Result<(), String> {
+    let (output, status) =
+        run(b"<?php define(\"FOO\", 1); echo define(\"FOO\", 2) ? \"t\" : \"f\", FOO;")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 0);
+    assert!(text.contains("Constant FOO already defined"), "{text}");
+    assert!(text.ends_with("f1"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn an_unknown_constant_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo FOO;")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("Undefined constant \"FOO\""), "{text}");
+    Ok(())
+}
+
+#[test]
+fn defined_and_constant_see_keywords() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo defined(\"true\") ? \"y\" : \"n\", defined(\"TRUE\") ? \"y\" : \"n\", constant(\"false\") === false ? \"f\" : \"x\", defined(\"NOPE\") ? \"y\" : \"n\";",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"yyfn");
+    Ok(())
+}
+
+#[test]
+fn define_of_true_is_already_taken() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo define(\"true\", 1) ? \"t\" : \"f\";")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 0);
+    assert!(text.contains("Constant true already defined"), "{text}");
+    assert!(text.ends_with('f'), "{text}");
+    Ok(())
+}
+
+#[test]
+fn define_cannot_name_a_class_constant() -> Result<(), String> {
+    let (output, status) = run(b"<?php define(\"A::B\", 1);")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("cannot be a class constant"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn define_limit_argument_is_ignored_when_true() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo define(\"CI\", 1, true) ? \"t\" : \"f\", defined(\"ci\") ? \"y\" : \"n\", CI;",
+    )?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 0);
+    assert!(text.contains("case_insensitive) is ignored"), "{text}");
+    assert!(text.ends_with("tn1"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn constant_of_a_missing_name_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo constant(\"NOPE\");")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("Undefined constant \"NOPE\""), "{text}");
+    assert!(text.contains("constant('NOPE')"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn defined_of_a_missing_class_constant_is_false() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo defined(\"A::B\") ? \"y\" : \"n\";")?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"n");
+    Ok(())
+}
+
+#[test]
+fn constant_of_a_missing_class_throws() -> Result<(), String> {
+    let (output, status) = run(b"<?php echo constant(\"A::B\");")?;
+    let text = String::from_utf8_lossy(&output);
+    assert_eq!(status, 255);
+    assert!(text.contains("Class \"A\" not found"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn an_enum_case_is_a_defined_constant() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php enum E { case A; } echo defined(\"E::A\") ? \"y\" : \"n\", constant(\"E::A\")->name;",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"yA");
+    Ok(())
+}
+
+#[test]
+fn define_and_defined_are_bound() -> Result<(), String> {
+    let (output, status) = run(
+        b"<?php echo function_exists(\"define\") ? \"y\" : \"n\", function_exists(\"defined\") ? \"y\" : \"n\", function_exists(\"constant\") ? \"y\" : \"n\";",
+    )?;
+    assert_eq!(status, 0);
+    assert_eq!(output, b"yyy");
+    Ok(())
+}

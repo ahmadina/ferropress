@@ -331,7 +331,7 @@ impl<O: Output> Machine<'_, O> {
         Err(self.throw("Error", message))
     }
 
-    fn enum_case(&mut self, class_name: &[u8], member: &[u8]) -> Exec<Option<Value>> {
+    pub(crate) fn enum_case(&mut self, class_name: &[u8], member: &[u8]) -> Exec<Option<Value>> {
         let key = class_name.to_ascii_lowercase();
         let Some(class) = self.classes.get(key.as_slice()) else {
             return Ok(None);

@@ -20,14 +20,15 @@ Each inventory item has four independent states:
 | globals | 284 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 284 (100.0%) |
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
 | options | 121 | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 119 (98.3%) |
-| tables | 18 | 1 (5.6%) | 1 (5.6%) | 1 (5.6%) | 0 (0.0%) | 17 (94.4%) |
-| **total** | 9147 | 46 (0.5%) | 34 (0.4%) | 34 (0.4%) | 8 (0.1%) | 9101 (99.5%) |
+| tables | 18 | 2 (11.1%) | 2 (11.1%) | 2 (11.1%) | 0 (0.0%) | 16 (88.9%) |
+| **total** | 9147 | 47 (0.5%) | 35 (0.4%) | 35 (0.4%) | 8 (0.1%) | 9100 (99.5%) |
 
 ## Contract entries
 
 | Entry | Title | Items | Implemented | Tested | Certified |
 |---|---|---:|---|---|---|
 | `cache-memory` | Request-local object cache | 9 | yes | yes | no |
+| `content-get` | Get one post row by id | 1 | yes | yes | no |
 | `hook-dispatch` | Priority-ordered filter and action dispatch | 16 | yes | yes | no |
 | `option-load` | Autoloaded options and get-by-name | 1 | yes | yes | no |
 | `option-write` | Add, update and delete option rows | 1 | yes | yes | no |

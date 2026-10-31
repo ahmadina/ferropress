@@ -327,6 +327,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cms-content"
+version = "0.0.0"
+dependencies = [
+ "cms-db",
+ "proptest",
+ "thiserror",
+]
+
+[[package]]
 name = "cms-db"
 version = "0.0.0"
 dependencies = [

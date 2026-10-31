@@ -392,6 +392,15 @@ name = "cms-types"
 version = "0.0.0"
 
 [[package]]
+name = "cms-users"
+version = "0.0.0"
+dependencies = [
+ "cms-db",
+ "proptest",
+ "thiserror",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -18,6 +18,7 @@ cms-content = { path = "crates/cms-content" }
 cms-db = { path = "crates/cms-db" }
 cms-options = { path = "crates/cms-options" }
 cms-taxonomy = { path = "crates/cms-taxonomy" }
+cms-users = { path = "crates/cms-users" }
 infra-mysql = { path = "crates/infra-mysql" }
 mysql = { version = "28.0.4", default-features = false, features = ["minimal-rust", "buffer-pool"] }
 anyhow = "1.0.104"

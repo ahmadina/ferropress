@@ -20,8 +20,8 @@ Each inventory item has four independent states:
 | globals | 284 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 284 (100.0%) |
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
 | options | 121 | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 119 (98.3%) |
-| tables | 18 | 6 (33.3%) | 6 (33.3%) | 6 (33.3%) | 0 (0.0%) | 12 (66.7%) |
-| **total** | 9147 | 51 (0.6%) | 39 (0.4%) | 39 (0.4%) | 8 (0.1%) | 9096 (99.4%) |
+| tables | 18 | 7 (38.9%) | 7 (38.9%) | 7 (38.9%) | 0 (0.0%) | 11 (61.1%) |
+| **total** | 9147 | 52 (0.6%) | 40 (0.4%) | 40 (0.4%) | 8 (0.1%) | 9095 (99.4%) |
 
 ## Contract entries
 
@@ -40,3 +40,4 @@ Each inventory item has four independent states:
 | `taxonomy-get` | Get one term row by id | 2 | yes | yes | no |
 | `taxonomy-link` | Attach and detach object-term rows | 1 | yes | yes | no |
 | `taxonomy-write` | Insert, update and delete term rows | 2 | yes | yes | no |
+| `user-get` | Get one user row by id | 1 | yes | yes | no |

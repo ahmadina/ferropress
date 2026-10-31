@@ -1,0 +1,26 @@
+schema = 1
+id = "user-get"
+title = "Get one user row by id"
+summary = """
+A user id greater than zero is selected with SELECT * and LIMIT 1. The id is a
+quoted %s decimal. The returned row is the column bytes the server sent. A hit
+is remembered for the request; a miss is not. Zero is a constructor error and
+does not hit the store.
+"""
+upstream = [
+    "wp-includes/class-wp-user.php",
+    "wp-includes/user.php",
+]
+evidence = [
+    "contracts/users/get.md",
+]
+implemented_in = ["crates/cms-users"]
+tests = [
+    "crates/cms-users/tests/get.rs::select_then_get_from_the_bag",
+    "crates/cms-users/tests/get.rs::a_miss_is_not_remembered",
+    "crates/cms-users/tests/get.rs::null_cells_become_empty_bytes",
+    "crates/cms-users/tests/get.rs::unavailable_store_is_an_error",
+]
+
+[covers]
+tables = ["users"]

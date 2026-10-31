@@ -1,0 +1,27 @@
+schema = 1
+id = "query-page-id"
+title = "Parse the page_id query var"
+summary = """
+An absent or empty page_id is 0 and not a page. A scalar is stored as absint
+(PHP (int) then absolute value). A value greater than zero is a page request.
+Negatives are not a 404. Other singular keys, object matching and SQL are not
+bound.
+"""
+upstream = [
+    "wp-includes/class-wp-query.php",
+    "wp-includes/load.php",
+    "wp-includes/query.php",
+]
+evidence = [
+    "contracts/query/page-id.md",
+]
+implemented_in = ["crates/cms-query"]
+tests = [
+    "crates/cms-query/tests/page_id.rs::missing_empty_and_zero_are_not_a_page",
+    "crates/cms-query/tests/page_id.rs::positive_is_a_page",
+    "crates/cms-query/tests/page_id.rs::negative_becomes_absolute",
+    "crates/cms-query/tests/page_id.rs::leading_numeric_uses_absint",
+]
+
+[covers]
+functions = ["is_page"]

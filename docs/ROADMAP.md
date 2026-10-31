@@ -140,6 +140,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-auth`: map edit_user and remove_user object ids
   - [x] `cms-auth`: map manage_links from the link_manager_enabled option
   - [x] `cms-query`: parse the p query var into a single-post key
+  - [x] `cms-query`: parse the page_id query var into a page key
 
 ## Phase 6 — Rendering
 

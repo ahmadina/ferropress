@@ -253,6 +253,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "cms-db"
+version = "0.0.0"
+dependencies = [
+ "proptest",
+ "thiserror",
+]
+
+[[package]]
 name = "cms-hooks"
 version = "0.0.0"
 dependencies = [

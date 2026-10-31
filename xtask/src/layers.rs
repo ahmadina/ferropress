@@ -241,6 +241,7 @@ mod tests {
             ("php-vm-adapter", PhpRuntime),
             ("php-abi-bridge", PhpRuntime),
             ("cms-hooks", Domain),
+            ("cms-db", Domain),
             ("infra-mysql", Infrastructure),
             ("platform-server", Platform),
         ];

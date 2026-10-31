@@ -12,6 +12,7 @@ license = "GPL-2.0-or-later"
 repository = "https://github.com/ahmadina/ferropress"
 
 [workspace.dependencies]
+cms-db = { path = "crates/cms-db" }
 anyhow = "1.0.104"
 cargo_metadata = "0.23.1"
 clap = { version = "4.6.7", features = ["derive"] }

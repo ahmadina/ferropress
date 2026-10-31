@@ -1,0 +1,25 @@
+[package]
+name = "cms-db"
+description = "SQL store port: one statement in, a server reply or a platform error out"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+test-util = []
+
+[dependencies]
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true
+
+[[test]]
+name = "store"
+required-features = ["test-util"]

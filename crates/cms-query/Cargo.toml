@@ -1,6 +1,6 @@
 [package]
 name = "cms-query"
-description = "Parse post, page and attachment query vars"
+description = "Parse query vars and resolve the singular request"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

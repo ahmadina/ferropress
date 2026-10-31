@@ -1,0 +1,26 @@
+schema = 1
+id = "query-singular"
+title = "Resolve singular query flags"
+summary = """
+Attachment wins over name and p, which win over pagename and page_id.
+Attachment and name/p are single. A page is not single. is_singular with an
+empty post-type list is true when any of those flags is set. Object matching
+and SQL are not bound.
+"""
+upstream = [
+    "wp-includes/class-wp-query.php",
+    "wp-includes/query.php",
+]
+evidence = [
+    "contracts/query/singular.md",
+]
+implemented_in = ["crates/cms-query"]
+tests = [
+    "crates/cms-query/tests/singular.rs::empty_is_not_singular",
+    "crates/cms-query/tests/singular.rs::attachment_wins_over_later_keys",
+    "crates/cms-query/tests/singular.rs::name_and_p_win_over_page",
+    "crates/cms-query/tests/singular.rs::page_is_singular_and_not_single",
+]
+
+[covers]
+functions = ["is_singular"]

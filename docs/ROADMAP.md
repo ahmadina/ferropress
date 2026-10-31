@@ -144,6 +144,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-query`: parse the name query var into a post slug
   - [x] `cms-query`: parse the pagename query var into a page slug
   - [x] `cms-query`: parse attachment vars and subpost remaps
+  - [x] `cms-query`: resolve singular flags in parse order
 
 ## Phase 6 — Rendering
 

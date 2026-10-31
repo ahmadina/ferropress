@@ -1,0 +1,25 @@
+schema = 1
+id = "auth-current-can"
+title = "Current user capability check"
+summary = """
+An unset or empty current user is the anonymous actor with an empty map: exist
+is allowed and other names are not. A loaded current user maps the name and
+checks allcaps. Cookies and object-id arguments are not bound.
+"""
+upstream = [
+    "wp-includes/capabilities.php",
+    "wp-includes/class-wp-user.php",
+]
+evidence = [
+    "contracts/auth/current-can.md",
+]
+implemented_in = ["crates/cms-auth"]
+tests = [
+    "crates/cms-auth/tests/current_can.rs::unset_is_anonymous_without_usermeta",
+    "crates/cms-auth/tests/current_can.rs::a_miss_is_anonymous",
+    "crates/cms-auth/tests/current_can.rs::loaded_user_uses_mapped_allcaps",
+    "crates/cms-auth/tests/current_can.rs::unavailable_caps_store_is_an_error",
+]
+
+[covers]
+functions = ["current_user_can"]

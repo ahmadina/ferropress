@@ -3,9 +3,9 @@
 How native crates remember which user is current for one request. Implemented by
 `crates/cms-auth` (`contracts/entries/auth-current.toml`). Provenance:
 `wp-includes/pluggable.php` and `wp-includes/user.php` in the pinned reference
-(inventory names only). Cookies, `determine_current_user`, capabilities, login
-lookup by name, `setup_userdata` and the `set_current_user` action are not bound
-yet.
+(inventory names only). Cookies, `determine_current_user`, login lookup by name,
+`setup_userdata` and the `set_current_user` action are not bound yet. Capability
+checks are `contracts/auth/current-can.md`.
 
 ## Start of the request
 

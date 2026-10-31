@@ -1,6 +1,6 @@
 [package]
 name = "cms-auth"
-description = "Request-local current user, caps, allcaps, has, and cap mapping"
+description = "Request-local current user, caps, mapping, and current-can"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

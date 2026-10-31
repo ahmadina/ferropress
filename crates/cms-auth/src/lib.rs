@@ -1,10 +1,10 @@
 //! Request-local current user, stored caps, role-merged `allcaps`, primitive `has`,
-//! and single-site capability mapping.
+//! single-site mapping, and a current-user capability check.
 //!
 //! Domain crates depend on this crate, not on a driver (ADR-0004). Contracts:
 //! `contracts/auth/current.md`, `contracts/auth/caps.md`, `contracts/auth/roles.md`,
-//! `contracts/auth/has.md`, `contracts/auth/map.md`. Cookies, password checks,
-//! object-id mapping and PHP-visible names are not here.
+//! `contracts/auth/has.md`, `contracts/auth/map.md`, `contracts/auth/current-can.md`.
+//! Cookies, password checks, object-id mapping and PHP-visible names are not here.
 //!
 //! # Examples
 //!

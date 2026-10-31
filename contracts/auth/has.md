@@ -27,4 +27,4 @@ Callers pass primitive names. Mapping a capability onto this list is
 ## Not bound yet
 
 The `user_has_cap` filter, numeric `level_N` translation, multisite super-admin,
-`current_user_can`, and object-id arguments.
+and object-id arguments. The current-user check is `contracts/auth/current-can.md`.

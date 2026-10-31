@@ -49,4 +49,4 @@ Every other name stays itself, including primitives such as `manage_options` and
 Object-id meta names (`edit_post`, `edit_user` against another id, `edit_comment`,
 term and meta names), `manage_links`, file-mod and unfiltered constants,
 `activate_plugin` network extras, custom post-type meta caps, the `map_meta_cap`
-filter, and `current_user_can`.
+filter. The current-user check is `contracts/auth/current-can.md`.

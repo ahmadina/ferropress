@@ -5,7 +5,11 @@ use std::fmt;
 use cms_db::{Store, TablePrefix};
 use cms_users::{User, UserId, Users};
 
+use crate::caps::Caps;
 use crate::error::Error;
+use crate::grants::GrantMap;
+use crate::map::{Actor, map_meta};
+use crate::roles::RoleTable;
 
 /// The user that is current for this request, if any.
 ///
@@ -59,6 +63,29 @@ impl<S: Store> Current<S> {
     /// Forget the current user. Does not hit the store.
     pub fn clear(&mut self) {
         self.loaded = None;
+    }
+
+    /// Whether the current user is allowed `cap` (`contracts/auth/current-can.md`).
+    ///
+    /// Unset or empty uses the anonymous actor and an empty map, without
+    /// reading usermeta.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when a loaded user cannot read the caps store.
+    pub fn can<C: Store>(
+        &self,
+        caps: &mut Caps<C>,
+        roles: &RoleTable,
+        cap: &[u8],
+    ) -> Result<bool, Error> {
+        if let Some(id) = self.id() {
+            caps.can(id, roles, cap)
+        } else {
+            let mapped = map_meta(cap, Actor::Anonymous);
+            let required: Vec<&[u8]> = mapped.names().collect();
+            Ok(GrantMap::empty().has(&required))
+        }
     }
 }
 

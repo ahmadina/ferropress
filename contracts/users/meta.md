@@ -48,6 +48,6 @@ unserialized and not filtered.
 ## Not bound yet
 
 `get_user_meta` with an empty key, `maybe_unserialize`, the
-`get_user_metadata` filter, `update_user_metadata_cache`, writes
-(`add`/`update`/`delete`), other meta types (`post`, `comment`, `term`, `blog`),
-and the `{type}_meta` object-cache group.
+`get_user_metadata` filter, `update_user_metadata_cache`, other meta types
+(`post`, `comment`, `term`, `blog`), and the `{type}_meta` object-cache group.
+Raw-column writes are `contracts/users/meta-write.md`.

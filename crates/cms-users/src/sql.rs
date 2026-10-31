@@ -4,6 +4,8 @@ use cms_db::{Sql, TableName};
 
 use crate::UserId;
 use crate::draft::{Draft, Field};
+use crate::id::MetaId;
+use crate::key::MetaKey;
 use crate::quote::quote;
 
 /// One user's meta rows: `SELECT … WHERE user_id IN ({id}) ORDER BY umeta_id`.
@@ -25,6 +27,63 @@ pub(crate) fn select_row(table: &TableName, id: UserId) -> Sql {
     sql.extend_from_slice(b" WHERE ID = '");
     sql.extend_from_slice(id.as_u64().to_string().as_bytes());
     sql.extend_from_slice(b"' LIMIT 1");
+    Sql::new(sql)
+}
+
+/// Insert one usermeta row: `user_id` `%d`, key and value `%s`.
+#[must_use]
+pub(crate) fn insert_meta(table: &TableName, id: UserId, key: &MetaKey, value: &[u8]) -> Sql {
+    let mut sql = Vec::from(b"INSERT INTO ");
+    sql.extend(tick(table.as_bytes()));
+    sql.extend_from_slice(b" (`user_id`, `meta_key`, `meta_value`) VALUES (");
+    sql.extend_from_slice(id.as_u64().to_string().as_bytes());
+    sql.extend_from_slice(b", ");
+    sql.extend(quote(key.as_bytes()));
+    sql.extend_from_slice(b", ");
+    sql.extend(quote(value));
+    sql.push(b')');
+    Sql::new(sql)
+}
+
+/// Rewrite `meta_value` for one user and key.
+#[must_use]
+pub(crate) fn update_meta(table: &TableName, id: UserId, key: &MetaKey, value: &[u8]) -> Sql {
+    let mut sql = Vec::from(b"UPDATE ");
+    sql.extend(tick(table.as_bytes()));
+    sql.extend_from_slice(b" SET `meta_value` = ");
+    sql.extend(quote(value));
+    sql.extend_from_slice(b" WHERE `user_id` = ");
+    sql.extend_from_slice(id.as_u64().to_string().as_bytes());
+    sql.extend_from_slice(b" AND `meta_key` = ");
+    sql.extend(quote(key.as_bytes()));
+    Sql::new(sql)
+}
+
+/// Row ids for one user and key.
+#[must_use]
+pub(crate) fn select_meta_ids(table: &TableName, id: UserId, key: &MetaKey) -> Sql {
+    let mut sql = Vec::from(b"SELECT umeta_id FROM ");
+    sql.extend_from_slice(table.as_bytes());
+    sql.extend_from_slice(b" WHERE meta_key = ");
+    sql.extend(quote(key.as_bytes()));
+    sql.extend_from_slice(b" AND user_id = ");
+    sql.extend_from_slice(id.as_u64().to_string().as_bytes());
+    Sql::new(sql)
+}
+
+/// Delete the selected `umeta_id` list. `ids` must not be empty.
+#[must_use]
+pub(crate) fn delete_meta_ids(table: &TableName, ids: &[MetaId]) -> Sql {
+    let mut sql = Vec::from(b"DELETE FROM ");
+    sql.extend_from_slice(table.as_bytes());
+    sql.extend_from_slice(b" WHERE umeta_id IN( ");
+    for (index, id) in ids.iter().enumerate() {
+        if index > 0 {
+            sql.push(b',');
+        }
+        sql.extend_from_slice(id.as_u64().to_string().as_bytes());
+    }
+    sql.extend_from_slice(b" )");
     Sql::new(sql)
 }
 
@@ -94,9 +153,14 @@ fn tick(name: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::{delete_row, insert_row, select_meta, select_row, update_row};
+    use super::{
+        delete_meta_ids, delete_row, insert_meta, insert_row, select_meta, select_meta_ids,
+        select_row, update_meta, update_row,
+    };
     use crate::UserId;
     use crate::draft::{Draft, Field};
+    use crate::id::MetaId;
+    use crate::key::MetaKey;
     use cms_db::{TablePrefix, TableStem};
 
     fn users_table() -> Option<(cms_db::TableName, UserId)> {
@@ -142,6 +206,29 @@ mod tests {
                         select_meta(&prefix.table(&meta), id).as_bytes(),
                         b"SELECT user_id, meta_key, meta_value FROM wp_usermeta WHERE user_id IN (12) ORDER BY umeta_id ASC"
                     );
+                    let key = MetaKey::new("nickname");
+                    let mid = MetaId::new(7);
+                    let other = MetaId::new(8);
+                    assert!(key.is_ok() && mid.is_ok() && other.is_ok());
+                    if let (Ok(key), Ok(mid), Ok(other)) = (key, mid, other) {
+                        let table = prefix.table(&meta);
+                        assert_eq!(
+                            insert_meta(&table, id, &key, b"Ada").as_bytes(),
+                            b"INSERT INTO `wp_usermeta` (`user_id`, `meta_key`, `meta_value`) VALUES (12, 'nickname', 'Ada')"
+                        );
+                        assert_eq!(
+                            update_meta(&table, id, &key, b"Ada").as_bytes(),
+                            b"UPDATE `wp_usermeta` SET `meta_value` = 'Ada' WHERE `user_id` = 12 AND `meta_key` = 'nickname'"
+                        );
+                        assert_eq!(
+                            select_meta_ids(&table, id, &key).as_bytes(),
+                            b"SELECT umeta_id FROM wp_usermeta WHERE meta_key = 'nickname' AND user_id = 12"
+                        );
+                        assert_eq!(
+                            delete_meta_ids(&table, &[mid, other]).as_bytes(),
+                            b"DELETE FROM wp_usermeta WHERE umeta_id IN( 7,8 )"
+                        );
+                    }
                 }
             }
             let draft = sample_draft();

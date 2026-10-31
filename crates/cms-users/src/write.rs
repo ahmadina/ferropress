@@ -1,6 +1,6 @@
 //! Outcome of insert, update or delete.
 
-use crate::UserId;
+use crate::{MetaId, UserId};
 
 /// What a write did. A missing row or a rejected statement is data, not a Rust error.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -51,5 +51,57 @@ mod tests {
         assert!(Write::Replaced.inserted_id().is_none());
         assert!(Write::Removed.inserted_id().is_none());
         assert!(Write::Unchanged.inserted_id().is_none());
+    }
+}
+
+/// What a usermeta write did. A missing row or a rejected statement is data, not a Rust error.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MetaWrite {
+    /// A row was inserted; the value is the new `umeta_id`.
+    Inserted(MetaId),
+    /// Existing rows were rewritten.
+    Replaced,
+    /// Rows were deleted.
+    Removed,
+    /// `insert_id` was zero, no rows were affected, or the server rejected the statement.
+    Unchanged,
+}
+
+impl MetaWrite {
+    /// Whether this is not [`Self::Unchanged`].
+    #[must_use]
+    pub const fn changed(self) -> bool {
+        !matches!(self, Self::Unchanged)
+    }
+
+    /// The new id when this is [`Self::Inserted`].
+    #[must_use]
+    pub const fn inserted_id(self) -> Option<MetaId> {
+        match self {
+            Self::Inserted(id) => Some(id),
+            Self::Replaced | Self::Removed | Self::Unchanged => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod meta_tests {
+    use super::MetaWrite;
+    use crate::MetaId;
+
+    #[test]
+    fn changed_and_inserted_id_match_the_variant() {
+        let id = MetaId::new(7);
+        assert!(id.is_ok());
+        if let Ok(id) = id {
+            assert!(MetaWrite::Inserted(id).changed());
+            assert_eq!(MetaWrite::Inserted(id).inserted_id(), Some(id));
+        }
+        assert!(MetaWrite::Replaced.changed());
+        assert!(MetaWrite::Removed.changed());
+        assert!(!MetaWrite::Unchanged.changed());
+        assert!(MetaWrite::Replaced.inserted_id().is_none());
+        assert!(MetaWrite::Removed.inserted_id().is_none());
+        assert!(MetaWrite::Unchanged.inserted_id().is_none());
     }
 }

@@ -6,9 +6,10 @@ use std::fmt;
 use cms_db::{Cell, Reply, ResultSet, Row, Sql, Store, TableName, TablePrefix, TableStem};
 
 use crate::error::Error;
-use crate::id::UserId;
+use crate::id::{MetaId, UserId};
 use crate::key::MetaKey;
-use crate::sql::select_meta;
+use crate::sql::{delete_meta_ids, insert_meta, select_meta, select_meta_ids, update_meta};
+use crate::write::MetaWrite;
 
 /// Usermeta table stem from `contracts/inventory/tables.jsonl`.
 const STEM: &[u8] = b"usermeta";
@@ -18,7 +19,8 @@ type KeyBag = HashMap<MetaKey, Values>;
 
 /// One network's user-meta rows, loaded through [`Store`].
 ///
-/// Request-affine: not assumed [`Send`]. Contract: `contracts/users/meta.md`.
+/// Request-affine: not assumed [`Send`]. Contracts: `contracts/users/meta.md`,
+/// `contracts/users/meta-write.md`.
 pub struct UserMeta<S> {
     store: S,
     table: TableName,
@@ -65,6 +67,59 @@ impl<S: Store> UserMeta<S> {
             .and_then(|values| values.first().map(AsRef::as_ref)))
     }
 
+    /// Insert one row. The new `umeta_id` comes from `insert_id`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn insert(&mut self, id: UserId, key: &MetaKey, value: &[u8]) -> Result<MetaWrite, Error> {
+        let reply = self.exec(&insert_meta(&self.table, id, key, value))?;
+        self.bags.remove(&id);
+        match reply {
+            Reply::Done { insert_id, .. } => match MetaId::new(insert_id) {
+                Ok(meta) => Ok(MetaWrite::Inserted(meta)),
+                Err(_) => Ok(MetaWrite::Unchanged),
+            },
+            _ => Ok(MetaWrite::Unchanged),
+        }
+    }
+
+    /// Rewrite every stored value for `key` on `id`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn update(&mut self, id: UserId, key: &MetaKey, value: &[u8]) -> Result<MetaWrite, Error> {
+        let reply = self.exec(&update_meta(&self.table, id, key, value))?;
+        self.bags.remove(&id);
+        match reply {
+            Reply::Done { affected, .. } if affected > 0 => Ok(MetaWrite::Replaced),
+            _ => Ok(MetaWrite::Unchanged),
+        }
+    }
+
+    /// Remove every stored row for `key` on `id`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn delete(&mut self, id: UserId, key: &MetaKey) -> Result<MetaWrite, Error> {
+        let ids = match self.query(&select_meta_ids(&self.table, id, key))? {
+            RowsOrFailed::Rows(set) => ids_from_set(&set),
+            RowsOrFailed::Failed => Vec::new(),
+        };
+        if ids.is_empty() {
+            self.bags.remove(&id);
+            return Ok(MetaWrite::Unchanged);
+        }
+        let reply = self.exec(&delete_meta_ids(&self.table, &ids))?;
+        self.bags.remove(&id);
+        match reply {
+            Reply::Done { affected, .. } if affected > 0 => Ok(MetaWrite::Removed),
+            _ => Ok(MetaWrite::Unchanged),
+        }
+    }
+
     fn load(&mut self, id: UserId) -> Result<(), Error> {
         if self.bags.contains_key(&id) {
             return Ok(());
@@ -81,6 +136,13 @@ impl<S: Store> UserMeta<S> {
         match self.store.query(sql) {
             Ok(Reply::Rows(set)) => Ok(RowsOrFailed::Rows(set)),
             Ok(_) => Ok(RowsOrFailed::Failed),
+            Err(_) => Err(Error::Unavailable),
+        }
+    }
+
+    fn exec(&mut self, sql: &Sql) -> Result<Reply, Error> {
+        match self.store.query(sql) {
+            Ok(reply) => Ok(reply),
             Err(_) => Err(Error::Unavailable),
         }
     }
@@ -133,9 +195,17 @@ fn cell_id(row: &Row, index: Option<usize>) -> Option<UserId> {
     UserId::from_bytes(&cell_bytes(row, index)).ok()
 }
 
+fn ids_from_set(set: &ResultSet) -> Vec<MetaId> {
+    let index = column_index(set, b"umeta_id");
+    set.rows()
+        .iter()
+        .filter_map(|row| MetaId::from_bytes(&cell_bytes(row, index)).ok())
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::bag_from_set;
+    use super::{bag_from_set, ids_from_set};
     use cms_db::{Cell, Column, ResultSet, Row};
 
     use crate::UserId;
@@ -200,5 +270,30 @@ mod tests {
                 .is_empty()
             );
         }
+    }
+
+    #[test]
+    fn meta_ids_skip_junk_and_keep_order() {
+        let set = ResultSet::new(
+            [Column::new("umeta_id")],
+            [
+                Row::new([Cell::bytes("7")]),
+                Row::new([Cell::bytes("0")]),
+                Row::new([Cell::bytes("x")]),
+                Row::new([Cell::Null]),
+                Row::new([Cell::bytes("8")]),
+            ],
+        );
+        let ids = ids_from_set(&set);
+        assert_eq!(ids.len(), 2);
+        assert_eq!(ids[0].as_u64(), 7);
+        assert_eq!(ids[1].as_u64(), 8);
+        assert!(
+            ids_from_set(&ResultSet::new(
+                [Column::new("other")],
+                [Row::new([Cell::bytes("7")])]
+            ))
+            .is_empty()
+        );
     }
 }

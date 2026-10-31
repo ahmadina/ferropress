@@ -20,6 +20,15 @@ pub enum KeyError {
     Empty,
 }
 
+/// A usermeta row id was zero.
+#[derive(Debug, thiserror::Error, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum MetaIdError {
+    /// Zero is not a stored `umeta_id`.
+    #[error("a user meta id must be greater than zero")]
+    Zero,
+}
+
 /// The store could not be reached, or a table prefix was rejected.
 #[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -42,7 +51,7 @@ impl Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, IdError, KeyError};
+    use super::{Error, IdError, KeyError, MetaIdError};
     use cms_db::NameError as TableNameError;
 
     #[test]
@@ -54,6 +63,10 @@ mod tests {
         assert_eq!(
             KeyError::Empty.to_string(),
             "a user meta key must not be empty"
+        );
+        assert_eq!(
+            MetaIdError::Zero.to_string(),
+            "a user meta id must be greater than zero"
         );
         let error = Error::from(TableNameError::Nul);
         assert!(!error.is_unavailable());

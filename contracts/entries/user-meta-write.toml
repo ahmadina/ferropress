@@ -1,0 +1,27 @@
+schema = 1
+id = "user-meta-write"
+title = "Insert, update and delete usermeta rows"
+summary = """
+Insert writes user_id, meta_key and meta_value and returns the new umeta_id.
+Update rewrites meta_value for that user and key. Delete selects umeta_id
+rows then deletes them with IN. Key and value are quoted MySQL strings; ids
+are unquoted integers. Server rejection and zero affected rows (or a zero
+insert_id) are unchanged; a platform error is not.
+"""
+upstream = [
+    "wp-includes/meta.php",
+    "wp-includes/class-wpdb.php",
+]
+evidence = [
+    "contracts/users/meta-write.md",
+]
+implemented_in = ["crates/cms-users"]
+tests = [
+    "crates/cms-users/tests/meta_write.rs::insert_returns_the_new_id",
+    "crates/cms-users/tests/meta_write.rs::update_rewrites_and_forgets_the_bag",
+    "crates/cms-users/tests/meta_write.rs::delete_selects_ids_then_removes",
+    "crates/cms-users/tests/meta_write.rs::failed_or_zero_is_unchanged",
+]
+
+[covers]
+tables = ["usermeta"]

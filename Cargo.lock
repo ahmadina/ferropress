@@ -384,7 +384,10 @@ dependencies = [
 name = "cms-query"
 version = "0.0.0"
 dependencies = [
+ "cms-content",
+ "cms-db",
  "php-value",
+ "thiserror",
 ]
 
 [[package]]

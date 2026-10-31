@@ -1,0 +1,28 @@
+schema = 1
+id = "query-load-id"
+title = "Load the post row for a singular id"
+summary = """
+When the singular winner names an attachment id, p, or page_id, one posts-bag
+get runs. A hit is that row; a miss or a slug-only winner is an empty list
+with no extra SQL. Full get_posts SELECT assembly is not bound.
+"""
+upstream = [
+    "wp-includes/class-wp-query.php",
+    "wp-includes/class-wp-post.php",
+    "wp-includes/query.php",
+]
+evidence = [
+    "contracts/query/load-id.md",
+]
+implemented_in = ["crates/cms-query"]
+tests = [
+    "crates/cms-query/tests/load_id.rs::p_loads_the_row",
+    "crates/cms-query/tests/load_id.rs::page_id_loads_when_p_is_empty",
+    "crates/cms-query/tests/load_id.rs::attachment_id_wins",
+    "crates/cms-query/tests/load_id.rs::name_only_issues_no_sql",
+    "crates/cms-query/tests/load_id.rs::a_miss_is_empty",
+    "crates/cms-query/tests/load_id.rs::unavailable_store_is_an_error",
+]
+
+[covers]
+functions = ["get_post"]

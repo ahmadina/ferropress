@@ -1,11 +1,11 @@
-//! Parse the `p`, `page_id`, `name`, `pagename` and attachment query vars,
-//! and resolve which singular request they name.
+//! Parse query vars, resolve the singular request, and load a row by id.
 //!
 //! Domain crates depend on this crate, not on a driver (ADR-0004). Contracts:
 //! `contracts/query/p.md`, `contracts/query/page-id.md`,
 //! `contracts/query/name.md`, `contracts/query/pagename.md`,
-//! `contracts/query/attachment.md`, `contracts/query/singular.md`. SQL, other
-//! query vars, hooks and PHP-visible names are not here.
+//! `contracts/query/attachment.md`, `contracts/query/singular.md`,
+//! `contracts/query/load-id.md`. Slug lookups, status filters, hooks and
+//! PHP-visible names are not here.
 //!
 //! # Examples
 //!
@@ -35,6 +35,8 @@
 //! ```
 
 mod attachment_var;
+mod error;
+mod load;
 mod name_var;
 mod page_name_var;
 mod page_var;
@@ -42,6 +44,9 @@ mod post_var;
 mod singular;
 
 pub use attachment_var::{AttachmentInput, AttachmentVar};
+pub use cms_content::Post;
+pub use error::Error;
+pub use load::Query;
 pub use name_var::NameVar;
 pub use page_name_var::PageNameVar;
 pub use page_var::PageVar;

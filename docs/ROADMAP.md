@@ -113,7 +113,7 @@ Status legend: `[x]` done · `[ ]` not started
 
 ## Phase 5 — Data, users and queries
 
-- [ ] 23. `cms-db` + `infra-mysql`, `cms-options`, `cms-cache`, `cms-content`, `cms-taxonomy`, `cms-comments`,
+- [x] 23. `cms-db` + `infra-mysql`, `cms-options`, `cms-cache`, `cms-content`, `cms-taxonomy`, `cms-comments`,
       `cms-users`, `cms-auth`, `cms-query` against existing site databases
   - [x] `cms-db`: SQL store port (statement in, rows / done / server failure out)
   - [x] `infra-mysql`: `MySQL` adapter for that port (text cells, server errors as data)
@@ -145,6 +145,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-query`: parse the pagename query var into a page slug
   - [x] `cms-query`: parse attachment vars and subpost remaps
   - [x] `cms-query`: resolve singular flags in parse order
+  - [x] `cms-query`: load the post row for a singular id
 
 ## Phase 6 — Rendering
 

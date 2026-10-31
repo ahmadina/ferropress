@@ -1,6 +1,6 @@
 [package]
 name = "cms-query"
-description = "Parse query vars and resolve the singular request"
+description = "Parse query vars, resolve the singular request, and load by id"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,13 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+cms-content = { workspace = true }
+cms-db = { workspace = true }
 php-value = { path = "../php-value" }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+cms-db = { workspace = true, features = ["test-util"] }
 
 [lints]
 workspace = true

@@ -13,7 +13,7 @@ Each inventory item has four independent states:
 
 | Section | Items | Documented | Implemented | Tested | Certified | Unknown |
 |---|---:|---:|---:|---:|---:|---:|
-| functions | 4353 | 49 (1.1%) | 48 (1.1%) | 48 (1.1%) | 3 (0.1%) | 4304 (98.9%) |
+| functions | 4353 | 50 (1.1%) | 49 (1.1%) | 49 (1.1%) | 3 (0.1%) | 4303 (98.9%) |
 | classes | 824 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 824 (100.0%) |
 | hooks | 2720 | 14 (0.5%) | 3 (0.1%) | 3 (0.1%) | 3 (0.1%) | 2706 (99.5%) |
 | constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 694 (100.0%) |
@@ -21,7 +21,7 @@ Each inventory item has four independent states:
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
 | options | 121 | 4 (3.3%) | 4 (3.3%) | 4 (3.3%) | 2 (1.7%) | 117 (96.7%) |
 | tables | 18 | 8 (44.4%) | 8 (44.4%) | 8 (44.4%) | 0 (0.0%) | 10 (55.6%) |
-| **total** | 9147 | 75 (0.8%) | 63 (0.7%) | 63 (0.7%) | 8 (0.1%) | 9072 (99.2%) |
+| **total** | 9147 | 76 (0.8%) | 64 (0.7%) | 64 (0.7%) | 8 (0.1%) | 9071 (99.2%) |
 
 ## Contract entries
 
@@ -44,6 +44,7 @@ Each inventory item has four independent states:
 | `option-write` | Add, update and delete option rows | 1 | yes | yes | no |
 | `plugin-load-order` | Which plugins load, and in what order | 8 | yes | yes | yes |
 | `query-attachment` | Parse the attachment query vars | 1 | yes | yes | no |
+| `query-author` | Parse author and author_name into an author flag | 1 | yes | yes | no |
 | `query-date` | Parse year, monthnum and day into archive-date flags | 4 | yes | yes | no |
 | `query-load-id` | Load the post row for a singular id | 1 | yes | yes | no |
 | `query-load-name` | Load the post row for a name slug | 2 | yes | yes | no |

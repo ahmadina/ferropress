@@ -6,8 +6,9 @@
 //! `contracts/query/attachment.md`, `contracts/query/singular.md`,
 //! `contracts/query/load-id.md`, `contracts/query/load-path.md`,
 //! `contracts/query/load-name.md`, `contracts/query/date.md`,
-//! `contracts/query/time.md`, `contracts/query/search.md`. Status filters,
-//! hooks and PHP-visible names are not here.
+//! `contracts/query/time.md`, `contracts/query/search.md`,
+//! `contracts/query/author.md`. Status filters, hooks and PHP-visible names
+//! are not here.
 //!
 //! # Examples
 //!
@@ -51,9 +52,12 @@
 //! assert!(time.is_date());
 //! assert!(cms_query::SearchVar::parse(Some(b"")).is_search());
 //! assert!(!cms_query::SearchVar::parse(None).is_search());
+//! assert!(cms_query::AuthorVar::parse(Some(b"1"), None).is_author());
+//! assert!(!cms_query::AuthorVar::parse(Some(b"0"), None).is_author());
 //! ```
 
 mod attachment_var;
+mod author_var;
 mod basename;
 mod date_var;
 mod error;
@@ -66,6 +70,7 @@ mod search_var;
 mod singular;
 
 pub use attachment_var::{AttachmentInput, AttachmentVar};
+pub use author_var::AuthorVar;
 pub use cms_content::Post;
 pub use date_var::{DateArchive, DateFlags, DateParts, StampVar, TimeParts, WeekVar};
 pub use error::Error;

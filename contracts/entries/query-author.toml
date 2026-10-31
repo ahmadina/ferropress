@@ -1,0 +1,26 @@
+schema = 1
+id = "query-author"
+title = "Parse author and author_name into an author flag"
+summary = """
+author keeps digits, commas and minuses. is_author is true when that string
+is not PHP-empty and does not loosely equal 0, or when author_name is not
+empty. author_name is not trimmed at parse. User lookup and SQL are not
+bound.
+"""
+upstream = [
+    "wp-includes/class-wp-query.php",
+    "wp-includes/query.php",
+]
+evidence = [
+    "contracts/query/author.md",
+]
+implemented_in = ["crates/cms-query"]
+tests = [
+    "crates/cms-query/tests/author.rs::missing_empty_and_zero_are_not_author",
+    "crates/cms-query/tests/author.rs::numeric_zero_is_not_author",
+    "crates/cms-query/tests/author.rs::id_list_is_author",
+    "crates/cms-query/tests/author.rs::name_is_author_without_trim",
+]
+
+[covers]
+functions = ["is_author"]

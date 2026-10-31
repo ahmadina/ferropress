@@ -148,6 +148,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-query`: load the post row for a singular id
   - [x] `cms-query`: load the post row for a pagename path
   - [x] `cms-query`: load the post row for a name slug
+  - [x] `cms-query`: parse year, monthnum and day into date flags
 
 ## Phase 6 — Rendering
 

@@ -5,8 +5,8 @@
 //! `contracts/query/name.md`, `contracts/query/pagename.md`,
 //! `contracts/query/attachment.md`, `contracts/query/singular.md`,
 //! `contracts/query/load-id.md`, `contracts/query/load-path.md`,
-//! `contracts/query/load-name.md`. Status filters, hooks and PHP-visible
-//! names are not here.
+//! `contracts/query/load-name.md`, `contracts/query/date.md`. Status
+//! filters, hooks and PHP-visible names are not here.
 //!
 //! # Examples
 //!
@@ -33,10 +33,18 @@
 //! );
 //! assert!(flags.is_attachment());
 //! assert!(flags.is_singular());
+//! let date = cms_query::DateFlags::resolve(cms_query::DateParts::parse(
+//!     Some(b"2026"),
+//!     Some(b"5"),
+//!     None,
+//! ));
+//! assert!(date.is_month());
+//! assert!(!date.is_year());
 //! ```
 
 mod attachment_var;
 mod basename;
+mod date_var;
 mod error;
 mod load;
 mod name_var;
@@ -47,6 +55,7 @@ mod singular;
 
 pub use attachment_var::{AttachmentInput, AttachmentVar};
 pub use cms_content::Post;
+pub use date_var::{DateArchive, DateFlags, DateParts};
 pub use error::Error;
 pub use load::Query;
 pub use name_var::NameVar;

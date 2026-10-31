@@ -1,6 +1,6 @@
 [package]
 name = "cms-query"
-description = "Parse query vars, resolve the singular request, and load by id"
+description = "Parse query vars, resolve the singular request, and load rows"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

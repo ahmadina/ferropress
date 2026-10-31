@@ -8,8 +8,9 @@ use cms_db::{Reply, ResultSet, Sql, Store, TableName, TablePrefix, TableStem};
 use crate::draft::Draft;
 use crate::error::Error;
 use crate::id::PostId;
+use crate::path::{PathHit, path_parts, walk};
 use crate::post::{Post, from_set};
-use crate::sql::{delete_row, insert_row, select_row, update_row};
+use crate::sql::{delete_row, insert_row, select_path, select_row, update_row};
 use crate::write::Write;
 
 /// Posts table stem from `contracts/inventory/tables.jsonl`.
@@ -18,7 +19,7 @@ const STEM: &[u8] = b"posts";
 /// One site's post rows, loaded through [`Store`].
 ///
 /// Request-affine: not assumed [`Send`]. Contracts: `contracts/content/get.md`,
-/// `contracts/content/write.md`.
+/// `contracts/content/write.md`, `contracts/content/path.md`.
 pub struct Posts<S> {
     store: S,
     table: TableName,
@@ -57,6 +58,26 @@ impl<S: Store> Posts<S> {
                 } else {
                     Ok(None)
                 }
+            }
+            RowsOrFailed::Failed => Ok(None),
+        }
+    }
+
+    /// The page row for a slash-separated path (`contracts/content/path.md`).
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn by_path(&mut self, path: &[u8]) -> Result<Option<Post>, Error> {
+        let parts = path_parts(path);
+        let types: &[&[u8]] = &[b"page", b"attachment"];
+        match self.query(&select_path(&self.table, &parts, types))? {
+            RowsOrFailed::Rows(set) => {
+                let hits = PathHit::from_set(&set);
+                let Some(id) = walk(&parts, &hits, b"page") else {
+                    return Ok(None);
+                };
+                self.get(id)
             }
             RowsOrFailed::Failed => Ok(None),
         }

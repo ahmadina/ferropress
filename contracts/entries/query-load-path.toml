@@ -1,0 +1,32 @@
+schema = 1
+id = "query-load-path"
+title = "Load the post row for a pagename path"
+summary = """
+A page singular winner with a nonempty pagename splits and sanitizes the path,
+issues get_page_by_path's IN query for page and attachment, walks ancestry,
+then loads the winning id. An id winner does not issue that statement.
+"""
+upstream = [
+    "wp-includes/post.php",
+    "wp-includes/class-wp-query.php",
+    "wp-includes/formatting.php",
+]
+evidence = [
+    "contracts/content/path.md",
+    "contracts/query/load-path.md",
+]
+implemented_in = ["crates/cms-content", "crates/cms-query"]
+tests = [
+    "crates/cms-content/tests/path.rs::about_loads_the_page_row",
+    "crates/cms-content/tests/path.rs::nested_path_walks_parents",
+    "crates/cms-content/tests/path.rs::page_type_wins_over_attachment",
+    "crates/cms-content/tests/path.rs::a_miss_is_empty",
+    "crates/cms-content/tests/path.rs::a_failed_path_query_is_a_miss",
+    "crates/cms-query/tests/load_path.rs::pagename_loads_the_row",
+    "crates/cms-query/tests/load_path.rs::page_id_does_not_issue_path_sql",
+    "crates/cms-query/tests/load_path.rs::load_path_skips_non_page_flags",
+    "crates/cms-query/tests/load_path.rs::unavailable_store_is_an_error",
+]
+
+[covers]
+functions = ["get_page_by_path", "sanitize_title_for_query"]

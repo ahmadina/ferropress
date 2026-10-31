@@ -6,6 +6,28 @@ use crate::PostId;
 use crate::draft::{Draft, Field};
 use crate::quote::quote;
 
+/// Path candidates: `get_page_by_path` IN query.
+#[must_use]
+pub(crate) fn select_path(table: &TableName, names: &[Box<[u8]>], types: &[&[u8]]) -> Sql {
+    let mut sql = Vec::from(b"\n\t\tSELECT ID, post_name, post_parent, post_type\n\t\tFROM ");
+    sql.extend_from_slice(table.as_bytes());
+    sql.extend_from_slice(b"\n\t\tWHERE post_name IN (");
+    join_quoted(&mut sql, names.iter().map(AsRef::as_ref));
+    sql.extend_from_slice(b")\n\t\tAND post_type IN (");
+    join_quoted(&mut sql, types.iter().copied());
+    sql.extend_from_slice(b")\n\t");
+    Sql::new(sql)
+}
+
+fn join_quoted<'a>(sql: &mut Vec<u8>, values: impl IntoIterator<Item = &'a [u8]>) {
+    for (index, value) in values.into_iter().enumerate() {
+        if index > 0 {
+            sql.push(b',');
+        }
+        sql.extend(quote(value));
+    }
+}
+
 /// One row: `SELECT * … WHERE ID = {id} LIMIT 1`.
 #[must_use]
 pub(crate) fn select_row(table: &TableName, id: PostId) -> Sql {
@@ -101,7 +123,7 @@ fn format_int(bytes: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::{delete_row, format_int, insert_row, select_row, update_row};
+    use super::{delete_row, format_int, insert_row, select_path, select_row, update_row};
     use crate::PostId;
     use crate::draft::{Draft, Field};
     use cms_db::{TablePrefix, TableStem};
@@ -142,6 +164,11 @@ mod tests {
             assert_eq!(
                 select_row(&table, id).as_bytes(),
                 b"SELECT * FROM wp_posts WHERE ID = 12 LIMIT 1"
+            );
+            assert_eq!(
+                select_path(&table, &[Box::from(*b"about")], &[b"page", b"attachment"])
+                    .as_bytes(),
+                b"\n\t\tSELECT ID, post_name, post_parent, post_type\n\t\tFROM wp_posts\n\t\tWHERE post_name IN ('about')\n\t\tAND post_type IN ('page','attachment')\n\t"
             );
             let draft = sample_draft();
             assert_eq!(

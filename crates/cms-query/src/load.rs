@@ -5,6 +5,7 @@ use cms_db::{Store, TablePrefix};
 
 use crate::attachment_var::AttachmentVar;
 use crate::error::Error;
+use crate::page_name_var::PageNameVar;
 use crate::page_var::PageVar;
 use crate::post_var::PostVar;
 use crate::singular::Singular;
@@ -48,6 +49,47 @@ impl<S: Store> Query<S> {
             Some(row) => Ok(vec![row]),
             None => Ok(Vec::new()),
         }
+    }
+
+    /// The post row for a pagename path, or none.
+    ///
+    /// Used when the singular winner is a page and `pagename` is not empty.
+    /// An id winner still uses [`Self::load_id`].
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn load_path(
+        &mut self,
+        flags: Singular,
+        page_name: &PageNameVar,
+    ) -> Result<Vec<Post>, Error> {
+        if !matches!(flags, Singular::Page) || !page_name.is_page() {
+            return Ok(Vec::new());
+        }
+        match self.posts.by_path(page_name.as_bytes())? {
+            Some(row) => Ok(vec![row]),
+            None => Ok(Vec::new()),
+        }
+    }
+
+    /// The post row for the winning singular id or pagename path.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn load(
+        &mut self,
+        flags: Singular,
+        post: PostVar,
+        page: PageVar,
+        attachment: &AttachmentVar,
+        page_name: &PageNameVar,
+    ) -> Result<Vec<Post>, Error> {
+        if singular_id(flags, post, page, attachment).is_some() {
+            return self.load_id(flags, post, page, attachment);
+        }
+        self.load_path(flags, page_name)
     }
 }
 

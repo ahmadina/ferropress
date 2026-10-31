@@ -1,6 +1,6 @@
 [package]
 name = "cms-content"
-description = "Load and write one post row on the site posts table"
+description = "Load, write, and look up post rows on the site posts table"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

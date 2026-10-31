@@ -4,8 +4,8 @@
 //! `contracts/query/p.md`, `contracts/query/page-id.md`,
 //! `contracts/query/name.md`, `contracts/query/pagename.md`,
 //! `contracts/query/attachment.md`, `contracts/query/singular.md`,
-//! `contracts/query/load-id.md`. Slug lookups, status filters, hooks and
-//! PHP-visible names are not here.
+//! `contracts/query/load-id.md`, `contracts/query/load-path.md`. Name slugs,
+//! status filters, hooks and PHP-visible names are not here.
 //!
 //! # Examples
 //!

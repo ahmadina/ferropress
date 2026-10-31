@@ -1,8 +1,9 @@
 //! Load and write one post row on a [`cms_db::Store`].
 //!
 //! Domain crates depend on this crate, not on a driver (ADR-0004). Contracts:
-//! `contracts/content/get.md`, `contracts/content/write.md`. Hooks, sanitizing,
-//! unique slugs and PHP-visible names are not here.
+//! `contracts/content/get.md`, `contracts/content/write.md`,
+//! `contracts/content/path.md`. Hooks, unique slugs and PHP-visible names are
+//! not here.
 //!
 //! # Examples
 //!
@@ -18,9 +19,11 @@ mod bag;
 mod draft;
 mod error;
 mod id;
+mod path;
 mod post;
 mod quote;
 mod sql;
+mod title;
 mod write;
 
 pub use bag::Posts;

@@ -1,0 +1,26 @@
+schema = 1
+id = "taxonomy-link"
+title = "Attach and detach object-term rows"
+summary = """
+A pair is selected by object_id and term_taxonomy_id. A missing pair is inserted
+with unquoted integer columns. Detach deletes with an IN list of quoted ids.
+Objects for one taxonomy row are listed by object_id. Server rejection and zero
+affected rows are unchanged; a platform error is not.
+"""
+upstream = [
+    "wp-includes/taxonomy.php",
+    "wp-includes/class-wpdb.php",
+]
+evidence = [
+    "contracts/taxonomy/link.md",
+]
+implemented_in = ["crates/cms-taxonomy"]
+tests = [
+    "crates/cms-taxonomy/tests/link.rs::attach_inserts_a_missing_pair",
+    "crates/cms-taxonomy/tests/link.rs::attach_skips_an_existing_pair",
+    "crates/cms-taxonomy/tests/link.rs::detach_removes_quoted_ids",
+    "crates/cms-taxonomy/tests/link.rs::objects_lists_usable_ids",
+]
+
+[covers]
+tables = ["term_relationships"]

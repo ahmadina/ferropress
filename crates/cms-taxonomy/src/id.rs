@@ -63,11 +63,65 @@ impl TermTaxonomyId {
     pub const fn as_u64(self) -> u64 {
         self.0
     }
+
+    /// Parse a decimal id from the `term_taxonomy_id` cell.
+    ///
+    /// # Errors
+    ///
+    /// [`IdError::TaxonomyZero`] when the bytes are not a positive integer.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, IdError> {
+        let Ok(text) = std::str::from_utf8(bytes) else {
+            return Err(IdError::TaxonomyZero);
+        };
+        let Ok(id) = text.parse::<u64>() else {
+            return Err(IdError::TaxonomyZero);
+        };
+        Self::new(id)
+    }
+}
+
+/// A stored object id (`object_id`). Zero is rejected.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct ObjectId(u64);
+
+impl ObjectId {
+    /// An id that can name an object row.
+    ///
+    /// # Errors
+    ///
+    /// [`IdError::ObjectZero`] when `id` is `0`.
+    pub const fn new(id: u64) -> Result<Self, IdError> {
+        if id == 0 {
+            return Err(IdError::ObjectZero);
+        }
+        Ok(Self(id))
+    }
+
+    /// Parse a decimal id from the `object_id` cell.
+    ///
+    /// # Errors
+    ///
+    /// [`IdError::ObjectZero`] when the bytes are not a positive integer.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, IdError> {
+        let Ok(text) = std::str::from_utf8(bytes) else {
+            return Err(IdError::ObjectZero);
+        };
+        let Ok(id) = text.parse::<u64>() else {
+            return Err(IdError::ObjectZero);
+        };
+        Self::new(id)
+    }
+
+    /// The integer as stored.
+    #[must_use]
+    pub const fn as_u64(self) -> u64 {
+        self.0
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{TermId, TermTaxonomyId};
+    use super::{ObjectId, TermId, TermTaxonomyId};
     use crate::IdError;
 
     #[test]
@@ -88,6 +142,41 @@ mod tests {
         assert!(taxonomy.is_ok());
         if let Ok(taxonomy) = taxonomy {
             assert_eq!(taxonomy.as_u64(), 9);
+        }
+        assert!(matches!(
+            TermTaxonomyId::from_bytes(b"0"),
+            Err(IdError::TaxonomyZero)
+        ));
+        assert!(matches!(
+            TermTaxonomyId::from_bytes(b"x"),
+            Err(IdError::TaxonomyZero)
+        ));
+        assert!(matches!(
+            TermTaxonomyId::from_bytes(&[0xff]),
+            Err(IdError::TaxonomyZero)
+        ));
+        let parsed = TermTaxonomyId::from_bytes(b"9");
+        assert!(parsed.is_ok());
+        if let Ok(parsed) = parsed {
+            assert_eq!(parsed.as_u64(), 9);
+        }
+        assert!(matches!(ObjectId::new(0), Err(IdError::ObjectZero)));
+        assert!(matches!(
+            ObjectId::from_bytes(b"0"),
+            Err(IdError::ObjectZero)
+        ));
+        assert!(matches!(
+            ObjectId::from_bytes(b"x"),
+            Err(IdError::ObjectZero)
+        ));
+        assert!(matches!(
+            ObjectId::from_bytes(&[0xff]),
+            Err(IdError::ObjectZero)
+        ));
+        let object = ObjectId::from_bytes(b"7");
+        assert!(object.is_ok());
+        if let Ok(object) = object {
+            assert_eq!(object.as_u64(), 7);
         }
     }
 }

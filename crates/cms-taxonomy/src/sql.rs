@@ -4,7 +4,7 @@ use cms_db::{Sql, TableName};
 
 use crate::draft::{Draft, Field};
 use crate::quote::quote;
-use crate::{TermId, TermTaxonomyId};
+use crate::{ObjectId, TermId, TermTaxonomyId};
 
 /// Joined `terms` / `term_taxonomy` rows for one id.
 #[must_use]
@@ -112,6 +112,65 @@ pub(crate) fn delete_term(table: &TableName, id: TermId) -> Sql {
     delete_where(table, b"term_id", id.as_u64())
 }
 
+/// Whether one object–taxonomy pair exists.
+#[must_use]
+pub(crate) fn select_link(table: &TableName, object: ObjectId, taxonomy_id: TermTaxonomyId) -> Sql {
+    let mut sql = Vec::from(b"SELECT term_taxonomy_id FROM ");
+    sql.extend_from_slice(table.as_bytes());
+    sql.extend_from_slice(b" WHERE object_id = ");
+    sql.extend_from_slice(object.as_u64().to_string().as_bytes());
+    sql.extend_from_slice(b" AND term_taxonomy_id = ");
+    sql.extend_from_slice(taxonomy_id.as_u64().to_string().as_bytes());
+    Sql::new(sql)
+}
+
+/// Object ids that use one taxonomy row.
+#[must_use]
+pub(crate) fn select_objects(table: &TableName, taxonomy_id: TermTaxonomyId) -> Sql {
+    let mut sql = Vec::from(b"SELECT object_id FROM ");
+    sql.extend_from_slice(table.as_bytes());
+    sql.extend_from_slice(b" WHERE term_taxonomy_id = ");
+    sql.extend_from_slice(taxonomy_id.as_u64().to_string().as_bytes());
+    Sql::new(sql)
+}
+
+/// Insert one object–taxonomy pair.
+#[must_use]
+pub(crate) fn insert_link(table: &TableName, object: ObjectId, taxonomy_id: TermTaxonomyId) -> Sql {
+    let mut sql = Vec::from(b"INSERT INTO ");
+    sql.extend(tick(table.as_bytes()));
+    sql.extend_from_slice(b" (`object_id`, `term_taxonomy_id`) VALUES (");
+    sql.extend_from_slice(object.as_u64().to_string().as_bytes());
+    sql.extend_from_slice(b", ");
+    sql.extend_from_slice(taxonomy_id.as_u64().to_string().as_bytes());
+    sql.push(b')');
+    Sql::new(sql)
+}
+
+/// Remove one object's listed taxonomy rows.
+#[must_use]
+pub(crate) fn delete_links(
+    table: &TableName,
+    object: ObjectId,
+    taxonomy_ids: &[TermTaxonomyId],
+) -> Sql {
+    let mut sql = Vec::from(b"DELETE FROM ");
+    sql.extend_from_slice(table.as_bytes());
+    sql.extend_from_slice(b" WHERE object_id = ");
+    sql.extend_from_slice(object.as_u64().to_string().as_bytes());
+    sql.extend_from_slice(b" AND term_taxonomy_id IN (");
+    for (index, id) in taxonomy_ids.iter().enumerate() {
+        if index > 0 {
+            sql.extend_from_slice(b", ");
+        }
+        sql.push(b'\'');
+        sql.extend_from_slice(id.as_u64().to_string().as_bytes());
+        sql.push(b'\'');
+    }
+    sql.push(b')');
+    Sql::new(sql)
+}
+
 fn insert_named(
     table: &TableName,
     fields: &[Field],
@@ -196,11 +255,12 @@ fn format_int(bytes: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::{
-        count_taxonomies, delete_taxonomy, delete_term, format_int, insert_taxonomy, insert_term,
-        select_rows, update_taxonomy, update_term,
+        count_taxonomies, delete_links, delete_taxonomy, delete_term, format_int, insert_link,
+        insert_taxonomy, insert_term, select_link, select_objects, select_rows, update_taxonomy,
+        update_term,
     };
     use crate::draft::{Draft, Field};
-    use crate::{TermId, TermTaxonomyId};
+    use crate::{ObjectId, TermId, TermTaxonomyId};
     use cms_db::{TableName, TablePrefix, TableStem};
 
     fn tables() -> Option<(TableName, TableName, TermId, TermTaxonomyId)> {
@@ -270,6 +330,33 @@ mod tests {
                 delete_term(&terms, term).as_bytes(),
                 b"DELETE FROM `wp_terms` WHERE `term_id` = 12"
             );
+            let prefix = TablePrefix::new("wp_");
+            let rel = TableStem::new("term_relationships");
+            let object = ObjectId::new(7);
+            assert!(prefix.is_ok() && rel.is_ok() && object.is_ok());
+            if let (Ok(prefix), Ok(rel), Ok(object)) = (prefix, rel, object) {
+                let table = prefix.table(&rel);
+                assert_eq!(
+                    select_link(&table, object, taxonomy_id).as_bytes(),
+                    b"SELECT term_taxonomy_id FROM wp_term_relationships WHERE object_id = 7 AND term_taxonomy_id = 9"
+                );
+                assert_eq!(
+                    select_objects(&table, taxonomy_id).as_bytes(),
+                    b"SELECT object_id FROM wp_term_relationships WHERE term_taxonomy_id = 9"
+                );
+                assert_eq!(
+                    insert_link(&table, object, taxonomy_id).as_bytes(),
+                    b"INSERT INTO `wp_term_relationships` (`object_id`, `term_taxonomy_id`) VALUES (7, 9)"
+                );
+                let twelve = TermTaxonomyId::new(12);
+                assert!(twelve.is_ok());
+                if let Ok(twelve) = twelve {
+                    assert_eq!(
+                        delete_links(&table, object, &[taxonomy_id, twelve]).as_bytes(),
+                        b"DELETE FROM wp_term_relationships WHERE object_id = 7 AND term_taxonomy_id IN ('9', '12')"
+                    );
+                }
+            }
         }
     }
 

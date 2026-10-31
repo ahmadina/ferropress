@@ -12,6 +12,9 @@ pub enum IdError {
     /// Zero is not a stored term taxonomy id.
     #[error("a term taxonomy id must be greater than zero")]
     TaxonomyZero,
+    /// Zero is not a stored object id.
+    #[error("an object id must be greater than zero")]
+    ObjectZero,
 }
 
 /// The store could not be reached, or a table prefix was rejected.
@@ -48,6 +51,10 @@ mod tests {
         assert_eq!(
             IdError::TaxonomyZero.to_string(),
             "a term taxonomy id must be greater than zero"
+        );
+        assert_eq!(
+            IdError::ObjectZero.to_string(),
+            "an object id must be greater than zero"
         );
         let error = Error::from(TableNameError::Nul);
         assert!(!error.is_unavailable());

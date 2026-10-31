@@ -78,5 +78,5 @@ term id is dropped.
 
 `wp_insert_term` / `wp_update_term` / `wp_delete_term`, `wp_unique_term_slug`,
 `sanitize_term`, `taxonomy_exists`, shared-term splitting, default-category
-reassignment, term meta, `term_relationships`, `clean_term_cache`, and the
-PHP-visible functions.
+reassignment, term meta, `clean_term_cache`, and the PHP-visible functions.
+Object–term rows are `contracts/taxonomy/link.md`.

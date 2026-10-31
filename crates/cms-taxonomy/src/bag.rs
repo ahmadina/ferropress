@@ -8,10 +8,11 @@ use cms_db::{Cell, Reply, ResultSet, Sql, Store, TableName, TablePrefix, TableSt
 use crate::draft::Draft;
 use crate::error::Error;
 use crate::found::Found;
-use crate::id::{TermId, TermTaxonomyId};
+use crate::id::{ObjectId, TermId, TermTaxonomyId};
+use crate::link::Link;
 use crate::sql::{
-    count_taxonomies, delete_taxonomy, delete_term, insert_taxonomy, insert_term, select_rows,
-    update_taxonomy, update_term,
+    count_taxonomies, delete_links, delete_taxonomy, delete_term, insert_link, insert_taxonomy,
+    insert_term, select_link, select_objects, select_rows, update_taxonomy, update_term,
 };
 use crate::term::{Term, from_set};
 use crate::write::Write;
@@ -20,20 +21,24 @@ use crate::write::Write;
 const TERMS: &[u8] = b"terms";
 /// Term taxonomy table stem from `contracts/inventory/tables.jsonl`.
 const TAXONOMY: &[u8] = b"term_taxonomy";
+/// Relationships table stem from `contracts/inventory/tables.jsonl`.
+const LINKS: &[u8] = b"term_relationships";
 
 /// One site's term rows, loaded through [`Store`].
 ///
 /// Request-affine: not assumed [`Send`]. Contracts: `contracts/taxonomy/get.md`,
-/// `contracts/taxonomy/write.md`.
+/// `contracts/taxonomy/write.md`, `contracts/taxonomy/link.md`.
 pub struct Terms<S> {
     store: S,
     term_table: TableName,
     taxonomy_table: TableName,
+    link_table: TableName,
     hits: HashMap<TermId, Term>,
 }
 
 impl<S: Store> Terms<S> {
-    /// A bag that will read `{prefix}terms` joined to `{prefix}term_taxonomy`.
+    /// A bag that will read `{prefix}terms`, `{prefix}term_taxonomy`, and
+    /// `{prefix}term_relationships`.
     ///
     /// # Errors
     ///
@@ -41,10 +46,12 @@ impl<S: Store> Terms<S> {
     pub fn new(store: S, prefix: &TablePrefix) -> Result<Self, Error> {
         let terms = TableStem::new(TERMS)?;
         let taxonomy = TableStem::new(TAXONOMY)?;
+        let links = TableStem::new(LINKS)?;
         Ok(Self {
             store,
             term_table: prefix.table(&terms),
             taxonomy_table: prefix.table(&taxonomy),
+            link_table: prefix.table(&links),
             hits: HashMap::new(),
         })
     }
@@ -144,6 +151,66 @@ impl<S: Store> Terms<S> {
         }
     }
 
+    /// Whether `object` already has `taxonomy_id`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn linked(&mut self, object: ObjectId, taxonomy_id: TermTaxonomyId) -> Result<bool, Error> {
+        match self.query(&select_link(&self.link_table, object, taxonomy_id))? {
+            RowsOrFailed::Rows(set) => Ok(first_taxonomy_id(&set).is_some()),
+            RowsOrFailed::Failed => Ok(false),
+        }
+    }
+
+    /// Object ids that use `taxonomy_id`, in server order.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn objects(&mut self, taxonomy_id: TermTaxonomyId) -> Result<Vec<ObjectId>, Error> {
+        match self.query(&select_objects(&self.link_table, taxonomy_id))? {
+            RowsOrFailed::Rows(set) => Ok(object_ids(&set)),
+            RowsOrFailed::Failed => Ok(Vec::new()),
+        }
+    }
+
+    /// Insert the pair when it is missing.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn attach(&mut self, object: ObjectId, taxonomy_id: TermTaxonomyId) -> Result<Link, Error> {
+        if self.linked(object, taxonomy_id)? {
+            return Ok(Link::Unchanged);
+        }
+        if affected(&self.exec(&insert_link(&self.link_table, object, taxonomy_id))?) > 0 {
+            Ok(Link::Attached)
+        } else {
+            Ok(Link::Unchanged)
+        }
+    }
+
+    /// Remove `taxonomy_ids` from `object`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn detach(
+        &mut self,
+        object: ObjectId,
+        taxonomy_ids: &[TermTaxonomyId],
+    ) -> Result<Link, Error> {
+        if taxonomy_ids.is_empty() {
+            return Ok(Link::Unchanged);
+        }
+        if affected(&self.exec(&delete_links(&self.link_table, object, taxonomy_ids))?) > 0 {
+            Ok(Link::Detached)
+        } else {
+            Ok(Link::Unchanged)
+        }
+    }
+
     fn pick(&mut self, id: TermId, taxonomy: &[u8], rows: Vec<Term>) -> Found {
         let unique = rows.len() == 1;
         let chosen = if taxonomy.is_empty() {
@@ -189,6 +256,25 @@ fn affected(reply: &Reply) -> u64 {
     }
 }
 
+fn first_taxonomy_id(set: &ResultSet) -> Option<TermTaxonomyId> {
+    let row = set.rows().first()?;
+    let cell = row.cells().first()?;
+    match cell {
+        Cell::Null => None,
+        Cell::Bytes(bytes) => TermTaxonomyId::from_bytes(bytes).ok(),
+    }
+}
+
+fn object_ids(set: &ResultSet) -> Vec<ObjectId> {
+    set.rows()
+        .iter()
+        .filter_map(|row| match row.cells().first() {
+            Some(Cell::Bytes(bytes)) => ObjectId::from_bytes(bytes).ok(),
+            Some(Cell::Null) | None => None,
+        })
+        .collect()
+}
+
 fn leftover_count(set: &ResultSet) -> u64 {
     let Some(row) = set.rows().first() else {
         return 0;
@@ -220,6 +306,7 @@ impl<S> fmt::Debug for Terms<S> {
         f.debug_struct("Terms")
             .field("term_table", &self.term_table)
             .field("taxonomy_table", &self.taxonomy_table)
+            .field("link_table", &self.link_table)
             .finish_non_exhaustive()
     }
 }

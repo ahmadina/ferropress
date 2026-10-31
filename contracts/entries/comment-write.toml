@@ -1,0 +1,27 @@
+schema = 1
+id = "comment-write"
+title = "Insert, update and delete comment rows"
+summary = """
+Insert writes the compact comments columns and returns the new id from insert_id.
+Update rewrites those columns for an existing id, walking comment_author_IP after
+the author url. Delete removes the row by id. Integer columns are unquoted; other
+cells are quoted MySQL strings. Server rejection and zero affected rows (or a
+zero insert_id) are unchanged; a platform error is not.
+"""
+upstream = [
+    "wp-includes/comment.php",
+    "wp-includes/class-wpdb.php",
+]
+evidence = [
+    "contracts/comments/write.md",
+]
+implemented_in = ["crates/cms-comments"]
+tests = [
+    "crates/cms-comments/tests/write.rs::insert_returns_the_new_id",
+    "crates/cms-comments/tests/write.rs::update_rewrites_and_forgets_a_hit",
+    "crates/cms-comments/tests/write.rs::delete_removes_and_forgets_a_hit",
+    "crates/cms-comments/tests/write.rs::failed_or_zero_is_unchanged",
+]
+
+[covers]
+tables = ["comments"]

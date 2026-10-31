@@ -29,6 +29,7 @@ Each inventory item has four independent states:
 |---|---|---:|---|---|---|
 | `cache-memory` | Request-local object cache | 9 | yes | yes | no |
 | `comment-get` | Get one comment row by id | 1 | yes | yes | no |
+| `comment-write` | Insert, update and delete comment rows | 1 | yes | yes | no |
 | `content-get` | Get one post row by id | 1 | yes | yes | no |
 | `content-write` | Insert, update and delete post rows | 1 | yes | yes | no |
 | `hook-dispatch` | Priority-ordered filter and action dispatch | 16 | yes | yes | no |

@@ -3,8 +3,8 @@
 How native crates read one row from the site `comments` table. Implemented by
 `crates/cms-comments` (`contracts/entries/comment-get.toml`). Provenance:
 `wp-includes/class-wp-comment.php` in the pinned reference (inventory names only).
-PHP-visible objects, filters, sanitizing, writes, comment meta, children and the
-object cache are not bound yet.
+PHP-visible objects, filters, sanitizing, comment meta, children and the object
+cache are not bound yet. Raw-column writes are `contracts/comments/write.md`.
 
 ## Identifiers
 
@@ -36,5 +36,5 @@ the `populated_children` flag are not here.
 ## Not bound yet
 
 `get_comment` output formats, `sanitize_comment`, the `comment` object-cache group,
-`wp_insert_comment` / `wp_update_comment` / `wp_delete_comment`, comment meta,
-children, status transitions, and the PHP-visible comment object.
+comment meta, children, status transitions, and the PHP-visible comment object.
+Raw-column writes are `contracts/comments/write.md`.

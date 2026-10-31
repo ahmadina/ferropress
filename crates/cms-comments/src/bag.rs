@@ -5,17 +5,20 @@ use std::fmt;
 
 use cms_db::{Reply, ResultSet, Sql, Store, TableName, TablePrefix, TableStem};
 
+use crate::draft::Draft;
 use crate::error::Error;
 use crate::id::CommentId;
 use crate::row::{Comment, from_set};
-use crate::sql::select_row;
+use crate::sql::{delete_row, insert_row, select_row, update_row};
+use crate::write::Write;
 
 /// Comments table stem from `contracts/inventory/tables.jsonl`.
 const STEM: &[u8] = b"comments";
 
 /// One site's comment rows, loaded through [`Store`].
 ///
-/// Request-affine: not assumed [`Send`]. Contract: `contracts/comments/get.md`.
+/// Request-affine: not assumed [`Send`]. Contracts: `contracts/comments/get.md`,
+/// `contracts/comments/write.md`.
 pub struct Comments<S> {
     store: S,
     table: TableName,
@@ -59,10 +62,60 @@ impl<S: Store> Comments<S> {
         }
     }
 
+    /// Insert the compact cells. The new id comes from `insert_id`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn insert(&mut self, draft: &Draft) -> Result<Write, Error> {
+        match self.exec(&insert_row(&self.table, draft))? {
+            Reply::Done { insert_id, .. } => match CommentId::new(insert_id) {
+                Ok(id) => Ok(Write::Inserted(id)),
+                Err(_) => Ok(Write::Unchanged),
+            },
+            _ => Ok(Write::Unchanged),
+        }
+    }
+
+    /// Rewrite the compact cells for `id`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn update(&mut self, id: CommentId, draft: &Draft) -> Result<Write, Error> {
+        let reply = self.exec(&update_row(&self.table, id, draft))?;
+        self.hits.remove(&id);
+        match reply {
+            Reply::Done { affected, .. } if affected > 0 => Ok(Write::Replaced),
+            _ => Ok(Write::Unchanged),
+        }
+    }
+
+    /// Remove the row for `id`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn delete(&mut self, id: CommentId) -> Result<Write, Error> {
+        let reply = self.exec(&delete_row(&self.table, id))?;
+        self.hits.remove(&id);
+        match reply {
+            Reply::Done { affected, .. } if affected > 0 => Ok(Write::Removed),
+            _ => Ok(Write::Unchanged),
+        }
+    }
+
     fn query(&mut self, sql: &Sql) -> Result<RowsOrFailed, Error> {
         match self.store.query(sql) {
             Ok(Reply::Rows(set)) => Ok(RowsOrFailed::Rows(set)),
             Ok(_) => Ok(RowsOrFailed::Failed),
+            Err(_) => Err(Error::Unavailable),
+        }
+    }
+
+    fn exec(&mut self, sql: &Sql) -> Result<Reply, Error> {
+        match self.store.query(sql) {
+            Ok(reply) => Ok(reply),
             Err(_) => Err(Error::Unavailable),
         }
     }

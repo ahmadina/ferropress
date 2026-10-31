@@ -381,6 +381,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "cms-query"
+version = "0.0.0"
+dependencies = [
+ "php-value",
+]
+
+[[package]]
 name = "cms-request"
 version = "0.0.0"
 dependencies = [

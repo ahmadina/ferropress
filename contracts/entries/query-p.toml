@@ -1,0 +1,25 @@
+schema = 1
+id = "query-p"
+title = "Parse the p query var"
+summary = """
+An absent or empty p is 0 and not a 404. A PHP (int) less than zero is stored
+as 0 and marked 404. Any other (int) is stored as-is. A value greater than
+zero is a single-post request. Other query vars and SQL are not bound.
+"""
+upstream = [
+    "wp-includes/class-wp-query.php",
+    "wp-includes/query.php",
+]
+evidence = [
+    "contracts/query/p.md",
+]
+implemented_in = ["crates/cms-query"]
+tests = [
+    "crates/cms-query/tests/p.rs::missing_empty_and_zero_are_not_single",
+    "crates/cms-query/tests/p.rs::positive_is_single",
+    "crates/cms-query/tests/p.rs::negative_is_not_found",
+    "crates/cms-query/tests/p.rs::leading_numeric_uses_php_int",
+]
+
+[covers]
+functions = ["get_query_var"]

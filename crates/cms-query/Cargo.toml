@@ -1,0 +1,15 @@
+[package]
+name = "cms-query"
+description = "Parse the p query var into a single-post key"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+php-value = { path = "../php-value" }
+
+[lints]
+workspace = true

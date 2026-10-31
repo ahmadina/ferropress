@@ -150,6 +150,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-query`: load the post row for a name slug
   - [x] `cms-query`: parse year, monthnum and day into date flags
   - [x] `cms-query`: parse m, w and time into date flags
+  - [x] `cms-query`: parse the s query var into a search flag
 
 ## Phase 6 — Rendering
 

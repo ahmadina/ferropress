@@ -1,0 +1,26 @@
+schema = 1
+id = "query-search"
+title = "Parse the s query var into a search flag"
+summary = """
+A supplied s is stored as-is up to 1600 bytes; a longer value is stored
+empty. is_search is true when the caller supplied the key, including an
+explicit empty or a wiped long value. An absent key is not a search. Search
+SQL is not bound.
+"""
+upstream = [
+    "wp-includes/class-wp-query.php",
+    "wp-includes/query.php",
+]
+evidence = [
+    "contracts/query/search.md",
+]
+implemented_in = ["crates/cms-query"]
+tests = [
+    "crates/cms-query/tests/search.rs::missing_is_not_search",
+    "crates/cms-query/tests/search.rs::empty_present_is_search",
+    "crates/cms-query/tests/search.rs::bytes_are_kept_without_trim",
+    "crates/cms-query/tests/search.rs::overlong_is_wiped_and_still_search",
+]
+
+[covers]
+functions = ["is_search"]

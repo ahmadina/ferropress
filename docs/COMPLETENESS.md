@@ -13,7 +13,7 @@ Each inventory item has four independent states:
 
 | Section | Items | Documented | Implemented | Tested | Certified | Unknown |
 |---|---:|---:|---:|---:|---:|---:|
-| functions | 4353 | 32 (0.7%) | 31 (0.7%) | 31 (0.7%) | 3 (0.1%) | 4321 (99.3%) |
+| functions | 4353 | 33 (0.8%) | 32 (0.7%) | 32 (0.7%) | 3 (0.1%) | 4320 (99.2%) |
 | classes | 824 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 824 (100.0%) |
 | hooks | 2720 | 14 (0.5%) | 3 (0.1%) | 3 (0.1%) | 3 (0.1%) | 2706 (99.5%) |
 | constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 694 (100.0%) |
@@ -21,7 +21,7 @@ Each inventory item has four independent states:
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
 | options | 121 | 3 (2.5%) | 3 (2.5%) | 3 (2.5%) | 2 (1.7%) | 118 (97.5%) |
 | tables | 18 | 8 (44.4%) | 8 (44.4%) | 8 (44.4%) | 0 (0.0%) | 10 (55.6%) |
-| **total** | 9147 | 57 (0.6%) | 45 (0.5%) | 45 (0.5%) | 8 (0.1%) | 9090 (99.4%) |
+| **total** | 9147 | 58 (0.6%) | 46 (0.5%) | 46 (0.5%) | 8 (0.1%) | 9089 (99.4%) |
 
 ## Contract entries
 
@@ -30,6 +30,7 @@ Each inventory item has four independent states:
 | `auth-caps` | Stored capability map from usermeta | 1 | yes | yes | no |
 | `auth-current` | Request-local current user | 2 | yes | yes | no |
 | `auth-has` | Primitive capability check after allcaps | 1 | yes | yes | no |
+| `auth-map` | Single-site capability mapping to primitives | 1 | yes | yes | no |
 | `auth-roles` | Role table and allcaps merge | 1 | yes | yes | no |
 | `cache-memory` | Request-local object cache | 9 | yes | yes | no |
 | `comment-get` | Get one comment row by id | 1 | yes | yes | no |

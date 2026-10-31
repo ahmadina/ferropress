@@ -1,29 +1,35 @@
-//! Request-local current user, stored caps, role-merged `allcaps`, and primitive `has`.
+//! Request-local current user, stored caps, role-merged `allcaps`, primitive `has`,
+//! and single-site capability mapping.
 //!
 //! Domain crates depend on this crate, not on a driver (ADR-0004). Contracts:
 //! `contracts/auth/current.md`, `contracts/auth/caps.md`, `contracts/auth/roles.md`,
-//! `contracts/auth/has.md`. Cookies, password checks, `map_meta_cap` and
-//! PHP-visible names are not here.
+//! `contracts/auth/has.md`, `contracts/auth/map.md`. Cookies, password checks,
+//! object-id mapping and PHP-visible names are not here.
 //!
 //! # Examples
 //!
 //! ```
-//! use cms_auth::{Error, GrantMap, RoleTable, allcaps};
+//! use cms_auth::{Actor, Error, GrantMap, RoleTable, allcaps, map_meta};
 //!
 //! assert!(Error::Unavailable.is_unavailable());
 //! assert!(!GrantMap::empty().granted(b"manage_options"));
 //! assert!(GrantMap::empty().has(&[b"exist"]));
 //! assert!(!allcaps(&GrantMap::empty(), &RoleTable::empty()).granted(b"read"));
+//! let mapped = map_meta(b"customize", Actor::Anonymous);
+//! let names: Vec<&[u8]> = mapped.names().collect();
+//! assert_eq!(names, [b"edit_theme_options".as_slice()]);
 //! ```
 
 mod caps;
 mod current;
 mod error;
 mod grants;
+mod map;
 mod roles;
 
 pub use caps::Caps;
 pub use current::Current;
 pub use error::Error;
 pub use grants::GrantMap;
+pub use map::{Actor, Mapped, map_meta};
 pub use roles::{RoleTable, Roles, allcaps};

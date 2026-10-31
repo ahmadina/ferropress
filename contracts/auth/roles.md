@@ -33,6 +33,5 @@ apply `exist` and `do_not_allow` are `contracts/auth/has.md`.
 
 ## Not bound yet
 
-`map_meta_cap`, the `user_has_cap` filter, `$wp_user_roles`, `add_role` /
-`remove_role`, multisite `{prefix}{blog_id}_user_roles`, and the PHP-visible
-role objects.
+The `user_has_cap` filter, `$wp_user_roles`, `add_role` / `remove_role`,
+multisite `{prefix}{blog_id}_user_roles`, and the PHP-visible role objects.

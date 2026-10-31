@@ -4,7 +4,7 @@ title = "Primitive capability check after allcaps"
 summary = """
 After allcaps is built, exist is always allowed, do_not_allow is never allowed,
 and every required primitive name must be present and granted. An empty list is
-allowed. map_meta_cap and the user_has_cap filter are not bound.
+allowed. Mapping is contracts/auth/map.md. The user_has_cap filter is not bound.
 """
 upstream = [
     "wp-includes/class-wp-user.php",

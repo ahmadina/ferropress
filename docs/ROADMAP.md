@@ -135,6 +135,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-auth`: load stored capability map from usermeta
   - [x] `cms-auth`: merge role caps from the user_roles option
   - [x] `cms-auth`: primitive capability check (exist / do_not_allow)
+  - [x] `cms-auth`: map single-site cap aliases to primitives
 
 ## Phase 6 — Rendering
 

@@ -21,10 +21,10 @@ and PHP `empty` on each required name:
 - An empty required list is allowed (PHP `array_all` of no items).
 - Every required name must be allowed.
 
-Callers pass primitive names. Meta capabilities (`edit_post`, `edit_user`) are
-not mapped.
+Callers pass primitive names. Mapping a capability onto this list is
+`contracts/auth/map.md`.
 
 ## Not bound yet
 
-`map_meta_cap`, the `user_has_cap` filter, numeric `level_N` translation,
-multisite super-admin, `current_user_can`, and object-id arguments.
+The `user_has_cap` filter, numeric `level_N` translation, multisite super-admin,
+`current_user_can`, and object-id arguments.

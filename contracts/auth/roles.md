@@ -28,11 +28,11 @@ name contributes that role's capabilities, merged in that order (PHP
 stored map is then overlaid on top. A stored role key whose grant is false still
 selects the role; the false flag wins only for that name after the overlay.
 
-The result is `WP_User::$allcaps` before `user_has_cap`. The `exist` and
-`do_not_allow` keys are not injected.
+The result is `WP_User::$allcaps` before `user_has_cap`. Primitive checks that
+apply `exist` and `do_not_allow` are `contracts/auth/has.md`.
 
 ## Not bound yet
 
-`user_can`, `current_user_can`, `map_meta_cap`, the `user_has_cap` filter,
-`exist` / `do_not_allow`, `$wp_user_roles`, `add_role` / `remove_role`,
-multisite `{prefix}{blog_id}_user_roles`, and the PHP-visible role objects.
+`map_meta_cap`, the `user_has_cap` filter, `$wp_user_roles`, `add_role` /
+`remove_role`, multisite `{prefix}{blog_id}_user_roles`, and the PHP-visible
+role objects.

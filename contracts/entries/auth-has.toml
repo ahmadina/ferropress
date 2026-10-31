@@ -1,0 +1,25 @@
+schema = 1
+id = "auth-has"
+title = "Primitive capability check after allcaps"
+summary = """
+After allcaps is built, exist is always allowed, do_not_allow is never allowed,
+and every required primitive name must be present and granted. An empty list is
+allowed. map_meta_cap and the user_has_cap filter are not bound.
+"""
+upstream = [
+    "wp-includes/class-wp-user.php",
+    "wp-includes/capabilities.php",
+]
+evidence = [
+    "contracts/auth/has.md",
+]
+implemented_in = ["crates/cms-auth"]
+tests = [
+    "crates/cms-auth/tests/has.rs::exist_and_role_caps_are_allowed",
+    "crates/cms-auth/tests/has.rs::do_not_allow_and_missing_are_denied",
+    "crates/cms-auth/tests/has.rs::empty_required_list_is_allowed",
+    "crates/cms-auth/tests/has.rs::unavailable_store_is_an_error",
+]
+
+[covers]
+functions = ["user_can"]

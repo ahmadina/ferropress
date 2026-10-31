@@ -1,8 +1,9 @@
-//! Request-local current user, stored caps, and role-merged `allcaps`.
+//! Request-local current user, stored caps, role-merged `allcaps`, and primitive `has`.
 //!
 //! Domain crates depend on this crate, not on a driver (ADR-0004). Contracts:
-//! `contracts/auth/current.md`, `contracts/auth/caps.md`, `contracts/auth/roles.md`.
-//! Cookies, password checks, `user_has_cap` and PHP-visible names are not here.
+//! `contracts/auth/current.md`, `contracts/auth/caps.md`, `contracts/auth/roles.md`,
+//! `contracts/auth/has.md`. Cookies, password checks, `map_meta_cap` and
+//! PHP-visible names are not here.
 //!
 //! # Examples
 //!
@@ -11,6 +12,7 @@
 //!
 //! assert!(Error::Unavailable.is_unavailable());
 //! assert!(!GrantMap::empty().granted(b"manage_options"));
+//! assert!(GrantMap::empty().has(&[b"exist"]));
 //! assert!(!allcaps(&GrantMap::empty(), &RoleTable::empty()).granted(b"read"));
 //! ```
 

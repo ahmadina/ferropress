@@ -67,6 +67,20 @@ impl<S: Store> Caps<S> {
     pub fn all(&mut self, id: UserId, roles: &RoleTable) -> Result<GrantMap, Error> {
         Ok(allcaps(&self.get(id)?, roles))
     }
+
+    /// Whether `id` has every required primitive name (`contracts/auth/has.md`).
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn has(
+        &mut self,
+        id: UserId,
+        roles: &RoleTable,
+        required: &[&[u8]],
+    ) -> Result<bool, Error> {
+        Ok(self.all(id, roles)?.has(required))
+    }
 }
 
 impl<S> fmt::Debug for Caps<S> {

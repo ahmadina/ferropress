@@ -134,6 +134,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-users`: insert, update and delete usermeta rows (raw stored bytes)
   - [x] `cms-auth`: load stored capability map from usermeta
   - [x] `cms-auth`: merge role caps from the user_roles option
+  - [x] `cms-auth`: primitive capability check (exist / do_not_allow)
 
 ## Phase 6 — Rendering
 

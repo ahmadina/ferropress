@@ -44,6 +44,23 @@ impl GrantMap {
         self.grants.is_empty()
     }
 
+    /// Whether every required name is allowed after `exist` / `do_not_allow`.
+    ///
+    /// `exist` is always allowed. `do_not_allow` is never allowed. An empty
+    /// list is allowed (PHP `array_all` of no items).
+    #[must_use]
+    pub fn has(&self, required: &[&[u8]]) -> bool {
+        required.iter().all(|name| self.allows(name))
+    }
+
+    fn allows(&self, name: &[u8]) -> bool {
+        match name {
+            b"exist" => true,
+            b"do_not_allow" => false,
+            other => self.granted(other),
+        }
+    }
+
     /// Overlay `top` onto this map (PHP `array_merge` for string keys).
     #[must_use]
     pub(crate) fn overlay(&self, top: &Self) -> Self {
@@ -105,7 +122,22 @@ fn is_granted(value: &Value<'_, '_>) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use php_serialize::Writer;
+
     use super::{GrantMap, grants_from_bytes};
+
+    fn flipped_map() -> GrantMap {
+        let mut writer = Writer::new();
+        writer.array(3);
+        writer.string(b"exist");
+        writer.bool(false);
+        writer.string(b"do_not_allow");
+        writer.bool(true);
+        writer.string(b"manage_options");
+        writer.bool(true);
+        writer.end();
+        grants_from_bytes(&writer.into_bytes())
+    }
 
     #[test]
     fn serialized_pairs_and_empty_values() {
@@ -156,6 +188,24 @@ mod tests {
         let refs = grants_from_bytes(b"a:2:{s:1:\"a\";b:1;s:1:\"b\";R:2;}");
         assert!(refs.granted(b"a"));
         assert!(refs.granted(b"b"));
+    }
+
+    #[test]
+    fn exist_is_allowed_and_do_not_allow_is_not() {
+        let empty = GrantMap::empty();
+        assert!(empty.has(&[]));
+        assert!(empty.has(&[b"exist"]));
+        assert!(!empty.has(&[b"do_not_allow"]));
+        assert!(!empty.has(&[b"exist", b"do_not_allow"]));
+        assert!(!empty.has(&[b"manage_options"]));
+
+        let flipped = flipped_map();
+        assert!(flipped.has(&[b"exist"]));
+        assert!(!flipped.has(&[b"do_not_allow"]));
+        assert!(flipped.has(&[b"manage_options"]));
+        assert!(flipped.has(&[b"exist", b"manage_options"]));
+        assert!(!flipped.has(&[b"manage_options", b"do_not_allow"]));
+        assert!(!flipped.has(&[b"edit_posts"]));
     }
 
     #[test]

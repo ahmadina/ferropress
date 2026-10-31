@@ -13,7 +13,7 @@ Each inventory item has four independent states:
 
 | Section | Items | Documented | Implemented | Tested | Certified | Unknown |
 |---|---:|---:|---:|---:|---:|---:|
-| functions | 4353 | 20 (0.5%) | 19 (0.4%) | 19 (0.4%) | 3 (0.1%) | 4333 (99.5%) |
+| functions | 4353 | 29 (0.7%) | 28 (0.6%) | 28 (0.6%) | 3 (0.1%) | 4324 (99.3%) |
 | classes | 824 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 824 (100.0%) |
 | hooks | 2720 | 14 (0.5%) | 3 (0.1%) | 3 (0.1%) | 3 (0.1%) | 2706 (99.5%) |
 | constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 694 (100.0%) |
@@ -21,12 +21,13 @@ Each inventory item has four independent states:
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
 | options | 121 | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 119 (98.3%) |
 | tables | 18 | 1 (5.6%) | 1 (5.6%) | 1 (5.6%) | 0 (0.0%) | 17 (94.4%) |
-| **total** | 9147 | 37 (0.4%) | 25 (0.3%) | 25 (0.3%) | 8 (0.1%) | 9110 (99.6%) |
+| **total** | 9147 | 46 (0.5%) | 34 (0.4%) | 34 (0.4%) | 8 (0.1%) | 9101 (99.5%) |
 
 ## Contract entries
 
 | Entry | Title | Items | Implemented | Tested | Certified |
 |---|---|---:|---|---|---|
+| `cache-memory` | Request-local object cache | 9 | yes | yes | no |
 | `hook-dispatch` | Priority-ordered filter and action dispatch | 16 | yes | yes | no |
 | `option-load` | Autoloaded options and get-by-name | 1 | yes | yes | no |
 | `option-write` | Add, update and delete option rows | 1 | yes | yes | no |

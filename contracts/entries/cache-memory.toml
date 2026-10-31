@@ -1,0 +1,35 @@
+schema = 1
+id = "cache-memory"
+title = "Request-local object cache"
+summary = """
+A request-local bag stores opaque bytes under a key and group. Empty or 0 groups become default
+on read and write. On a network of sites, non-global groups prefix the key with the site id.
+Add refuses a hit, replace refuses a miss, set always writes, and flush clears the bag.
+"""
+upstream = [
+    "wp-includes/class-wp-object-cache.php",
+    "wp-includes/cache.php",
+]
+evidence = [
+    "contracts/cache/memory.md",
+]
+implemented_in = ["crates/cms-cache"]
+tests = [
+    "crates/cms-cache/tests/memory.rs::add_get_and_replace_follow_presence",
+    "crates/cms-cache/tests/memory.rs::groups_and_empty_names_are_separate_slots",
+    "crates/cms-cache/tests/memory.rs::network_prefix_skips_global_groups",
+    "crates/cms-cache/tests/memory.rs::flush_clears_the_bag",
+]
+
+[covers]
+functions = [
+    "wp_cache_add",
+    "wp_cache_get",
+    "wp_cache_set",
+    "wp_cache_replace",
+    "wp_cache_delete",
+    "wp_cache_flush",
+    "wp_cache_flush_group",
+    "wp_cache_add_global_groups",
+    "wp_cache_switch_to_blog",
+]

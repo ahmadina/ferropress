@@ -119,6 +119,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `infra-mysql`: `MySQL` adapter for that port (text cells, server errors as data)
   - [x] `cms-options`: autoload bag and get-by-name (raw stored bytes)
   - [x] `cms-options`: add, update and delete option rows (raw stored bytes)
+  - [x] `cms-cache`: request-local object cache (keys, groups, site prefix)
 
 ## Phase 6 — Rendering
 

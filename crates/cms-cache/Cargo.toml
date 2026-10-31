@@ -1,0 +1,18 @@
+[package]
+name = "cms-cache"
+description = "Request-local object cache: keys, groups and site prefixes"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true

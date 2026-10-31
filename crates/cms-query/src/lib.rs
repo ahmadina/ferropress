@@ -4,8 +4,9 @@
 //! `contracts/query/p.md`, `contracts/query/page-id.md`,
 //! `contracts/query/name.md`, `contracts/query/pagename.md`,
 //! `contracts/query/attachment.md`, `contracts/query/singular.md`,
-//! `contracts/query/load-id.md`, `contracts/query/load-path.md`. Name slugs,
-//! status filters, hooks and PHP-visible names are not here.
+//! `contracts/query/load-id.md`, `contracts/query/load-path.md`,
+//! `contracts/query/load-name.md`. Status filters, hooks and PHP-visible
+//! names are not here.
 //!
 //! # Examples
 //!
@@ -35,6 +36,7 @@
 //! ```
 
 mod attachment_var;
+mod basename;
 mod error;
 mod load;
 mod name_var;

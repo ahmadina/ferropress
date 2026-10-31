@@ -28,6 +28,17 @@ fn join_quoted<'a>(sql: &mut Vec<u8>, values: impl IntoIterator<Item = &'a [u8]>
     }
 }
 
+/// One row by slug: `SELECT * … WHERE post_name = {quoted} LIMIT 1`.
+#[must_use]
+pub(crate) fn select_name(table: &TableName, name: &[u8]) -> Sql {
+    let mut sql = Vec::from(b"SELECT * FROM ");
+    sql.extend_from_slice(table.as_bytes());
+    sql.extend_from_slice(b" WHERE post_name = ");
+    sql.extend(quote(name));
+    sql.extend_from_slice(b" LIMIT 1");
+    Sql::new(sql)
+}
+
 /// One row: `SELECT * … WHERE ID = {id} LIMIT 1`.
 #[must_use]
 pub(crate) fn select_row(table: &TableName, id: PostId) -> Sql {
@@ -123,7 +134,9 @@ fn format_int(bytes: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use super::{delete_row, format_int, insert_row, select_path, select_row, update_row};
+    use super::{
+        delete_row, format_int, insert_row, select_name, select_path, select_row, update_row,
+    };
     use crate::PostId;
     use crate::draft::{Draft, Field};
     use cms_db::{TablePrefix, TableStem};
@@ -169,6 +182,10 @@ mod tests {
                 select_path(&table, &[Box::from(*b"about")], &[b"page", b"attachment"])
                     .as_bytes(),
                 b"\n\t\tSELECT ID, post_name, post_parent, post_type\n\t\tFROM wp_posts\n\t\tWHERE post_name IN ('about')\n\t\tAND post_type IN ('page','attachment')\n\t"
+            );
+            assert_eq!(
+                select_name(&table, b"hello").as_bytes(),
+                b"SELECT * FROM wp_posts WHERE post_name = 'hello' LIMIT 1"
             );
             let draft = sample_draft();
             assert_eq!(

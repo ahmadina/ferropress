@@ -2,8 +2,8 @@
 //!
 //! Domain crates depend on this crate, not on a driver (ADR-0004). Contracts:
 //! `contracts/content/get.md`, `contracts/content/write.md`,
-//! `contracts/content/path.md`. Hooks, unique slugs and PHP-visible names are
-//! not here.
+//! `contracts/content/path.md`, `contracts/content/name.md`. Hooks, unique
+//! slugs and PHP-visible names are not here.
 //!
 //! # Examples
 //!

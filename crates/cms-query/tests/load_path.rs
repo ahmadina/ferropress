@@ -68,11 +68,13 @@ fn pagename_loads_the_row() {
             let post = PostVar::parse(None);
             let page = PageVar::parse(None);
             let page_name = PageNameVar::parse(Some(b"about"));
+            let name = NameVar::parse(None);
             let loaded = query.load(
                 flags(None, post, Some(b"about"), page),
                 post,
                 page,
                 &attach,
+                &name,
                 &page_name,
             );
             assert!(loaded.as_ref().is_ok_and(|rows| {
@@ -95,41 +97,18 @@ fn page_id_does_not_issue_path_sql() {
             let post = PostVar::parse(None);
             let page = PageVar::parse(Some(b"4"));
             let page_name = PageNameVar::parse(Some(b"about"));
+            let name = NameVar::parse(None);
             let loaded = query.load(
                 flags(None, post, Some(b"about"), page),
                 post,
                 page,
                 &attach,
+                &name,
                 &page_name,
             );
             assert!(loaded.as_ref().is_ok_and(|rows| {
                 rows.len() == 1 && rows[0].id().as_u64() == 4 && rows[0].title() == b"About"
             }));
-        }
-    }
-}
-
-#[test]
-fn name_only_issues_no_sql() {
-    let store = Scripted::new([]);
-    let prefix = TablePrefix::new("wp_");
-    assert!(prefix.is_ok());
-    if let Ok(prefix) = prefix {
-        let opened = Query::new(store, &prefix);
-        assert!(opened.is_ok());
-        if let Ok(mut query) = opened {
-            let attach = AttachmentVar::parse(AttachmentInput::new());
-            let post = PostVar::parse(None);
-            let page = PageVar::parse(None);
-            let page_name = PageNameVar::parse(None);
-            let loaded = query.load(
-                flags(Some(b"hello"), post, None, page),
-                post,
-                page,
-                &attach,
-                &page_name,
-            );
-            assert!(loaded.as_ref().is_ok_and(Vec::is_empty));
         }
     }
 }

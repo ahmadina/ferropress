@@ -147,6 +147,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-query`: resolve singular flags in parse order
   - [x] `cms-query`: load the post row for a singular id
   - [x] `cms-query`: load the post row for a pagename path
+  - [x] `cms-query`: load the post row for a name slug
 
 ## Phase 6 — Rendering
 

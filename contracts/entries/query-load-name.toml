@@ -1,0 +1,30 @@
+schema = 1
+id = "query-load-name"
+title = "Load the post row for a name slug"
+summary = """
+A single winner with a nonempty name, or an attachment slug without an id,
+sanitizes the slug (basename first for attachment) and issues one posts-bag
+get by post_name. An id or pagename winner does not issue that statement.
+"""
+upstream = [
+    "wp-includes/class-wp-query.php",
+    "wp-includes/formatting.php",
+    "wp-includes/class-wp-post.php",
+]
+evidence = [
+    "contracts/content/name.md",
+    "contracts/query/load-name.md",
+]
+implemented_in = ["crates/cms-content", "crates/cms-query"]
+tests = [
+    "crates/cms-content/tests/name.rs::hello_loads_the_row",
+    "crates/cms-content/tests/name.rs::title_case_is_sanitized",
+    "crates/cms-content/tests/name.rs::a_miss_is_empty",
+    "crates/cms-query/tests/load_name.rs::name_loads_the_row",
+    "crates/cms-query/tests/load_name.rs::attachment_slug_uses_basename",
+    "crates/cms-query/tests/load_name.rs::p_does_not_issue_name_sql",
+    "crates/cms-query/tests/load_name.rs::unavailable_store_is_an_error",
+]
+
+[covers]
+functions = ["get_post", "wp_basename"]

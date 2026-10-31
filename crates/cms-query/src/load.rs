@@ -4,7 +4,9 @@ use cms_content::{Post, PostId, Posts};
 use cms_db::{Store, TablePrefix};
 
 use crate::attachment_var::AttachmentVar;
+use crate::basename::wp_basename;
 use crate::error::Error;
+use crate::name_var::NameVar;
 use crate::page_name_var::PageNameVar;
 use crate::page_var::PageVar;
 use crate::post_var::PostVar;
@@ -73,7 +75,31 @@ impl<S: Store> Query<S> {
         }
     }
 
-    /// The post row for the winning singular id or pagename path.
+    /// The post row for a name or attachment slug, or none.
+    ///
+    /// Used when the singular winner is a nonempty `name` or an attachment
+    /// slug. An id or pagename winner still uses [`Self::load_id`] or
+    /// [`Self::load_path`].
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn load_name(
+        &mut self,
+        flags: Singular,
+        name: &NameVar,
+        attachment: &AttachmentVar,
+    ) -> Result<Vec<Post>, Error> {
+        let Some(slug) = name_slug(flags, name, attachment) else {
+            return Ok(Vec::new());
+        };
+        match self.posts.by_name(&slug)? {
+            Some(row) => Ok(vec![row]),
+            None => Ok(Vec::new()),
+        }
+    }
+
+    /// The post row for the winning singular id, pagename path, or name slug.
     ///
     /// # Errors
     ///
@@ -84,12 +110,16 @@ impl<S: Store> Query<S> {
         post: PostVar,
         page: PageVar,
         attachment: &AttachmentVar,
+        name: &NameVar,
         page_name: &PageNameVar,
     ) -> Result<Vec<Post>, Error> {
         if singular_id(flags, post, page, attachment).is_some() {
             return self.load_id(flags, post, page, attachment);
         }
-        self.load_path(flags, page_name)
+        if matches!(flags, Singular::Page) && page_name.is_page() {
+            return self.load_path(flags, page_name);
+        }
+        self.load_name(flags, name, attachment)
     }
 }
 
@@ -109,6 +139,16 @@ fn singular_id(
         Singular::Attachment if attachment.id() > 0 => post_id(attachment.id()),
         Singular::Single if post.is_single() => post_id(post.value()),
         Singular::Page if page.is_page() => post_id(page.value()),
+        Singular::None | Singular::Attachment | Singular::Single | Singular::Page => None,
+    }
+}
+
+fn name_slug(flags: Singular, name: &NameVar, attachment: &AttachmentVar) -> Option<Box<[u8]>> {
+    match flags {
+        Singular::Attachment if !attachment.as_bytes().is_empty() => {
+            Some(wp_basename(attachment.as_bytes()))
+        }
+        Singular::Single if name.is_single() => Some(Box::from(name.as_bytes())),
         Singular::None | Singular::Attachment | Singular::Single | Singular::Page => None,
     }
 }
@@ -179,5 +219,18 @@ mod tests {
         assert!(super::post_id(-1).is_none());
         assert!(super::post_id(0).is_none());
         assert!(super::post_id(12).is_some_and(|id| id.as_u64() == 12));
+    }
+
+    #[test]
+    fn name_slug_follows_the_winner() {
+        let attach = AttachmentVar::parse(AttachmentInput::new().attachment(b"dir/file"));
+        let name = NameVar::parse(Some(b"hello"));
+        let slug = super::name_slug(Singular::Attachment, &name, &attach);
+        assert!(slug.as_ref().is_some_and(|slug| slug.as_ref() == b"file"));
+        let none = AttachmentVar::parse(AttachmentInput::new());
+        let slug = super::name_slug(Singular::Single, &name, &none);
+        assert!(slug.as_ref().is_some_and(|slug| slug.as_ref() == b"hello"));
+        assert!(super::name_slug(Singular::Page, &name, &none).is_none());
+        assert!(super::name_slug(Singular::None, &name, &none).is_none());
     }
 }

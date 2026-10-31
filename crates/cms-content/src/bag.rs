@@ -10,7 +10,8 @@ use crate::error::Error;
 use crate::id::PostId;
 use crate::path::{PathHit, path_parts, walk};
 use crate::post::{Post, from_set};
-use crate::sql::{delete_row, insert_row, select_path, select_row, update_row};
+use crate::sql::{delete_row, insert_row, select_name, select_path, select_row, update_row};
+use crate::title::sanitize_title_for_query;
 use crate::write::Write;
 
 /// Posts table stem from `contracts/inventory/tables.jsonl`.
@@ -19,7 +20,8 @@ const STEM: &[u8] = b"posts";
 /// One site's post rows, loaded through [`Store`].
 ///
 /// Request-affine: not assumed [`Send`]. Contracts: `contracts/content/get.md`,
-/// `contracts/content/write.md`, `contracts/content/path.md`.
+/// `contracts/content/write.md`, `contracts/content/path.md`,
+/// `contracts/content/name.md`.
 pub struct Posts<S> {
     store: S,
     table: TableName,
@@ -78,6 +80,26 @@ impl<S: Store> Posts<S> {
                     return Ok(None);
                 };
                 self.get(id)
+            }
+            RowsOrFailed::Failed => Ok(None),
+        }
+    }
+
+    /// The post row for a `post_name` slug (`contracts/content/name.md`).
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn by_name(&mut self, name: &[u8]) -> Result<Option<Post>, Error> {
+        let slug = sanitize_title_for_query(name);
+        match self.query(&select_name(&self.table, &slug))? {
+            RowsOrFailed::Rows(set) => {
+                if let Some(post) = from_set(&set) {
+                    self.hits.insert(post.id(), post.clone());
+                    Ok(Some(post))
+                } else {
+                    Ok(None)
+                }
             }
             RowsOrFailed::Failed => Ok(None),
         }

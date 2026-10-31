@@ -20,8 +20,8 @@ Each inventory item has four independent states:
 | globals | 284 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 284 (100.0%) |
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
 | options | 121 | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 119 (98.3%) |
-| tables | 18 | 2 (11.1%) | 2 (11.1%) | 2 (11.1%) | 0 (0.0%) | 16 (88.9%) |
-| **total** | 9147 | 47 (0.5%) | 35 (0.4%) | 35 (0.4%) | 8 (0.1%) | 9100 (99.5%) |
+| tables | 18 | 4 (22.2%) | 4 (22.2%) | 4 (22.2%) | 0 (0.0%) | 14 (77.8%) |
+| **total** | 9147 | 49 (0.5%) | 37 (0.4%) | 37 (0.4%) | 8 (0.1%) | 9098 (99.5%) |
 
 ## Contract entries
 
@@ -35,3 +35,4 @@ Each inventory item has four independent states:
 | `option-write` | Add, update and delete option rows | 1 | yes | yes | no |
 | `plugin-load-order` | Which plugins load, and in what order | 8 | yes | yes | yes |
 | `request-lifecycle` | Order of the request lifecycle | 15 | no | no | no |
+| `taxonomy-get` | Get one term row by id | 2 | yes | yes | no |

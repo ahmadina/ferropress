@@ -1,0 +1,26 @@
+schema = 1
+id = "taxonomy-get"
+title = "Get one term row by id"
+summary = """
+A term id greater than zero is selected with a terms/term_taxonomy join and no LIMIT.
+The returned row is the column bytes the server sent. A single join row is remembered
+for the request; a miss and a shared id are not. Zero is a constructor error and does
+not hit the store.
+"""
+upstream = [
+    "wp-includes/class-wp-term.php",
+    "wp-includes/taxonomy.php",
+]
+evidence = [
+    "contracts/taxonomy/get.md",
+]
+implemented_in = ["crates/cms-taxonomy"]
+tests = [
+    "crates/cms-taxonomy/tests/get.rs::select_then_get_from_the_bag",
+    "crates/cms-taxonomy/tests/get.rs::a_taxonomy_filter_picks_the_matching_row",
+    "crates/cms-taxonomy/tests/get.rs::a_shared_id_is_not_remembered",
+    "crates/cms-taxonomy/tests/get.rs::unavailable_store_is_an_error",
+]
+
+[covers]
+tables = ["terms", "term_taxonomy"]

@@ -370,6 +370,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cms-taxonomy"
+version = "0.0.0"
+dependencies = [
+ "cms-db",
+ "proptest",
+ "thiserror",
+]
+
+[[package]]
 name = "cms-types"
 version = "0.0.0"
 

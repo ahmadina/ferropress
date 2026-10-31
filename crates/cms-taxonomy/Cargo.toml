@@ -1,0 +1,20 @@
+[package]
+name = "cms-taxonomy"
+description = "Load one term row by id from the site terms tables"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+cms-db = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+cms-db = { workspace = true, features = ["test-util"] }
+proptest = { workspace = true }
+
+[lints]
+workspace = true

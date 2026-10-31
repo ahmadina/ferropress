@@ -1,6 +1,7 @@
 //! Failures from the current-user bag.
 
 use cms_db::NameError as TableNameError;
+use cms_options::Error as OptionsError;
 use cms_users::Error as UsersError;
 
 /// The store could not be reached, or a table prefix was rejected.
@@ -33,10 +34,21 @@ impl From<UsersError> for Error {
     }
 }
 
+impl From<OptionsError> for Error {
+    fn from(error: OptionsError) -> Self {
+        if let OptionsError::Table(name) = error {
+            Self::Table(name)
+        } else {
+            Self::Unavailable
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Error;
     use cms_db::NameError as TableNameError;
+    use cms_options::Error as OptionsError;
     use cms_users::Error as UsersError;
 
     #[test]
@@ -52,5 +64,8 @@ mod tests {
         assert!(Error::from(UsersError::Unavailable).is_unavailable());
         let table = Error::from(UsersError::from(TableNameError::Nul));
         assert!(!table.is_unavailable());
+        assert!(Error::from(OptionsError::Unavailable).is_unavailable());
+        let options = Error::from(OptionsError::from(TableNameError::Nul));
+        assert!(!options.is_unavailable());
     }
 }

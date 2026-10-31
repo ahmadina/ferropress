@@ -43,6 +43,20 @@ impl GrantMap {
     pub fn is_empty(&self) -> bool {
         self.grants.is_empty()
     }
+
+    /// Overlay `top` onto this map (PHP `array_merge` for string keys).
+    #[must_use]
+    pub(crate) fn overlay(&self, top: &Self) -> Self {
+        let mut grants = self.grants.clone();
+        for (name, granted) in &top.grants {
+            if let Some((_, slot)) = grants.iter_mut().find(|(stored, _)| stored == name) {
+                *slot = *granted;
+            } else {
+                grants.push((name.clone(), *granted));
+            }
+        }
+        Self { grants }
+    }
 }
 
 /// Decode a serialized array, or empty when the bytes are not one.
@@ -51,18 +65,24 @@ pub(crate) fn grants_from_bytes(bytes: &[u8]) -> GrantMap {
     let Ok(document) = decode(bytes) else {
         return GrantMap::empty();
     };
-    let Value::Array(entries) = document.root() else {
+    grants_from_value(&document.root())
+}
+
+/// Grant flags from a decoded array value.
+#[must_use]
+pub(crate) fn grants_from_value(value: &Value<'_, '_>) -> GrantMap {
+    let Value::Array(entries) = value else {
         return GrantMap::empty();
     };
     let mut grants = Vec::new();
-    for (key, value) in entries {
+    for (key, nested) in entries.clone() {
         let Key::String(name) = key else {
             continue;
         };
         if name.is_empty() {
             continue;
         }
-        grants.push((Box::from(name), is_granted(&value)));
+        grants.push((Box::from(name), is_granted(&nested)));
     }
     GrantMap { grants }
 }
@@ -142,5 +162,20 @@ mod tests {
     fn later_entries_replace_earlier_ones() {
         let map = grants_from_bytes(b"a:2:{s:3:\"cap\";b:1;s:3:\"cap\";b:0;}");
         assert_eq!(map.get(b"cap"), Some(false));
+        let base = grants_from_bytes(b"a:2:{s:1:\"a\";b:1;s:1:\"b\";b:1;}");
+        let top = grants_from_bytes(b"a:2:{s:1:\"b\";b:0;s:1:\"c\";b:1;}");
+        let merged = base.overlay(&top);
+        assert!(merged.granted(b"a"));
+        assert_eq!(merged.get(b"b"), Some(false));
+        assert!(merged.granted(b"c"));
+        let names: Vec<(&[u8], bool)> = merged.iter().collect();
+        assert_eq!(
+            names,
+            vec![
+                (b"a".as_slice(), true),
+                (b"b".as_slice(), false),
+                (b"c".as_slice(), true)
+            ]
+        );
     }
 }

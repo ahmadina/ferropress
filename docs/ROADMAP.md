@@ -133,6 +133,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-users`: get usermeta cells for one user (raw stored bytes)
   - [x] `cms-users`: insert, update and delete usermeta rows (raw stored bytes)
   - [x] `cms-auth`: load stored capability map from usermeta
+  - [x] `cms-auth`: merge role caps from the user_roles option
 
 ## Phase 6 — Rendering
 

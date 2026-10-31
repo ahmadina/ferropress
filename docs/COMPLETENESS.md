@@ -19,9 +19,9 @@ Each inventory item has four independent states:
 | constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 694 (100.0%) |
 | globals | 284 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 284 (100.0%) |
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
-| options | 121 | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 119 (98.3%) |
+| options | 121 | 3 (2.5%) | 3 (2.5%) | 3 (2.5%) | 2 (1.7%) | 118 (97.5%) |
 | tables | 18 | 8 (44.4%) | 8 (44.4%) | 8 (44.4%) | 0 (0.0%) | 10 (55.6%) |
-| **total** | 9147 | 55 (0.6%) | 43 (0.5%) | 43 (0.5%) | 8 (0.1%) | 9092 (99.4%) |
+| **total** | 9147 | 56 (0.6%) | 44 (0.5%) | 44 (0.5%) | 8 (0.1%) | 9091 (99.4%) |
 
 ## Contract entries
 
@@ -29,6 +29,7 @@ Each inventory item has four independent states:
 |---|---|---:|---|---|---|
 | `auth-caps` | Stored capability map from usermeta | 1 | yes | yes | no |
 | `auth-current` | Request-local current user | 2 | yes | yes | no |
+| `auth-roles` | Role table and allcaps merge | 1 | yes | yes | no |
 | `cache-memory` | Request-local object cache | 9 | yes | yes | no |
 | `comment-get` | Get one comment row by id | 1 | yes | yes | no |
 | `comment-write` | Insert, update and delete comment rows | 1 | yes | yes | no |

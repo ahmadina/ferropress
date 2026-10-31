@@ -1,0 +1,25 @@
+schema = 1
+id = "auth-roles"
+title = "Role table and allcaps merge"
+summary = """
+The {prefix}user_roles option is a serialized array of role names to
+capability maps. allcaps merges those role caps for every stored-map key
+that is a role, then overlays the stored map. user_has_cap is not bound.
+"""
+upstream = [
+    "wp-includes/class-wp-roles.php",
+    "wp-includes/class-wp-user.php",
+]
+evidence = [
+    "contracts/auth/roles.md",
+]
+implemented_in = ["crates/cms-auth"]
+tests = [
+    "crates/cms-auth/tests/roles.rs::autoload_then_merge_with_stored_caps",
+    "crates/cms-auth/tests/roles.rs::missing_or_junk_is_empty",
+    "crates/cms-auth/tests/roles.rs::unavailable_store_is_an_error",
+    "crates/cms-auth/tests/roles.rs::empty_autoload_and_empty_all_then_miss",
+]
+
+[covers]
+options = ["wp_user_roles"]

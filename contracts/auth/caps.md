@@ -3,8 +3,9 @@
 How native crates read the capability map stored on one user. Implemented by
 `crates/cms-auth` (`contracts/entries/auth-caps.toml`). Provenance:
 `wp-includes/class-wp-user.php` (`get_caps_data`, `for_site`) in the pinned
-reference (inventory names only). Role merge, `user_has_cap`, `map_meta_cap`,
+reference (inventory names only). `user_has_cap`, `map_meta_cap`,
 multisite blog prefixes, writes and PHP-visible names are not bound yet.
+Role merge is `contracts/auth/roles.md`.
 
 The map lives in the inventory `usermeta` table under the key that is the caller
 table prefix followed by `capabilities` (single-site `get_blog_prefix`). Reads
@@ -27,12 +28,11 @@ inverted: `true`, a non-zero number, and a non-`0` non-empty string are granted;
 keys, empty string keys, and reference tokens are skipped. Later entries for the
 same name replace earlier ones (PHP array order).
 
-The returned map is the stored `caps` property, not `allcaps`. Role capabilities
-from the `user_roles` option are not merged.
+The returned map is the stored `caps` property. Role-merged `allcaps` is
+`contracts/auth/roles.md`.
 
 ## Not bound yet
 
-`WP_User::get_role_caps`, `wp_roles`, `user_can`, `current_user_can`,
-`map_meta_cap`, the `user_has_cap` filter, `exist` / `do_not_allow`, multisite
-`{prefix}{blog_id}_capabilities`, writes (`add_role`, `add_cap`), and the
-PHP-visible user object.
+`user_can`, `current_user_can`, `map_meta_cap`, the `user_has_cap` filter,
+`exist` / `do_not_allow`, multisite `{prefix}{blog_id}_capabilities`, writes
+(`add_role`, `add_cap`), and the PHP-visible user object.

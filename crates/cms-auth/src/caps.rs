@@ -8,6 +8,7 @@ use cms_users::{MetaKey, UserId, UserMeta};
 
 use crate::error::Error;
 use crate::grants::{GrantMap, grants_from_bytes};
+use crate::roles::{RoleTable, allcaps};
 
 /// Stored `{prefix}capabilities` maps, loaded through [`UserMeta`].
 ///
@@ -56,6 +57,15 @@ impl<S: Store> Caps<S> {
     /// [`Error::Unavailable`] when the store cannot talk to a server.
     pub fn granted(&mut self, id: UserId, name: &[u8]) -> Result<bool, Error> {
         Ok(self.get(id)?.granted(name))
+    }
+
+    /// Role-merged map for `id` (`allcaps`).
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn all(&mut self, id: UserId, roles: &RoleTable) -> Result<GrantMap, Error> {
+        Ok(allcaps(&self.get(id)?, roles))
     }
 }
 

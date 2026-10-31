@@ -313,6 +313,7 @@ name = "cms-auth"
 version = "0.0.0"
 dependencies = [
  "cms-db",
+ "cms-options",
  "cms-users",
  "php-serialize",
  "thiserror",

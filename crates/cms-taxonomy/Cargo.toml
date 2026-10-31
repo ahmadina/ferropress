@@ -1,6 +1,6 @@
 [package]
 name = "cms-taxonomy"
-description = "Load one term row by id from the site terms tables"
+description = "Load and write term rows on the site terms tables"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

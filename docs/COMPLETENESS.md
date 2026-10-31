@@ -36,3 +36,4 @@ Each inventory item has four independent states:
 | `plugin-load-order` | Which plugins load, and in what order | 8 | yes | yes | yes |
 | `request-lifecycle` | Order of the request lifecycle | 15 | no | no | no |
 | `taxonomy-get` | Get one term row by id | 2 | yes | yes | no |
+| `taxonomy-write` | Insert, update and delete term rows | 2 | yes | yes | no |

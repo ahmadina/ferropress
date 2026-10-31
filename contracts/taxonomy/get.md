@@ -3,8 +3,8 @@
 How native crates read one joined row from the site `terms` and `term_taxonomy` tables.
 Implemented by `crates/cms-taxonomy` (`contracts/entries/taxonomy-get.toml`). Provenance:
 `wp-includes/class-wp-term.php` in the pinned reference (inventory names only). PHP-visible
-objects, filters, sanitizing, the taxonomy registry, writes, object relationships and the
-object cache are not bound yet.
+objects, filters, sanitizing, the taxonomy registry, object relationships and the
+object cache are not bound yet. Raw-column writes are `contracts/taxonomy/write.md`.
 
 ## Identifiers
 
@@ -52,5 +52,6 @@ The value is the stored bytes, not sanitized and not filtered. The `filter` flag
 ## Not bound yet
 
 `get_term` output formats, `sanitize_term`, `taxonomy_exists`, `ambiguous_term_id` /
-`invalid_taxonomy` as PHP-visible errors, the `terms` object-cache group, `wp_insert_term` /
-`wp_update_term` / `wp_delete_term`, `term_relationships`, and the PHP-visible term object.
+`invalid_taxonomy` as PHP-visible errors, the `terms` object-cache group,
+`term_relationships`, and the PHP-visible term object. Raw-column writes are
+`contracts/taxonomy/write.md`.

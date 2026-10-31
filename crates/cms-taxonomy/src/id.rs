@@ -41,9 +41,33 @@ impl TermId {
     }
 }
 
+/// A stored `term_taxonomy_id`. Zero is rejected.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct TermTaxonomyId(u64);
+
+impl TermTaxonomyId {
+    /// An id that can name a taxonomy row.
+    ///
+    /// # Errors
+    ///
+    /// [`IdError::TaxonomyZero`] when `id` is `0`.
+    pub const fn new(id: u64) -> Result<Self, IdError> {
+        if id == 0 {
+            return Err(IdError::TaxonomyZero);
+        }
+        Ok(Self(id))
+    }
+
+    /// The integer as stored.
+    #[must_use]
+    pub const fn as_u64(self) -> u64 {
+        self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::TermId;
+    use super::{TermId, TermTaxonomyId};
     use crate::IdError;
 
     #[test]
@@ -58,6 +82,12 @@ mod tests {
         assert!(one.is_ok());
         if let Ok(one) = one {
             assert_eq!(one.as_u64(), 12);
+        }
+        assert!(matches!(TermTaxonomyId::new(0), Err(IdError::TaxonomyZero)));
+        let taxonomy = TermTaxonomyId::new(9);
+        assert!(taxonomy.is_ok());
+        if let Ok(taxonomy) = taxonomy {
+            assert_eq!(taxonomy.as_u64(), 9);
         }
     }
 }

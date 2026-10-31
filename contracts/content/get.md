@@ -3,7 +3,8 @@
 How native crates read one row from the site `posts` table. Implemented by `crates/cms-content`
 (`contracts/entries/content-get.toml`). Provenance: `wp-includes/class-wp-post.php` and
 `wp-includes/post.php` in the pinned reference (inventory names only). PHP-visible objects,
-filters, sanitizing, writes, meta, terms and the object cache are not bound yet.
+filters, sanitizing, meta, terms and the object cache are not bound yet. Raw-column writes
+are `contracts/content/write.md`.
 
 ## Identifiers
 
@@ -33,6 +34,6 @@ The value is the stored bytes, not sanitized and not filtered. Computed properti
 
 ## Not bound yet
 
-`get_post` output formats, `sanitize_post`, the `posts` object-cache group, `wp_insert_post` /
-`wp_update_post` / `wp_delete_post`, post meta, revisions, the global current post, and the
-PHP-visible post object.
+`get_post` output formats, `sanitize_post`, the `posts` object-cache group, post meta,
+revisions, the global current post, and the PHP-visible post object. Raw-column writes are
+`contracts/content/write.md`.

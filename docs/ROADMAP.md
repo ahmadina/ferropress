@@ -121,6 +121,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-options`: add, update and delete option rows (raw stored bytes)
   - [x] `cms-cache`: request-local object cache (keys, groups, site prefix)
   - [x] `cms-content`: get one post row by id (raw stored bytes)
+  - [x] `cms-content`: insert, update and delete post rows (raw stored bytes)
 
 ## Phase 6 — Rendering
 

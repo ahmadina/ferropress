@@ -1,0 +1,26 @@
+schema = 1
+id = "content-write"
+title = "Insert, update and delete post rows"
+summary = """
+Insert writes the compact posts columns and returns the new id from insert_id. Update
+rewrites those columns for an existing id. Delete removes the row by id. Integer columns
+are unquoted; other cells are quoted MySQL strings. Server rejection and zero affected
+rows (or a zero insert_id) are unchanged; a platform error is not.
+"""
+upstream = [
+    "wp-includes/post.php",
+    "wp-includes/class-wpdb.php",
+]
+evidence = [
+    "contracts/content/write.md",
+]
+implemented_in = ["crates/cms-content"]
+tests = [
+    "crates/cms-content/tests/write.rs::insert_returns_the_new_id",
+    "crates/cms-content/tests/write.rs::update_rewrites_and_forgets_a_hit",
+    "crates/cms-content/tests/write.rs::delete_removes_and_forgets_a_hit",
+    "crates/cms-content/tests/write.rs::failed_or_zero_is_unchanged",
+]
+
+[covers]
+tables = ["posts"]

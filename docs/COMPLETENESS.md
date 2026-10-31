@@ -29,6 +29,7 @@ Each inventory item has four independent states:
 |---|---|---:|---|---|---|
 | `cache-memory` | Request-local object cache | 9 | yes | yes | no |
 | `content-get` | Get one post row by id | 1 | yes | yes | no |
+| `content-write` | Insert, update and delete post rows | 1 | yes | yes | no |
 | `hook-dispatch` | Priority-ordered filter and action dispatch | 16 | yes | yes | no |
 | `option-load` | Autoloaded options and get-by-name | 1 | yes | yes | no |
 | `option-write` | Add, update and delete option rows | 1 | yes | yes | no |

@@ -13,7 +13,7 @@ Each inventory item has four independent states:
 
 | Section | Items | Documented | Implemented | Tested | Certified | Unknown |
 |---|---:|---:|---:|---:|---:|---:|
-| functions | 4353 | 29 (0.7%) | 28 (0.6%) | 28 (0.6%) | 3 (0.1%) | 4324 (99.3%) |
+| functions | 4353 | 31 (0.7%) | 30 (0.7%) | 30 (0.7%) | 3 (0.1%) | 4322 (99.3%) |
 | classes | 824 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 824 (100.0%) |
 | hooks | 2720 | 14 (0.5%) | 3 (0.1%) | 3 (0.1%) | 3 (0.1%) | 2706 (99.5%) |
 | constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 694 (100.0%) |
@@ -21,12 +21,13 @@ Each inventory item has four independent states:
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
 | options | 121 | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 2 (1.7%) | 119 (98.3%) |
 | tables | 18 | 7 (38.9%) | 7 (38.9%) | 7 (38.9%) | 0 (0.0%) | 11 (61.1%) |
-| **total** | 9147 | 52 (0.6%) | 40 (0.4%) | 40 (0.4%) | 8 (0.1%) | 9095 (99.4%) |
+| **total** | 9147 | 54 (0.6%) | 42 (0.5%) | 42 (0.5%) | 8 (0.1%) | 9093 (99.4%) |
 
 ## Contract entries
 
 | Entry | Title | Items | Implemented | Tested | Certified |
 |---|---|---:|---|---|---|
+| `auth-current` | Request-local current user | 2 | yes | yes | no |
 | `cache-memory` | Request-local object cache | 9 | yes | yes | no |
 | `comment-get` | Get one comment row by id | 1 | yes | yes | no |
 | `comment-write` | Insert, update and delete comment rows | 1 | yes | yes | no |

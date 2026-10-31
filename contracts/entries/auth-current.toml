@@ -1,0 +1,30 @@
+schema = 1
+id = "auth-current"
+title = "Request-local current user"
+summary = """
+The current user starts unset. Setting an id loads that users-table row; a miss
+leaves the current user empty. Setting the same id again does not hit the store.
+Clearing (id zero) empties the current user without a SELECT. Cookies and
+determine_current_user are not bound.
+"""
+upstream = [
+    "wp-includes/pluggable.php",
+    "wp-includes/user.php",
+    "wp-includes/class-wp-user.php",
+]
+evidence = [
+    "contracts/auth/current.md",
+]
+implemented_in = ["crates/cms-auth"]
+tests = [
+    "crates/cms-auth/tests/current.rs::unset_is_empty_without_sql",
+    "crates/cms-auth/tests/current.rs::set_loads_then_short_circuits",
+    "crates/cms-auth/tests/current.rs::a_miss_leaves_the_current_user_empty",
+    "crates/cms-auth/tests/current.rs::clear_empties_without_sql",
+]
+
+[covers]
+functions = [
+    "wp_set_current_user",
+    "get_current_user_id",
+]

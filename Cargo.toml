@@ -12,6 +12,7 @@ license = "GPL-2.0-or-later"
 repository = "https://github.com/ahmadina/ferropress"
 
 [workspace.dependencies]
+cms-auth = { path = "crates/cms-auth" }
 cms-cache = { path = "crates/cms-cache" }
 cms-comments = { path = "crates/cms-comments" }
 cms-content = { path = "crates/cms-content" }

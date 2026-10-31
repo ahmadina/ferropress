@@ -29,5 +29,6 @@ Each inventory item has four independent states:
 |---|---|---:|---|---|---|
 | `hook-dispatch` | Priority-ordered filter and action dispatch | 16 | yes | yes | no |
 | `option-load` | Autoloaded options and get-by-name | 1 | yes | yes | no |
+| `option-write` | Add, update and delete option rows | 1 | yes | yes | no |
 | `plugin-load-order` | Which plugins load, and in what order | 8 | yes | yes | yes |
 | `request-lifecycle` | Order of the request lifecycle | 15 | no | no | no |

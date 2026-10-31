@@ -5,16 +5,22 @@ use std::fmt;
 
 use cms_db::{Cell, Reply, ResultSet, Sql, Store, TableName, TablePrefix, TableStem};
 
+use crate::autoload::{Autoload, is_auto_family, is_loaded_token};
 use crate::error::Error;
 use crate::name::OptionName;
-use crate::sql::{select_all, select_autoloaded, select_value};
+use crate::sql::{
+    delete_row, insert_row, select_all, select_autoload, select_autoloaded, select_value,
+    update_row,
+};
+use crate::write::Write;
 
 /// Options table stem from `contracts/inventory/tables.jsonl`.
 const STEM: &[u8] = b"options";
 
 /// One site's option rows, loaded through [`Store`].
 ///
-/// Request-affine: not assumed [`Send`]. Contract: `contracts/options/load.md`.
+/// Request-affine: not assumed [`Send`]. Contracts: `contracts/options/load.md`,
+/// `contracts/options/write.md`.
 pub struct Options<S> {
     store: S,
     table: TableName,
@@ -79,6 +85,88 @@ impl<S: Store> Options<S> {
         Ok(Some(finish(name, bytes)))
     }
 
+    /// Insert `name` unless it already exists.
+    ///
+    /// Contract: `contracts/options/write.md`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn add(
+        &mut self,
+        name: &OptionName,
+        value: &[u8],
+        autoload: Autoload,
+    ) -> Result<Write, Error> {
+        if name.is_protected() {
+            return Ok(Write::Protected);
+        }
+        self.load()?;
+        if self.raw_get(name)?.is_some() {
+            return Ok(Write::Unchanged);
+        }
+        if !self.exec(&insert_row(&self.table, name, value, autoload))? {
+            return Ok(Write::Unchanged);
+        }
+        self.remember(name, value, Some(autoload))?;
+        Ok(Write::Changed)
+    }
+
+    /// Replace the stored bytes, or [`add`](Self::add) when the name is missing.
+    ///
+    /// Contract: `contracts/options/write.md`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn update(
+        &mut self,
+        name: &OptionName,
+        value: &[u8],
+        autoload: Option<Autoload>,
+    ) -> Result<Write, Error> {
+        if name.is_protected() {
+            return Ok(Write::Protected);
+        }
+        self.load()?;
+        match self.raw_get(name)? {
+            None => self.add(name, value, autoload.unwrap_or(Autoload::Auto)),
+            Some(old) if old.as_ref() == value => Ok(Write::Unchanged),
+            Some(_) => {
+                let extra = match autoload {
+                    Some(autoload) => Some(autoload),
+                    None => self.reevaluate_auto(name)?,
+                };
+                if !self.exec(&update_row(&self.table, name, value, extra))? {
+                    return Ok(Write::Unchanged);
+                }
+                self.remember(name, value, extra)?;
+                Ok(Write::Changed)
+            }
+        }
+    }
+
+    /// Remove `name` if the row exists.
+    ///
+    /// Contract: `contracts/options/write.md`.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn delete(&mut self, name: &OptionName) -> Result<Write, Error> {
+        if name.is_protected() {
+            return Ok(Write::Protected);
+        }
+        let Some(token) = self.autoload_token(name)? else {
+            return Ok(Write::Unchanged);
+        };
+        if !self.exec(&delete_row(&self.table, name))? {
+            return Ok(Write::Unchanged);
+        }
+        self.forget(name, is_loaded_token(&token));
+        Ok(Write::Changed)
+    }
+
     fn raw_get(&mut self, name: &OptionName) -> Result<Option<Box<[u8]>>, Error> {
         if let Some(all) = &self.alloptions
             && let Some(value) = all.get(name)
@@ -114,6 +202,80 @@ impl<S: Store> Options<S> {
             Ok(_) => Ok(RowsOrFailed::Failed),
             Err(_) => Err(Error::Unavailable),
         }
+    }
+
+    fn exec(&mut self, sql: &Sql) -> Result<bool, Error> {
+        match self.store.query(sql) {
+            Ok(Reply::Done { affected, .. }) => Ok(affected > 0),
+            Ok(Reply::Rows(_)) => Ok(true),
+            Ok(Reply::Failed(_) | _) => Ok(false),
+            Err(_) => Err(Error::Unavailable),
+        }
+    }
+
+    fn autoload_token(&mut self, name: &OptionName) -> Result<Option<Box<[u8]>>, Error> {
+        match self.query(&select_autoload(&self.table, name))? {
+            RowsOrFailed::Rows(set) => Ok(first_value(&set)),
+            RowsOrFailed::Failed => Ok(None),
+        }
+    }
+
+    fn reevaluate_auto(&mut self, name: &OptionName) -> Result<Option<Autoload>, Error> {
+        let Some(raw) = self.autoload_token(name)? else {
+            return Ok(None);
+        };
+        if is_auto_family(&raw) && raw.as_ref() != Autoload::Auto.as_bytes() {
+            Ok(Some(Autoload::Auto))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn remember(
+        &mut self,
+        name: &OptionName,
+        value: &[u8],
+        autoload: Option<Autoload>,
+    ) -> Result<(), Error> {
+        self.notoptions.remove(name);
+        let stored: Box<[u8]> = value.into();
+        match autoload {
+            Some(autoload) if autoload.is_loaded() => {
+                self.load()?;
+                if let Some(all) = &mut self.alloptions {
+                    all.insert(name.clone(), stored);
+                }
+                self.singles.remove(name);
+            }
+            Some(_) => {
+                self.load()?;
+                if let Some(all) = &mut self.alloptions {
+                    all.remove(name);
+                }
+                self.singles.insert(name.clone(), stored);
+            }
+            None => {
+                if let Some(all) = &mut self.alloptions
+                    && all.contains_key(name)
+                {
+                    all.insert(name.clone(), stored);
+                } else {
+                    self.singles.insert(name.clone(), stored);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn forget(&mut self, name: &OptionName, was_loaded: bool) {
+        if was_loaded {
+            if let Some(all) = &mut self.alloptions {
+                all.remove(name);
+            }
+        } else {
+            self.singles.remove(name);
+        }
+        self.notoptions.insert(name.clone());
     }
 }
 

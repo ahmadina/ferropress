@@ -1,6 +1,6 @@
 [package]
 name = "cms-options"
-description = "Load autoloaded options and get one name from the site options table"
+description = "Load, get, add, update and delete rows in the site options table"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

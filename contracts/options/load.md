@@ -2,8 +2,8 @@
 
 How native crates read the site `options` table. Implemented by `crates/cms-options`
 (`contracts/entries/option-load.toml`). Provenance: `wp-includes/option.php` in the pinned
-reference (inventory names only). PHP-visible names, hooks, writes, serialization and the
-object cache are not bound yet.
+reference (inventory names only). PHP-visible names, hooks, serialization and the object
+cache are not bound yet. Writes are in `contracts/options/write.md`.
 
 ## Names
 
@@ -55,5 +55,5 @@ empty, the value of `siteurl` is returned instead. For `siteurl`, `home`, `categ
 
 ## Not bound yet
 
-`add` / `update` / `delete`, autoload writes, `pre_option` and other hooks, `maybe_unserialize`,
-the persistent object cache, network/site options, transients, and the PHP-visible functions.
+`pre_option` and other hooks, `maybe_unserialize`, the persistent object cache, network/site
+options, transients, and the PHP-visible functions.

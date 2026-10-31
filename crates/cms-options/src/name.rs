@@ -46,6 +46,12 @@ impl OptionName {
         self.0.as_ref() == b"home"
     }
 
+    /// `alloptions` and `notoptions` may not be written.
+    #[must_use]
+    pub fn is_protected(&self) -> bool {
+        matches!(self.0.as_ref(), b"alloptions" | b"notoptions")
+    }
+
     /// Whether trailing `/` and `\` are stripped from the stored value.
     #[must_use]
     pub fn strips_trailing_slash(&self) -> bool {
@@ -98,6 +104,7 @@ mod tests {
             assert_eq!(keys.as_bytes(), b"disallowed_keys");
             assert_eq!(comments.as_bytes(), b"comment_previously_approved");
             assert!(!keys.is_home());
+            assert!(!keys.is_protected());
         }
         let home = OptionName::new("home");
         assert!(home.as_ref().is_ok_and(OptionName::is_home));
@@ -111,5 +118,9 @@ mod tests {
         }
         assert_eq!(OptionName::siteurl().as_bytes(), b"siteurl");
         assert!(OptionName::siteurl().strips_trailing_slash());
+        let protected = OptionName::new("alloptions");
+        assert!(protected.as_ref().is_ok_and(OptionName::is_protected));
+        let other = OptionName::new("notoptions");
+        assert!(other.as_ref().is_ok_and(OptionName::is_protected));
     }
 }

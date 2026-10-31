@@ -1,0 +1,25 @@
+schema = 1
+id = "option-write"
+title = "Add, update and delete option rows"
+summary = """
+Add inserts a missing name with an on/off/auto token. Update writes new raw bytes, or adds
+when the name is missing; the same bytes are unchanged. Delete removes an existing row.
+alloptions and notoptions are protected. Server rejection and zero affected rows are
+unchanged; a platform error is not.
+"""
+upstream = [
+    "wp-includes/option.php",
+]
+evidence = [
+    "contracts/options/write.md",
+]
+implemented_in = ["crates/cms-options"]
+tests = [
+    "crates/cms-options/tests/write.rs::add_inserts_a_missing_loaded_name",
+    "crates/cms-options/tests/write.rs::update_rewrites_raw_bytes",
+    "crates/cms-options/tests/write.rs::delete_removes_a_loaded_row",
+    "crates/cms-options/tests/write.rs::protected_names_are_not_written",
+]
+
+[covers]
+tables = ["options"]

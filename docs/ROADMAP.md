@@ -118,6 +118,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-db`: SQL store port (statement in, rows / done / server failure out)
   - [x] `infra-mysql`: `MySQL` adapter for that port (text cells, server errors as data)
   - [x] `cms-options`: autoload bag and get-by-name (raw stored bytes)
+  - [x] `cms-options`: add, update and delete option rows (raw stored bytes)
 
 ## Phase 6 — Rendering
 

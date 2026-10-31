@@ -8,6 +8,7 @@ use php_serialize::{Key, Value, decode};
 
 use crate::error::Error;
 use crate::grants::{GrantMap, grants_from_value};
+use crate::map::Flags;
 
 /// Roles listed in the `user_roles` option.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -100,7 +101,9 @@ fn role_caps(value: &Value<'_, '_>) -> GrantMap {
 pub struct Roles<S> {
     options: Options<S>,
     name: OptionName,
+    links: OptionName,
     loaded: Option<RoleTable>,
+    flags: Option<Flags>,
 }
 
 impl<S: Store> Roles<S> {
@@ -113,7 +116,9 @@ impl<S: Store> Roles<S> {
         Ok(Self {
             options: Options::new(store, prefix)?,
             name: role_option(prefix)?,
+            links: links_option()?,
             loaded: None,
+            flags: None,
         })
     }
 
@@ -133,6 +138,26 @@ impl<S: Store> Roles<S> {
         self.loaded = Some(table.clone());
         Ok(table)
     }
+
+    /// Site flags from options (`link_manager_enabled`).
+    ///
+    /// Missing or PHP-empty stored bytes are off. A later read in this request
+    /// does not hit the store again.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn flags(&mut self) -> Result<Flags, Error> {
+        if let Some(flags) = self.flags {
+            return Ok(flags);
+        }
+        let flags = match self.options.get(&self.links)? {
+            Some(bytes) if stored_on(&bytes) => Flags::links(true),
+            Some(_) | None => Flags::off(),
+        };
+        self.flags = Some(flags);
+        Ok(flags)
+    }
 }
 
 impl<S> fmt::Debug for Roles<S> {
@@ -141,6 +166,17 @@ impl<S> fmt::Debug for Roles<S> {
             .field("name", &String::from_utf8_lossy(self.name.as_bytes()))
             .finish_non_exhaustive()
     }
+}
+
+fn links_option() -> Result<OptionName, Error> {
+    match OptionName::new("link_manager_enabled") {
+        Ok(name) => Ok(name),
+        Err(_empty) => Err(Error::Unavailable),
+    }
+}
+
+fn stored_on(bytes: &[u8]) -> bool {
+    !bytes.is_empty() && bytes != b"0"
 }
 
 fn role_option(prefix: &TablePrefix) -> Result<OptionName, Error> {

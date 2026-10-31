@@ -8,7 +8,7 @@ use cms_users::{User, UserId, Users};
 use crate::caps::Caps;
 use crate::error::Error;
 use crate::grants::GrantMap;
-use crate::map::{Actor, map_user};
+use crate::map::{Actor, Flags, map_on};
 use crate::roles::RoleTable;
 
 /// The user that is current for this request, if any.
@@ -97,10 +97,34 @@ impl<S: Store> Current<S> {
         if let Some(id) = self.id() {
             caps.can_user(id, roles, cap, target)
         } else {
-            let mapped = map_user(cap, Actor::Anonymous, target);
-            let required: Vec<&[u8]> = mapped.names().collect();
-            Ok(GrantMap::empty().has(&required))
+            Ok(Self::check_anon(cap, target, Flags::off()))
         }
+    }
+
+    /// Whether the current user is allowed `cap` with site flags.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when a loaded user cannot read the caps store.
+    pub fn can_on<C: Store>(
+        &self,
+        caps: &mut Caps<C>,
+        roles: &RoleTable,
+        cap: &[u8],
+        target: Option<UserId>,
+        flags: Flags,
+    ) -> Result<bool, Error> {
+        if let Some(id) = self.id() {
+            caps.can_on(id, roles, cap, target, flags)
+        } else {
+            Ok(Self::check_anon(cap, target, flags))
+        }
+    }
+
+    fn check_anon(cap: &[u8], target: Option<UserId>, flags: Flags) -> bool {
+        let mapped = map_on(cap, Actor::Anonymous, target, flags);
+        let required: Vec<&[u8]> = mapped.names().collect();
+        GrantMap::empty().has(&required)
     }
 }
 

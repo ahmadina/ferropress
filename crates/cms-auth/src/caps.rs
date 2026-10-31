@@ -8,7 +8,7 @@ use cms_users::{MetaKey, UserId, UserMeta};
 
 use crate::error::Error;
 use crate::grants::{GrantMap, grants_from_bytes};
-use crate::map::{Actor, map_user};
+use crate::map::{Actor, Flags, map_on};
 use crate::roles::{RoleTable, allcaps};
 
 /// Stored `{prefix}capabilities` maps, loaded through [`UserMeta`].
@@ -104,7 +104,23 @@ impl<S: Store> Caps<S> {
         cap: &[u8],
         target: Option<UserId>,
     ) -> Result<bool, Error> {
-        let mapped = map_user(cap, Actor::User(id), target);
+        self.can_on(id, roles, cap, target, Flags::off())
+    }
+
+    /// Whether `id` is allowed `cap` with site flags (`contracts/auth/links.md`).
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when the store cannot talk to a server.
+    pub fn can_on(
+        &mut self,
+        id: UserId,
+        roles: &RoleTable,
+        cap: &[u8],
+        target: Option<UserId>,
+        flags: Flags,
+    ) -> Result<bool, Error> {
+        let mapped = map_on(cap, Actor::User(id), target, flags);
         let required: Vec<&[u8]> = mapped.names().collect();
         self.has(id, roles, &required)
     }

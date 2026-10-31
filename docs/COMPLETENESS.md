@@ -19,9 +19,9 @@ Each inventory item has four independent states:
 | constants | 694 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 694 (100.0%) |
 | globals | 284 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 284 (100.0%) |
 | rest-routes | 133 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 133 (100.0%) |
-| options | 121 | 3 (2.5%) | 3 (2.5%) | 3 (2.5%) | 2 (1.7%) | 118 (97.5%) |
+| options | 121 | 4 (3.3%) | 4 (3.3%) | 4 (3.3%) | 2 (1.7%) | 117 (96.7%) |
 | tables | 18 | 8 (44.4%) | 8 (44.4%) | 8 (44.4%) | 0 (0.0%) | 10 (55.6%) |
-| **total** | 9147 | 59 (0.6%) | 47 (0.5%) | 47 (0.5%) | 8 (0.1%) | 9088 (99.4%) |
+| **total** | 9147 | 60 (0.7%) | 48 (0.5%) | 48 (0.5%) | 8 (0.1%) | 9087 (99.3%) |
 
 ## Contract entries
 
@@ -31,6 +31,7 @@ Each inventory item has four independent states:
 | `auth-current-can` | Current user capability check | 1 | yes | yes | no |
 | `auth-current` | Request-local current user | 2 | yes | yes | no |
 | `auth-has` | Primitive capability check after allcaps | 1 | yes | yes | no |
+| `auth-links` | manage_links follows the link_manager_enabled option | 1 | yes | yes | no |
 | `auth-map` | Single-site capability mapping to primitives | 1 | yes | yes | no |
 | `auth-roles` | Role table and allcaps merge | 1 | yes | yes | no |
 | `cache-memory` | Request-local object cache | 9 | yes | yes | no |

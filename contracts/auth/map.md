@@ -60,7 +60,8 @@ Every other name stays itself, including primitives such as `manage_options` and
 
 ## Not bound yet
 
-Post, comment, term and meta object ids (`edit_post`, `edit_comment`),
-`manage_links`, file-mod and unfiltered constants, `activate_plugin` network
-extras, custom post-type meta caps, and the `map_meta_cap` filter. The
-current-user check is `contracts/auth/current-can.md`.
+Post, comment, term and meta object ids (`edit_post`, `edit_comment`), file-mod
+and unfiltered constants, `activate_plugin` network extras, custom post-type
+meta caps, and the `map_meta_cap` filter. `manage_links` is
+`contracts/auth/links.md`. The current-user check is
+`contracts/auth/current-can.md`.

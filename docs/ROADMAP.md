@@ -138,6 +138,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-auth`: map single-site cap aliases to primitives
   - [x] `cms-auth`: current user capability check
   - [x] `cms-auth`: map edit_user and remove_user object ids
+  - [x] `cms-auth`: map manage_links from the link_manager_enabled option
 
 ## Phase 6 — Rendering
 

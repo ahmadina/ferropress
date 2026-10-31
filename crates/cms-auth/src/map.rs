@@ -11,6 +11,26 @@ pub enum Actor {
     User(UserId),
 }
 
+/// Site flags that mapping reads (single-site).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Flags {
+    links: bool,
+}
+
+impl Flags {
+    /// No optional site features.
+    #[must_use]
+    pub const fn off() -> Self {
+        Self { links: false }
+    }
+
+    /// Whether the link manager option is on.
+    #[must_use]
+    pub const fn links(on: bool) -> Self {
+        Self { links: on }
+    }
+}
+
 /// Primitive names a capability requires after mapping.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Mapped {
@@ -49,6 +69,19 @@ pub fn map_meta(cap: &[u8], actor: Actor) -> Mapped {
 /// Primitive names required for `cap` when the object may be a user id.
 #[must_use]
 pub fn map_user(cap: &[u8], actor: Actor, target: Option<UserId>) -> Mapped {
+    map_on(cap, actor, target, Flags::off())
+}
+
+/// Primitive names required for `cap` with site flags.
+#[must_use]
+pub fn map_on(cap: &[u8], actor: Actor, target: Option<UserId>, flags: Flags) -> Mapped {
+    if cap == b"manage_links" {
+        return if flags.links {
+            Mapped::one(b"manage_links")
+        } else {
+            Mapped::one(b"do_not_allow")
+        };
+    }
     match cap {
         b"edit_user" => match (actor, target) {
             (Actor::Anonymous, _) => Mapped::one(b"do_not_allow"),
@@ -122,7 +155,7 @@ const BLOCKS: &[(&[u8], &[u8])] = &[
 mod tests {
     use cms_users::UserId;
 
-    use super::{Actor, map_meta, map_user};
+    use super::{Actor, Flags, map_meta, map_on, map_user};
 
     fn user() -> Actor {
         let id = UserId::new(3);
@@ -220,6 +253,10 @@ mod tests {
                 Some(id),
                 &[b"remove_users"],
             );
+            assert_names(b"manage_links", actor, &[b"do_not_allow"]);
+            let on = map_on(b"manage_links", actor, None, Flags::links(true));
+            let names: Vec<&[u8]> = on.names().collect();
+            assert_eq!(names, [b"manage_links".as_slice()]);
         }
     }
 }

@@ -3,8 +3,9 @@
 //!
 //! Domain crates depend on this crate, not on a driver (ADR-0004). Contracts:
 //! `contracts/auth/current.md`, `contracts/auth/caps.md`, `contracts/auth/roles.md`,
-//! `contracts/auth/has.md`, `contracts/auth/map.md`, `contracts/auth/current-can.md`.
-//! Cookies, password checks, post object-id mapping and PHP-visible names are not here.
+//! `contracts/auth/has.md`, `contracts/auth/map.md`, `contracts/auth/current-can.md`,
+//! `contracts/auth/links.md`. Cookies, password checks, post object-id mapping
+//! and PHP-visible names are not here.
 //!
 //! # Examples
 //!
@@ -32,5 +33,5 @@ pub use caps::Caps;
 pub use current::Current;
 pub use error::Error;
 pub use grants::GrantMap;
-pub use map::{Actor, Mapped, map_meta, map_user};
+pub use map::{Actor, Flags, Mapped, map_meta, map_on, map_user};
 pub use roles::{RoleTable, Roles, allcaps};

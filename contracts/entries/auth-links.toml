@@ -1,0 +1,25 @@
+schema = 1
+id = "auth-links"
+title = "manage_links follows the link_manager_enabled option"
+summary = """
+manage_links stays itself when link_manager_enabled is a non-empty, non-0
+stored string. Missing or PHP-empty bytes map manage_links to do_not_allow.
+Serialized option values are not decoded.
+"""
+upstream = [
+    "wp-includes/capabilities.php",
+    "wp-includes/option.php",
+]
+evidence = [
+    "contracts/auth/links.md",
+]
+implemented_in = ["crates/cms-auth"]
+tests = [
+    "crates/cms-auth/tests/links.rs::missing_or_empty_denies_manage_links",
+    "crates/cms-auth/tests/links.rs::one_allows_when_the_role_grants_it",
+    "crates/cms-auth/tests/links.rs::flags_are_remembered",
+    "crates/cms-auth/tests/links.rs::unavailable_store_is_an_error",
+]
+
+[covers]
+options = ["link_manager_enabled"]

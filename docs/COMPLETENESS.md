@@ -27,6 +27,7 @@ Each inventory item has four independent states:
 
 | Entry | Title | Items | Implemented | Tested | Certified |
 |---|---|---:|---|---|---|
+| `auth-caps` | Stored capability map from usermeta | 1 | yes | yes | no |
 | `auth-current` | Request-local current user | 2 | yes | yes | no |
 | `cache-memory` | Request-local object cache | 9 | yes | yes | no |
 | `comment-get` | Get one comment row by id | 1 | yes | yes | no |

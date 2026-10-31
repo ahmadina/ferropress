@@ -1,6 +1,6 @@
 [package]
 name = "cms-auth"
-description = "Request-local current user loaded from the users table"
+description = "Request-local current user and stored capability maps"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,6 +11,7 @@ repository.workspace = true
 [dependencies]
 cms-db = { workspace = true }
 cms-users = { workspace = true }
+php-serialize = { path = "../php-serialize" }
 thiserror = { workspace = true }
 
 [dev-dependencies]

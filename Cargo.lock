@@ -314,6 +314,7 @@ version = "0.0.0"
 dependencies = [
  "cms-db",
  "cms-users",
+ "php-serialize",
  "thiserror",
 ]
 

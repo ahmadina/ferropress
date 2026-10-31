@@ -1,0 +1,25 @@
+schema = 1
+id = "auth-caps"
+title = "Stored capability map from usermeta"
+summary = """
+A user id loads the first {prefix}capabilities usermeta cell and decodes a
+serialized array of name to grant. Missing, junk, or a non-array value is an
+empty map. Role merge, user_has_cap and map_meta_cap are not bound.
+"""
+upstream = [
+    "wp-includes/class-wp-user.php",
+    "wp-includes/meta.php",
+]
+evidence = [
+    "contracts/auth/caps.md",
+]
+implemented_in = ["crates/cms-auth"]
+tests = [
+    "crates/cms-auth/tests/caps.rs::select_then_read_grants",
+    "crates/cms-auth/tests/caps.rs::missing_or_junk_is_empty",
+    "crates/cms-auth/tests/caps.rs::an_empty_map_is_remembered",
+    "crates/cms-auth/tests/caps.rs::unavailable_store_is_an_error",
+]
+
+[covers]
+tables = ["usermeta"]

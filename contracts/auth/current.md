@@ -33,4 +33,5 @@ is already empty does not hit the store.
 
 `wp_validate_auth_cookie`, `determine_current_user`, XML-RPC forcing id zero,
 `wp_set_current_user` by login name, `setup_userdata`, the `set_current_user`
-action, password checks, and the PHP-visible current-user object.
+action, password checks, and the PHP-visible current-user object. Stored
+capability maps are `contracts/auth/caps.md`.

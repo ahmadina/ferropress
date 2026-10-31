@@ -25,6 +25,18 @@ impl MetaKey {
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
     }
+
+    /// `{prefix}capabilities` — the stored capability-map key.
+    ///
+    /// The suffix is never empty, so the result is always a usable key.
+    #[must_use]
+    pub fn capabilities(prefix: impl AsRef<[u8]>) -> Self {
+        let prefix = prefix.as_ref();
+        let mut bytes = Vec::with_capacity(prefix.len().saturating_add(12));
+        bytes.extend_from_slice(prefix);
+        bytes.extend_from_slice(b"capabilities");
+        Self(bytes.into())
+    }
 }
 
 #[cfg(test)]
@@ -52,5 +64,7 @@ mod tests {
         if let (Ok(nick), Ok(other)) = (nick, other) {
             assert_ne!(nick, other);
         }
+        assert_eq!(MetaKey::capabilities("wp_").as_bytes(), b"wp_capabilities");
+        assert_eq!(MetaKey::capabilities("").as_bytes(), b"capabilities");
     }
 }

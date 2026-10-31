@@ -132,6 +132,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-auth`: request-local current user (load by id)
   - [x] `cms-users`: get usermeta cells for one user (raw stored bytes)
   - [x] `cms-users`: insert, update and delete usermeta rows (raw stored bytes)
+  - [x] `cms-auth`: load stored capability map from usermeta
 
 ## Phase 6 — Rendering
 

@@ -1,6 +1,6 @@
 [package]
 name = "cms-query"
-description = "Parse the p, page_id and name query vars into post and page keys"
+description = "Parse the p, page_id, name and pagename query vars"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

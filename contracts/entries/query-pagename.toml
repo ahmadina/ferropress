@@ -1,0 +1,25 @@
+schema = 1
+id = "query-pagename"
+title = "Parse the pagename query var"
+summary = """
+An absent or whitespace-only pagename is empty and not a page. A scalar is
+stored after PHP trim. Any remaining bytes, including 0, are a page request.
+Earlier singular keys, object matching and SQL are not bound.
+"""
+upstream = [
+    "wp-includes/class-wp-query.php",
+    "wp-includes/query.php",
+]
+evidence = [
+    "contracts/query/pagename.md",
+]
+implemented_in = ["crates/cms-query"]
+tests = [
+    "crates/cms-query/tests/pagename.rs::missing_empty_and_whitespace_are_not_a_page",
+    "crates/cms-query/tests/pagename.rs::trimmed_slug_is_a_page",
+    "crates/cms-query/tests/pagename.rs::zero_bytes_are_a_page",
+    "crates/cms-query/tests/pagename.rs::inner_spaces_are_kept",
+]
+
+[covers]
+functions = ["is_page"]

@@ -46,6 +46,7 @@ Each inventory item has four independent states:
 | `query-name` | Parse the name query var | 1 | yes | yes | no |
 | `query-p` | Parse the p query var | 1 | yes | yes | no |
 | `query-page-id` | Parse the page_id query var | 1 | yes | yes | no |
+| `query-pagename` | Parse the pagename query var | 1 | yes | yes | no |
 | `request-lifecycle` | Order of the request lifecycle | 15 | no | no | no |
 | `taxonomy-get` | Get one term row by id | 2 | yes | yes | no |
 | `taxonomy-link` | Attach and detach object-term rows | 1 | yes | yes | no |

@@ -8,7 +8,7 @@ use cms_users::{User, UserId, Users};
 use crate::caps::Caps;
 use crate::error::Error;
 use crate::grants::GrantMap;
-use crate::map::{Actor, map_meta};
+use crate::map::{Actor, map_user};
 use crate::roles::RoleTable;
 
 /// The user that is current for this request, if any.
@@ -79,10 +79,25 @@ impl<S: Store> Current<S> {
         roles: &RoleTable,
         cap: &[u8],
     ) -> Result<bool, Error> {
+        self.can_user(caps, roles, cap, None)
+    }
+
+    /// Whether the current user is allowed `cap` against a user object.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Unavailable`] when a loaded user cannot read the caps store.
+    pub fn can_user<C: Store>(
+        &self,
+        caps: &mut Caps<C>,
+        roles: &RoleTable,
+        cap: &[u8],
+        target: Option<UserId>,
+    ) -> Result<bool, Error> {
         if let Some(id) = self.id() {
-            caps.can(id, roles, cap)
+            caps.can_user(id, roles, cap, target)
         } else {
-            let mapped = map_meta(cap, Actor::Anonymous);
+            let mapped = map_user(cap, Actor::Anonymous, target);
             let required: Vec<&[u8]> = mapped.names().collect();
             Ok(GrantMap::empty().has(&required))
         }

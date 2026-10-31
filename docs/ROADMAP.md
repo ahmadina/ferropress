@@ -137,6 +137,7 @@ Status legend: `[x]` done · `[ ]` not started
   - [x] `cms-auth`: primitive capability check (exist / do_not_allow)
   - [x] `cms-auth`: map single-site cap aliases to primitives
   - [x] `cms-auth`: current user capability check
+  - [x] `cms-auth`: map edit_user and remove_user object ids
 
 ## Phase 6 — Rendering
 

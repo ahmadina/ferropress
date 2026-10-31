@@ -18,6 +18,10 @@ pub struct Mapped {
 }
 
 impl Mapped {
+    fn empty() -> Self {
+        Self { names: Vec::new() }
+    }
+
     fn one(name: &[u8]) -> Self {
         Self {
             names: vec![Box::from(name)],
@@ -39,10 +43,25 @@ impl Mapped {
 /// Primitive names required for `cap` on a single site with no object id.
 #[must_use]
 pub fn map_meta(cap: &[u8], actor: Actor) -> Mapped {
+    map_user(cap, actor, None)
+}
+
+/// Primitive names required for `cap` when the object may be a user id.
+#[must_use]
+pub fn map_user(cap: &[u8], actor: Actor, target: Option<UserId>) -> Mapped {
     match cap {
-        b"edit_user" | b"edit_users" => match actor {
+        b"edit_user" => match (actor, target) {
+            (Actor::Anonymous, _) => Mapped::one(b"do_not_allow"),
+            (Actor::User(id), Some(target)) if id == target => Mapped::empty(),
+            (Actor::User(_), _) => Mapped::one(b"edit_users"),
+        },
+        b"edit_users" => match actor {
             Actor::Anonymous => Mapped::one(b"do_not_allow"),
             Actor::User(_) => Mapped::one(b"edit_users"),
+        },
+        b"remove_user" => match (actor, target) {
+            (Actor::User(id), Some(target)) if id == target => Mapped::one(b"do_not_allow"),
+            (_, _) => Mapped::one(b"remove_users"),
         },
         b"update_https" => Mapped::pair(b"manage_options", b"update_core"),
         b"delete_site" => Mapped::one(b"do_not_allow"),
@@ -67,7 +86,6 @@ fn alias(cap: &[u8]) -> &[u8] {
 const ALIASES: &[(&[u8], &[u8])] = &[
     (b"promote_user", b"promote_users"),
     (b"add_users", b"promote_users"),
-    (b"remove_user", b"remove_users"),
     (b"delete_user", b"delete_users"),
     (b"delete_users", b"delete_users"),
     (b"resume_plugin", b"resume_plugins"),
@@ -104,7 +122,7 @@ const BLOCKS: &[(&[u8], &[u8])] = &[
 mod tests {
     use cms_users::UserId;
 
-    use super::{Actor, map_meta};
+    use super::{Actor, map_meta, map_user};
 
     fn user() -> Actor {
         let id = UserId::new(3);
@@ -172,5 +190,36 @@ mod tests {
         assert_names(b"edit_user", Actor::Anonymous, &[b"do_not_allow"]);
         assert_names(b"edit_users", Actor::Anonymous, &[b"do_not_allow"]);
         assert_names(b"manage_options", Actor::Anonymous, &[b"manage_options"]);
+    }
+
+    fn assert_user(cap: &[u8], actor: Actor, target: Option<UserId>, expected: &[&[u8]]) {
+        let mapped = map_user(cap, actor, target);
+        let names: Vec<&[u8]> = mapped.names().collect();
+        assert_eq!(names, expected);
+    }
+
+    #[test]
+    fn user_object_self_and_other() {
+        let id = UserId::new(3);
+        let other = UserId::new(9);
+        assert!(id.is_ok() && other.is_ok());
+        if let (Ok(id), Ok(other)) = (id, other) {
+            let actor = Actor::User(id);
+            assert_user(b"edit_user", actor, Some(id), &[]);
+            assert_user(b"edit_user", actor, Some(other), &[b"edit_users"]);
+            assert_user(b"edit_user", actor, None, &[b"edit_users"]);
+            assert_user(b"edit_users", actor, Some(id), &[b"edit_users"]);
+            assert_user(b"remove_user", actor, Some(id), &[b"do_not_allow"]);
+            assert_user(b"remove_user", actor, Some(other), &[b"remove_users"]);
+            assert_user(b"remove_user", actor, None, &[b"remove_users"]);
+            assert_user(b"customize", actor, Some(id), &[b"edit_theme_options"]);
+            assert_user(b"edit_user", Actor::Anonymous, Some(id), &[b"do_not_allow"]);
+            assert_user(
+                b"remove_user",
+                Actor::Anonymous,
+                Some(id),
+                &[b"remove_users"],
+            );
+        }
     }
 }

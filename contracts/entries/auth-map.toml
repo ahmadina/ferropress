@@ -2,10 +2,10 @@ schema = 1
 id = "auth-map"
 title = "Single-site capability mapping to primitives"
 summary = """
-A capability name is remapped to one or two primitives on a single site with no
-object id. Anonymous actors cannot edit users. delete_site is always denied.
-Other listed aliases follow the measured remaps. Names without a listed remap
-keep their own name. Object-id, option, file-mod and network cases are not bound.
+A capability name is remapped to primitives on a single site. edit_user against
+the same stored actor requires no primitives. remove_user against self is
+denied. Anonymous actors cannot edit users. delete_site is always denied.
+Post, option, file-mod and network cases are not bound.
 """
 upstream = [
     "wp-includes/capabilities.php",
@@ -19,6 +19,10 @@ tests = [
     "crates/cms-auth/tests/map.rs::anonymous_cannot_edit_users",
     "crates/cms-auth/tests/map.rs::can_uses_mapped_names",
     "crates/cms-auth/tests/map.rs::unavailable_store_is_an_error",
+    "crates/cms-auth/tests/map_user.rs::self_edit_requires_no_primitives",
+    "crates/cms-auth/tests/map_user.rs::can_user_allows_self_edit_without_edit_users",
+    "crates/cms-auth/tests/map_user.rs::current_can_user_self_and_anonymous",
+    "crates/cms-auth/tests/map_user.rs::unavailable_store_is_an_error",
 ]
 
 [covers]
